@@ -1,0 +1,41 @@
+const { Assessment } = require('../models');
+
+exports.logDailyAssessment = async (req, res) => {
+  try {
+    const userId = req.userData.userId;
+    const { mood, symptoms, waterIntake, sleepHours, steps } = req.body;
+    const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+
+    // Look for today's record
+    const [assessment, created] = await Assessment.findOrCreate({
+      where: { userId, date: today },
+      defaults: { mood, symptoms, waterIntake, sleepHours, steps }
+    });
+
+    if (!created) {
+      // If it exists, update it with the new data
+      await assessment.update({ mood, symptoms, waterIntake, sleepHours, steps });
+    }
+
+    res.status(200).json({
+      message: created ? 'Daily log created!' : 'Daily log updated!',
+      data: assessment
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getAssessmentHistory = async (req, res) => {
+  try {
+    const userId = req.userData.userId;
+    const history = await Assessment.findAll({
+      where: { userId },
+      limit: 30,
+      order: [['date', 'DESC']]
+    });
+    res.status(200).json(history);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

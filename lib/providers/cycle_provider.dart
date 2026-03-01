@@ -1,0 +1,1097 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/app_notification_service.dart';
+import '../services/database_service.dart';
+import 'dart:convert';
+import 'dart:math';
+
+class CycleProvider extends ChangeNotifier {
+  final SharedPreferences _prefs; // Store reference to preferences
+
+  // User Info
+  String _userName = '';
+  DateTime? _lastPeriodDate;
+  int _cycleLength = 28;
+  int _periodDuration = 5;
+  int _age = 0;
+  String _userGender = 'Female';
+  int _weight = 60; // kg
+  int _height = 165; // cm
+  bool _bodyMetricsCompleted = false;
+
+  // Multi-Cycle History (stores start dates of past cycles)
+  List<DateTime> _cycleHistory = [];
+
+  // Daily Metrics
+  int _dailySteps = 0;
+  int _waterGlasses = 0;
+  double _sleepHours = 0.0;
+  String _currentMood = 'Good';
+
+  // Partner Tracking
+  bool _isTrackingForSomeoneElse = false;
+  String _trackedPersonName = '';
+  String _trackedPersonRelation = 'Partner';
+
+  // Symptom Tracking
+  List<String> _todaySymptoms = [];
+  final Map<DateTime, List<String>> _symptomHistory = {};
+
+  // Notes & Journal
+  final List<Map<String, dynamic>> _journalEntries = [];
+
+  // Wellness History (for charts)
+  Map<String, Map<String, dynamic>> _wellnessHistory = {};
+
+  // Predictions
+  DateTime? _nextPeriodDate;
+  DateTime? _ovulationDate;
+
+  // Constructor - Automatically loads data on startup
+  CycleProvider(this._prefs) {
+    _loadFromPrefs();
+  }
+
+  // --- PERSISTENCE LOGIC ---
+
+  void _loadFromPrefs() {
+    _userName = _prefs.getString('user_name') ?? '';
+    final dateStr = _prefs.getString('last_period_date');
+    if (dateStr != null) _lastPeriodDate = DateTime.parse(dateStr);
+
+    _cycleLength = _prefs.getInt('cycle_length') ?? 28;
+    _periodDuration = _prefs.getInt('period_duration') ?? 5;
+    _age = _prefs.getInt('age') ?? 0;
+    _userGender = _prefs.getString('user_gender') ?? 'Female';
+    _weight = _prefs.getInt('weight') ?? 60;
+    _height = _prefs.getInt('height') ?? 165;
+    _bodyMetricsCompleted = _prefs.getBool('metrics_completed') ?? false;
+    _dailySteps = _prefs.getInt('daily_steps') ?? 0;
+    _waterGlasses = _prefs.getInt('water_glasses') ?? 0;
+    _sleepHours = _prefs.getDouble('sleep_hours') ?? 0.0;
+
+    _isTrackingForSomeoneElse = _prefs.getBool('tracking_for_others') ?? false;
+    _trackedPersonName = _prefs.getString('tracked_person_name') ?? '';
+    _trackedPersonRelation = _prefs.getString('tracked_person_relation') ?? 'Partner';
+
+    // Load cycle history
+    final historyListJson = _prefs.getString('cycle_history');
+    if (historyListJson != null) {
+      final decoded = jsonDecode(historyListJson) as List<dynamic>;
+      _cycleHistory = decoded.map((e) => DateTime.parse(e as String)).toList();
+      _cycleHistory.sort();
+    }
+
+    // Load wellness history
+    final historyJson = _prefs.getString('wellness_history');
+    if (historyJson != null) {
+      final decoded = jsonDecode(historyJson) as Map<String, dynamic>;
+      _wellnessHistory =
+          decoded.map((k, v) => MapEntry(k, Map<String, dynamic>.from(v)));
+    }
+
+    _calculatePredictions();
+    notifyListeners();
+
+    // Fetch cloud history asynchronously to keep UI fast
+    _fetchCloudHistory();
+  }
+
+  Future<void> _fetchCloudHistory() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      final db = DatabaseService();
+
+      // Restore user profile from cloud
+      final profile = await db.getUserProfile(userId);
+      if (profile != null) {
+        bool updated = false;
+        if (_userName.isEmpty && (profile['name'] ?? '').isNotEmpty) {
+          _userName = profile['name'];
+          updated = true;
+        }
+        if (_age == 0 && (profile['age'] ?? 0) > 0) {
+          _age = profile['age'];
+          updated = true;
+        }
+        if (_weight == 60 && (profile['weight'] ?? 60) != 60) {
+          _weight = profile['weight'];
+          updated = true;
+        }
+        if (_height == 165 && (profile['height'] ?? 165) != 165) {
+          _height = profile['height'];
+          updated = true;
+        }
+        if (profile['cycle_length'] != null) {
+          _cycleLength = profile['cycle_length'];
+          updated = true;
+        }
+        if (profile['period_duration'] != null) {
+          _periodDuration = profile['period_duration'];
+          updated = true;
+        }
+        if (profile['tracking_for_others'] != null) {
+          _isTrackingForSomeoneElse = profile['tracking_for_others'] == true;
+          updated = true;
+        }
+        if (profile['tracked_person_name'] != null) {
+          _trackedPersonName = profile['tracked_person_name'];
+          updated = true;
+        }
+        if (profile['tracked_person_relation'] != null) {
+          _trackedPersonRelation = profile['tracked_person_relation'];
+          updated = true;
+        }
+        if (updated) {
+          await _saveToPrefs();
+        }
+      }
+
+      // Restore cycle history from cloud
+      final cloudCycles = await db.getCycles(userId);
+      if (cloudCycles.isNotEmpty) {
+        for (final cycle in cloudCycles) {
+          final startDate = DateTime.tryParse(cycle['start_date'] ?? '');
+          if (startDate != null) {
+            _addToCycleHistory(startDate);
+          }
+        }
+        // Update last period date if cloud has newer data
+        if (_cycleHistory.isNotEmpty) {
+          final latest = _cycleHistory.last;
+          if (_lastPeriodDate == null || latest.isAfter(_lastPeriodDate!)) {
+            _lastPeriodDate = latest;
+          }
+        }
+        _calculatePredictions();
+        await _saveToPrefs();
+      }
+
+      // Restore assessments (wellness history) from cloud
+      final cloudAssessments = await db.getAssessments(userId);
+      if (cloudAssessments.isNotEmpty) {
+        bool historyUpdated = false;
+        for (final a in cloudAssessments) {
+          final dateStr = a['date'];
+          if (dateStr == null) continue;
+          final key = dateStr.toString().split('T')[0];
+          // Only add if not already in local history
+          if (!_wellnessHistory.containsKey(key)) {
+            _wellnessHistory[key] = {
+              'water': a['water_intake'] ?? 0,
+              'sleep': (a['sleep_hours'] ?? 0.0).toDouble(),
+              'steps': a['steps'] ?? 0,
+              'mood': a['mood'] ?? 'Good',
+              'symptoms': a['symptoms'] != null
+                  ? List<String>.from(a['symptoms'])
+                  : <String>[],
+            };
+            historyUpdated = true;
+          }
+        }
+        if (historyUpdated) {
+          await _saveToPrefs();
+        }
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Cloud fetch error: $e');
+    }
+  }
+
+  /// Public method to trigger cloud data loading (e.g., after login).
+  Future<void> loadFromCloud() async {
+    await _fetchCloudHistory();
+  }
+
+  /// Sync user profile to cloud.
+  Future<void> syncProfileToCloud() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    final email = Supabase.instance.client.auth.currentUser?.email;
+    if (userId == null) return;
+    try {
+      await DatabaseService().saveUserProfile(
+        uid: userId,
+        email: email ?? '',
+        name: _userName,
+        cycleLength: _cycleLength,
+        periodDuration: _periodDuration,
+        age: _age,
+        weight: _weight,
+        height: _height,
+      );
+      // We can also save the new non-standard fields to our users table if we update DatabaseService
+      // but for now relying on local _saveToPrefs for partner fields, or pass them if DatabaseService supports it.
+      // (Assuming `saveUserProfile` doesn't support them yet, wait, we should update saveUserProfile too)
+    } catch (e) {
+      debugPrint('Cloud sync error (profile): $e');
+    }
+  }
+
+  /// Update user profile data locally and sync to cloud
+  Future<void> updateProfile({
+    required String name,
+    required String gender,
+    required int age,
+    required int height,
+    required int weight,
+    required int cycleLength,
+    required int periodDuration,
+    bool isTrackingForSomeoneElse = false,
+    String trackedPersonName = '',
+    String trackedPersonRelation = 'Partner',
+  }) async {
+    _userName = name;
+    _userGender = gender;
+    _age = age;
+    _height = height;
+    _weight = weight;
+    _cycleLength = cycleLength;
+    _periodDuration = periodDuration;
+    _isTrackingForSomeoneElse = isTrackingForSomeoneElse;
+    _trackedPersonName = trackedPersonName;
+    _trackedPersonRelation = trackedPersonRelation;
+
+    await _saveToPrefs();
+    notifyListeners();
+    await syncProfileToCloud();
+  }
+
+  Future<void> _saveToPrefs() async {
+    await _prefs.setString('user_name', _userName);
+    if (_lastPeriodDate != null) {
+      await _prefs.setString(
+          'last_period_date', _lastPeriodDate!.toIso8601String());
+    }
+    await _prefs.setInt('cycle_length', _cycleLength);
+    await _prefs.setInt('period_duration', _periodDuration);
+    await _prefs.setInt('age', _age);
+    await _prefs.setString('user_gender', _userGender);
+    await _prefs.setInt('weight', _weight);
+    await _prefs.setInt('height', _height);
+    await _prefs.setBool('metrics_completed', _bodyMetricsCompleted);
+    await _prefs.setInt('daily_steps', _dailySteps);
+    await _prefs.setInt('water_glasses', _waterGlasses);
+    await _prefs.setDouble('sleep_hours', _sleepHours);
+    await _prefs.setBool('tracking_for_others', _isTrackingForSomeoneElse);
+    await _prefs.setString('tracked_person_name', _trackedPersonName);
+    await _prefs.setString('tracked_person_relation', _trackedPersonRelation);
+    await _prefs.setString('wellness_history', jsonEncode(_wellnessHistory));
+    // Persist cycle history
+    await _prefs.setString('cycle_history',
+        jsonEncode(_cycleHistory.map((d) => d.toIso8601String()).toList()));
+  }
+
+  // Getters - User Info
+  String get userName => _userName;
+  DateTime? get lastPeriodDate => _lastPeriodDate;
+  int get cycleLength => _cycleLength;
+  int get periodDuration => _periodDuration;
+  int get age => _age;
+  String get userGender => _userGender;
+  int get weight => _weight;
+  int get height => _height;
+  bool get bodyMetricsCompleted => _bodyMetricsCompleted;
+
+  // Partner Tracking Getters
+  bool get isTrackingForSomeoneElse => _isTrackingForSomeoneElse;
+  String get trackedPersonName => _trackedPersonName;
+  String get trackedPersonRelation => _trackedPersonRelation;
+  
+  // Dynamic name getter for UI (e.g. "Your Cycle" vs "Sarah's Cycle")
+  String get cycleOwnerName => _isTrackingForSomeoneElse && _trackedPersonName.isNotEmpty 
+      ? "$_trackedPersonName's" 
+      : "Your";
+
+  // Dynamic symptom prompt getter
+  String get symptomPromptName => _isTrackingForSomeoneElse && _trackedPersonName.isNotEmpty 
+      ? "Log $_trackedPersonName's symptoms" 
+      : "Log your symptoms";
+
+  // Getters - Daily Metrics
+  int get dailySteps => _dailySteps;
+  int get waterGlasses => _waterGlasses;
+  double get sleepHours => _sleepHours;
+  String get currentMood => _currentMood;
+
+  // Getters - Symptoms
+  List<String> get todaySymptoms => _todaySymptoms;
+  Map<DateTime, List<String>> get symptomHistory => _symptomHistory;
+
+  // Getters - Journal
+  List<Map<String, dynamic>> get journalEntries => _journalEntries;
+
+  // Getters - Wellness History
+  Map<String, Map<String, dynamic>> get wellnessHistory => _wellnessHistory;
+
+  /// Returns the last [days] days of wellness data, sorted by date.
+  List<Map<String, dynamic>> getWellnessHistory(int days) {
+    final now = DateTime.now();
+    final result = <Map<String, dynamic>>[];
+    for (int i = days - 1; i >= 0; i--) {
+      final date =
+          DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
+      final key = date.toIso8601String().split('T')[0];
+      final entry = _wellnessHistory[key];
+      result.add({
+        'date': date,
+        'dateKey': key,
+        'water': entry?['water'] ?? 0,
+        'sleep': (entry?['sleep'] ?? 0.0).toDouble(),
+        'steps': entry?['steps'] ?? 0,
+        'mood': entry?['mood'] ?? 'Good',
+        'symptoms': entry?['symptoms'] != null
+            ? List<String>.from(entry!['symptoms'])
+            : <String>[],
+      });
+    }
+    return result;
+  }
+
+  /// Saves today's metrics as a daily snapshot for historical charting.
+  Future<void> _saveDailySnapshot() async {
+    final today = DateTime.now();
+    final key = DateTime(today.year, today.month, today.day)
+        .toIso8601String()
+        .split('T')[0];
+
+    final snapshot = {
+      'water': _waterGlasses,
+      'sleep': _sleepHours,
+      'steps': _dailySteps,
+      'mood': _currentMood,
+      'symptoms': List<String>.from(_todaySymptoms),
+    };
+
+    _wellnessHistory[key] = snapshot;
+
+    // Sync daily assessment to cloud
+    _syncDailySnapshotToCloud(key);
+  }
+
+  /// Returns aggregated symptom counts across the last [days] days.
+  Map<String, int> getSymptomFrequency(int days) {
+    final history = getWellnessHistory(days);
+    final freq = <String, int>{};
+    for (final entry in history) {
+      for (final symptom in (entry['symptoms'] as List<String>)) {
+        freq[symptom] = (freq[symptom] ?? 0) + 1;
+      }
+    }
+    // Sort by frequency descending
+    final sorted = freq.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return Map.fromEntries(sorted);
+  }
+
+  // Getters - Predictions
+  DateTime? get nextPeriodDate => _nextPeriodDate;
+  DateTime? get ovulationDate => _ovulationDate;
+
+  // ─── MULTI-CYCLE INTELLIGENCE ────────────────────────
+
+  /// Returns the list of past cycle start dates.
+  List<DateTime> get cycleHistory => List.unmodifiable(_cycleHistory);
+
+  /// Adaptive cycle length computed from historical data.
+  /// Falls back to user-set cycle length if fewer than 2 cycles tracked.
+  int get adaptiveCycleLength {
+    if (_cycleHistory.length < 2) return _cycleLength;
+    final gaps = <int>[];
+    for (int i = 1; i < _cycleHistory.length; i++) {
+      gaps.add(_cycleHistory[i].difference(_cycleHistory[i - 1]).inDays);
+    }
+    // Filter out outliers (< 18 or > 45 days)
+    final valid = gaps.where((g) => g >= 18 && g <= 45).toList();
+    if (valid.isEmpty) return _cycleLength;
+    return (valid.reduce((a, b) => a + b) / valid.length).round();
+  }
+
+  /// The effective cycle length used for all calculations.
+  int get effectiveCycleLength => adaptiveCycleLength;
+
+  /// Dynamic ovulation day based on luteal phase (consistently ~14 days).
+  int get _ovulationDay => effectiveCycleLength - 14;
+
+  // Calculated Properties
+  int get currentCycleDay {
+    if (_lastPeriodDate == null) return 1;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final lastStart = DateTime(
+        _lastPeriodDate!.year, _lastPeriodDate!.month, _lastPeriodDate!.day);
+
+    final daysSinceStart = today.difference(lastStart).inDays;
+    return (daysSinceStart % effectiveCycleLength) + 1;
+  }
+
+  /// Dynamic phase calculation based on actual cycle length.
+  /// Menstrual: 1 → periodDuration
+  /// Follicular: periodDuration+1 → ovulationDay-2
+  /// Ovulation: ovulationDay-1 → ovulationDay+1 (3-day window)
+  /// Luteal: ovulationDay+2 → cycleLength
+  String get currentPhase => _getPhaseForDay(currentCycleDay);
+
+  String _getPhaseForDay(int day) {
+    if (day <= _periodDuration) return 'Menstrual';
+    final ovDay = _ovulationDay;
+    if (day < ovDay - 1) return 'Follicular';
+    if (day <= ovDay + 1) return 'Ovulation';
+    return 'Luteal';
+  }
+
+  int get daysUntilNextPeriod {
+    if (_lastPeriodDate == null) return 0;
+    final day = currentCycleDay;
+    return effectiveCycleLength - (day - 1);
+  }
+
+  bool get isOnPeriod => currentCycleDay <= _periodDuration;
+
+  // ─── PERIOD CONFIRMATION LOOP ──────────────────────
+
+  /// Whether to show "Did your period start?" prompt.
+  /// Shows when user is within ±2 days of predicted period start
+  /// and hasn't been asked/dismissed today.
+  bool get shouldShowPeriodConfirmation {
+    if (_lastPeriodDate == null || _nextPeriodDate == null) return false;
+    // Don't show if already on period (days 1-2)
+    if (currentCycleDay <= 2) return false;
+    // Check if we're near the predicted period (within 2 days)
+    final daysLeft = daysUntilNextPeriod;
+    if (daysLeft > 2) return false; // Too early
+    // Check if already dismissed today
+    final lastDismissed = _prefs.getString('period_confirm_dismissed');
+    if (lastDismissed != null) {
+      final dismissedDate = DateTime.tryParse(lastDismissed);
+      if (dismissedDate != null) {
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final dismissed = DateTime(dismissedDate.year, dismissedDate.month, dismissedDate.day);
+        if (today.isAtSameMomentAs(dismissed)) return false;
+      }
+    }
+    return true;
+  }
+
+  /// User confirms their period started today.
+  void confirmPeriodStarted() {
+    final today = DateTime.now();
+    setLastPeriodDate(DateTime(today.year, today.month, today.day));
+    // Clear the dismiss flag
+    _prefs.remove('period_confirm_dismissed');
+    notifyListeners();
+  }
+
+  /// User says "Not yet" — dismiss for today.
+  void dismissPeriodConfirmation() {
+    _prefs.setString('period_confirm_dismissed',
+        DateTime.now().toIso8601String());
+    notifyListeners();
+  }
+
+  // ─── FERTILE WINDOW (Clinical Model) ─────────────────
+
+  /// Fertile window: 5 days before ovulation + ovulation day = 6 days total.
+  DateTime? get fertileWindowStart {
+    if (_ovulationDate == null) return null;
+    return _ovulationDate!.subtract(const Duration(days: 5));
+  }
+
+  DateTime? get fertileWindowEnd => _ovulationDate;
+
+  int get daysUntilFertileWindow {
+    if (fertileWindowStart == null) return 0;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final diff = fertileWindowStart!.difference(today).inDays;
+    return diff < 0 ? 0 : diff;
+  }
+
+  bool get isInFertileWindow {
+    final day = currentCycleDay;
+    final ovDay = _ovulationDay;
+    return day >= (ovDay - 5) && day <= ovDay;
+  }
+
+  // ─── CYCLE REGULARITY & STATISTICS ───────────────────
+
+  /// Cycle lengths computed from history.
+  List<int> get _historicalCycleLengths {
+    if (_cycleHistory.length < 2) return [];
+    final lengths = <int>[];
+    for (int i = 1; i < _cycleHistory.length; i++) {
+      final gap = _cycleHistory[i].difference(_cycleHistory[i - 1]).inDays;
+      if (gap >= 18 && gap <= 45) lengths.add(gap);
+    }
+    return lengths;
+  }
+
+  int get shortestCycle {
+    final lengths = _historicalCycleLengths;
+    if (lengths.isEmpty) return _cycleLength;
+    return lengths.reduce(min);
+  }
+
+  int get longestCycle {
+    final lengths = _historicalCycleLengths;
+    if (lengths.isEmpty) return _cycleLength;
+    return lengths.reduce(max);
+  }
+
+  int get cycleLengthVariation => longestCycle - shortestCycle;
+
+  /// A cycle is considered irregular if variation > 7 days.
+  bool get isCycleIrregular => cycleLengthVariation > 7;
+
+  /// Human-readable irregularity warning.
+  String? get irregularityWarning {
+    if (_cycleHistory.length < 3) return null;
+    if (!isCycleIrregular) return null;
+    return 'Your cycles vary by $cycleLengthVariation days '
+        '(${shortestCycle}–${longestCycle} days). '
+        'This variation is above average. Consider discussing with your doctor.';
+  }
+
+  int get totalCyclesTracked => _cycleHistory.length;
+
+  // ─── PHASE-SPECIFIC SYMPTOM ANALYSIS ─────────────────
+
+  /// Groups historical symptoms by which cycle phase they occurred in.
+  Map<String, Map<String, int>> get symptomsByPhase {
+    if (_lastPeriodDate == null || _wellnessHistory.isEmpty) return {};
+    final result = <String, Map<String, int>>{
+      'Menstrual': {},
+      'Follicular': {},
+      'Ovulation': {},
+      'Luteal': {},
+    };
+    for (final entry in _wellnessHistory.entries) {
+      final date = DateTime.tryParse(entry.key);
+      if (date == null) continue;
+      final symptoms = entry.value['symptoms'];
+      if (symptoms == null) continue;
+      final phase = getPhaseForDate(date);
+      if (!result.containsKey(phase)) continue;
+      for (final s in List<String>.from(symptoms)) {
+        result[phase]![s] = (result[phase]![s] ?? 0) + 1;
+      }
+    }
+    return result;
+  }
+
+  /// Returns the top symptoms for the current phase based on history.
+  List<String> get topSymptomsForCurrentPhase {
+    final phaseSymptoms = symptomsByPhase[currentPhase];
+    if (phaseSymptoms == null || phaseSymptoms.isEmpty) return [];
+    final sorted = phaseSymptoms.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return sorted.take(3).map((e) => e.key).toList();
+  }
+
+  // ─── ENHANCED AI CONTEXT ────────────────────────────
+
+  String get aiUserContext {
+    final fertileInfo = isInFertileWindow
+        ? 'Currently in fertile window.'
+        : (daysUntilFertileWindow > 0
+            ? 'Fertile window in $daysUntilFertileWindow days.'
+            : '');
+    final irregularInfo =
+        isCycleIrregular ? 'Cycle is irregular (variation: $cycleLengthVariation days).' : 'Cycle is regular.';
+    final historyInfo = _cycleHistory.length >= 2
+        ? 'Tracking ${_cycleHistory.length} cycles. Average length: $adaptiveCycleLength days ($shortestCycle–$longestCycle range).'
+        : 'Limited cycle history available.';
+
+    return """
+    User Profile: $_userName (Age: $_age, Gender: $_userGender).
+    Current Cycle Status: Day $currentCycleDay of $effectiveCycleLength, $currentPhase phase. $daysUntilNextPeriod days until next period.
+    $fertileInfo $irregularInfo
+    $historyInfo
+    Body Metrics: BMI ${bmi.toStringAsFixed(1)} (Weight: ${_weight}kg, Height: ${_height}cm).
+    Today's Progress: $_dailySteps steps, $_waterGlasses glasses of water, $_sleepHours hrs sleep.
+    Recent Symptoms: ${_todaySymptoms.isEmpty ? "No symptoms reported today" : _todaySymptoms.join(", ")}.
+    Common symptoms in $currentPhase phase: ${topSymptomsForCurrentPhase.isEmpty ? 'None recorded yet' : topSymptomsForCurrentPhase.join(', ')}.
+    """;
+  }
+
+  // ─── DYNAMIC GREETINGS ──────────────────────────────
+
+  /// Generates an empathetic greeting with 20+ variations across phases.
+  String get dynamicGreeting {
+    if (_lastPeriodDate == null) return 'How are you feeling today?';
+
+    final day = currentCycleDay;
+    final phase = currentPhase;
+    final rng = Random(DateTime.now().day); // Consistent per day
+
+    final greetings = <String, List<String>>{
+      'Menstrual': [
+        'Be gentle with yourself today. Rest if you need it. 💜',
+        'Your body is doing amazing work. Stay hydrated and nourished.',
+        'It\'s okay to slow down. Honor what your body needs today.',
+        'Wrap yourself in comfort today — you deserve it.',
+        'Warm tea and rest can work wonders today. Take it easy.',
+      ],
+      'Follicular': [
+        'Energy is returning! A great time to start new things. ✨',
+        'You\'re glowing! High energy makes this a perfect day to focus.',
+        'Your body is rebuilding. Channel this fresh energy into something new.',
+        'Creativity peaks now — perfect for brainstorming and planning.',
+        'Rising estrogen is boosting your mood. Embrace it!',
+      ],
+      'Ovulation': [
+        'Peak energy! You are radiating confidence today. 🌟',
+        'You\'re at your most magnetic! A great day for social connections.',
+        'Your body is at peak performance — make the most of it!',
+        'Energy and mood are at their highest. Enjoy this vibrant phase!',
+        'Communication skills peak now — great for important conversations.',
+      ],
+      'Luteal': day > effectiveCycleLength - 5
+          ? [
+              'Your cycle is winding down. Time to slow down and cozy up.',
+              'PMS may visit soon. Extra self-care is your best friend.',
+              'Be extra kind to yourself — mood shifts are completely normal.',
+              'Your period is approaching. Stock up on comfort essentials.',
+              'Almost there. Listen to your cravings — your body knows.',
+            ]
+          : [
+              'Take it easy today. Listen to what your body needs.',
+              'Energy might dip today. Try some light stretching or yoga.',
+              'Progesterone is rising — you may crave cozy activities.',
+              'Nesting mode activated! A calm evening sounds perfect.',
+              'Your body is preparing. Prioritize sleep tonight.',
+            ],
+    };
+
+    final options = greetings[phase] ?? ['How are you feeling today?'];
+    return options[rng.nextInt(options.length)];
+  }
+
+  // ─── ENHANCED PREDICTIVE INSIGHTS ───────────────────
+
+  /// Phase-aware predictive insights with transition alerts and symptom predictions.
+  String? get predictiveInsight {
+    if (_lastPeriodDate == null) return null;
+
+    final day = currentCycleDay;
+    final phase = currentPhase;
+    final ovDay = _ovulationDay;
+    final cycleLen = effectiveCycleLength;
+
+    // Irregularity alert (highest priority)
+    if (irregularityWarning != null && day == 1) {
+      return irregularityWarning;
+    }
+
+    // Phase transition alerts
+    if (day == _periodDuration) {
+      return 'Your period is ending soon. Energy should start improving tomorrow as you enter the Follicular phase.';
+    }
+    if (day == ovDay - 2) {
+      return 'You\'ll enter your fertile window tomorrow. This is when energy and libido typically peak.';
+    }
+    if (day == ovDay + 1) {
+      return 'Ovulation is likely today or yesterday. You\'re transitioning into the Luteal phase.';
+    }
+    if (day == cycleLen - 5) {
+      return 'PMS window begins around now. Watch for mood shifts, cravings, and bloating in the next few days.';
+    }
+    if (day == cycleLen - 2) {
+      return 'You are 2 days away from your period. You might notice changes in energy or mood tomorrow.';
+    }
+    if (day == cycleLen) {
+      return 'Your period may start tomorrow based on your ${_cycleHistory.length >= 2 ? 'average' : 'estimated'} cycle of $cycleLen days.';
+    }
+
+    // Symptom-based predictions (using phase history)
+    if (_wellnessHistory.isNotEmpty) {
+      final phaseSymptoms = symptomsByPhase[phase];
+      if (phaseSymptoms != null && phaseSymptoms.isNotEmpty) {
+        final sorted = phaseSymptoms.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+        final topSymptom = sorted.first.key;
+        if (!_todaySymptoms.contains(topSymptom) && sorted.first.value >= 3) {
+          return 'During $phase phase, you commonly experience $topSymptom. Keep an eye out and prepare accordingly.';
+        }
+      }
+    }
+
+    // Fertile window insight
+    if (isInFertileWindow) {
+      return 'You\'re in your fertile window — energy and mood tend to be at their best!';
+    }
+
+    return null;
+  }
+
+  // Setters - User Info
+  void updateUserName(String name) {
+    _userName = name;
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  void setUserName(String name) {
+    _userName = name;
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  void setAge(int age) {
+    _age = age;
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  void setUserGender(String gender) {
+    _userGender = gender;
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  void setLastPeriodDate(DateTime date) {
+    _lastPeriodDate = date;
+    _addToCycleHistory(date);
+    _calculatePredictions();
+    _saveToPrefs();
+    _updateReminders();
+    _syncPeriodStartToCloud(date);
+    notifyListeners();
+  }
+
+  void updateLastPeriodDate(DateTime date) {
+    _lastPeriodDate = date;
+    _addToCycleHistory(date);
+    _calculatePredictions();
+    _saveToPrefs();
+    _updateReminders();
+    _syncPeriodStartToCloud(date);
+    notifyListeners();
+  }
+
+  /// Logs a new period start date to the multi-cycle history.
+  /// Keeps max 12 cycles and avoids duplicates within 15 days.
+  void _addToCycleHistory(DateTime date) {
+    final normalized = DateTime(date.year, date.month, date.day);
+    // Avoid duplicate entries (within 15 days of an existing entry)
+    final isDuplicate = _cycleHistory.any(
+        (d) => (d.difference(normalized).inDays).abs() < 15);
+    if (!isDuplicate) {
+      _cycleHistory.add(normalized);
+      _cycleHistory.sort();
+      // Keep max 12 cycles
+      if (_cycleHistory.length > 12) {
+        _cycleHistory = _cycleHistory.sublist(_cycleHistory.length - 12);
+      }
+    }
+  }
+
+  /// Manually log a new period start (can be called from UI).
+  void logNewPeriod(DateTime startDate) {
+    setLastPeriodDate(startDate);
+  }
+
+  Future<void> _syncPeriodStartToCloud(DateTime date) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    try {
+      await DatabaseService().upsertCycle(
+        userId: userId,
+        startDate: date,
+      );
+    } catch (e) {
+      debugPrint('Cloud sync error (cycle): $e');
+    }
+  }
+
+  Future<void> _syncDailySnapshotToCloud(String dateKey) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    final snapshot = _wellnessHistory[dateKey];
+    if (snapshot == null) return;
+    try {
+      await DatabaseService().upsertAssessment(
+        userId: userId,
+        date: DateTime.parse(dateKey),
+        mood: snapshot['mood'] as String?,
+        symptoms: snapshot['symptoms'] != null
+            ? List<String>.from(snapshot['symptoms'])
+            : null,
+        waterIntake: (snapshot['water'] ?? 0) as int,
+        sleepHours: (snapshot['sleep'] ?? 0.0).toDouble(),
+        steps: (snapshot['steps'] ?? 0) as int,
+      );
+    } catch (e) {
+      debugPrint('Cloud sync error (assessment): $e');
+    }
+  }
+
+  void setCycleLength(int length) {
+    _cycleLength = length;
+    _calculatePredictions();
+    _saveToPrefs();
+    _updateReminders();
+    notifyListeners();
+  }
+
+  void updateCycleLength(int length) {
+    _cycleLength = length;
+    _calculatePredictions();
+    _saveToPrefs();
+    _updateReminders();
+    notifyListeners();
+  }
+
+  void setPeriodDuration(int duration) {
+    _periodDuration = duration;
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  void updatePeriodLength(int length) {
+    _periodDuration = length;
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  void setWeight(int weight) {
+    _weight = weight;
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  void setHeight(int height) {
+    _height = height;
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  void setBodyMetricsCompleted(bool completed) {
+    _bodyMetricsCompleted = completed;
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  double get bmi {
+    if (_height == 0) return 0;
+    final heightInMeters = _height / 100;
+    return _weight / (heightInMeters * heightInMeters);
+  }
+
+  // Daily Metrics Methods
+  void updateSteps(int steps) {
+    _dailySteps = steps;
+    _saveDailySnapshot();
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  void incrementSteps(int amount) {
+    _dailySteps += amount;
+    _saveDailySnapshot();
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  void updateWater(int glasses) {
+    _waterGlasses = glasses.clamp(0, 12);
+    _saveDailySnapshot();
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  void incrementWater() {
+    if (_waterGlasses < 12) {
+      _waterGlasses++;
+      _saveDailySnapshot();
+      _saveToPrefs();
+      notifyListeners();
+    }
+  }
+
+  void decrementWater() {
+    if (_waterGlasses > 0) {
+      _waterGlasses--;
+      _saveDailySnapshot();
+      _saveToPrefs();
+      notifyListeners();
+    }
+  }
+
+  void updateSleep(double hours) {
+    _sleepHours = hours.clamp(0.0, 24.0);
+    _saveDailySnapshot();
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  void updateMood(String mood) {
+    _currentMood = mood;
+    _saveDailySnapshot();
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  // Symptom Tracking Methods
+  void addSymptom(String symptom) {
+    if (!_todaySymptoms.contains(symptom)) {
+      _todaySymptoms.add(symptom);
+      _updateSymptomHistory();
+      notifyListeners();
+    }
+  }
+
+  void addQuickSymptom(String symptom) {
+    if (!_todaySymptoms.contains(symptom)) {
+      _todaySymptoms.add(symptom);
+      _saveDailySnapshot();
+      _saveToPrefs();
+      notifyListeners();
+    }
+  }
+
+  void removeSymptom(String symptom) {
+    _todaySymptoms.remove(symptom);
+    _updateSymptomHistory();
+    notifyListeners();
+  }
+
+  void setTodaySymptoms(List<String> symptoms) {
+    _todaySymptoms = symptoms;
+    _updateSymptomHistory();
+    notifyListeners();
+  }
+
+  void _updateSymptomHistory() {
+    final today = DateTime.now();
+    final todayKey = DateTime(today.year, today.month, today.day);
+    _symptomHistory[todayKey] = List.from(_todaySymptoms);
+  }
+
+  List<String> getSymptomsForDate(DateTime date) {
+    final dateKey = DateTime(date.year, date.month, date.day);
+    return _symptomHistory[dateKey] ?? [];
+  }
+
+  // ─── PREDICTION CALCULATIONS ────────────────────────
+
+  void _calculatePredictions() {
+    if (_lastPeriodDate == null) return;
+    final lastStart = DateTime(
+        _lastPeriodDate!.year, _lastPeriodDate!.month, _lastPeriodDate!.day);
+    _nextPeriodDate = lastStart.add(Duration(days: effectiveCycleLength));
+    // Ovulation: cycleLength - 14 days after last period start
+    _ovulationDate = lastStart.add(Duration(days: _ovulationDay));
+  }
+
+  // Trigger Notification Scheduling
+  void _updateReminders() {
+    if (_nextPeriodDate == null) return;
+    
+    final appNs = AppNotificationService();
+    
+    // Schedule Period Reminder
+    appNs.schedulePeriodReminder(
+      _nextPeriodDate!,
+      isTrackingForSomeoneElse: _isTrackingForSomeoneElse,
+      trackedPersonName: _trackedPersonName,
+    );
+    
+    // Schedule Fertile Window Reminder
+    if (fertileWindowStart != null) {
+      appNs.scheduleFertileWindowReminder(
+        fertileWindowStart!,
+        isTrackingForSomeoneElse: _isTrackingForSomeoneElse,
+        trackedPersonName: _trackedPersonName,
+      );
+    }
+    
+    // Reschedule Daily Reminder (to ensure strings are updated)
+    appNs.scheduleDailyReminder(
+      isTrackingForSomeoneElse: _isTrackingForSomeoneElse,
+      trackedPersonName: _trackedPersonName,
+    );
+  }
+
+  // Helper Methods for UI (Calendar Screen)
+  bool isOvulationDay(DateTime date) {
+  if (_lastPeriodDate == null) return false;
+  final targetDate = DateTime(date.year, date.month, date.day);
+  final lastStart = DateTime(
+      _lastPeriodDate!.year, _lastPeriodDate!.month, _lastPeriodDate!.day);
+
+  final daysSinceStart = targetDate.difference(lastStart).inDays;
+  if (daysSinceStart < 0) return false; // Before tracking started
+  final dayInCycle = (daysSinceStart % effectiveCycleLength) + 1;
+  // Ovulation day is typically 14 days before the end of the cycle
+  final ovDay = effectiveCycleLength - 14;
+  return dayInCycle == ovDay;
+}
+
+  String getPhaseForDate(DateTime date) {
+    if (_lastPeriodDate == null) return 'Unknown';
+    final daysSinceStart = date.difference(_lastPeriodDate!).inDays;
+    final day = (daysSinceStart % effectiveCycleLength) + 1;
+    return _getPhaseForDay(day);
+  }
+
+  bool isPeriodDay(DateTime date) {
+    if (_lastPeriodDate == null) return false;
+    final targetDate = DateTime(date.year, date.month, date.day);
+    final lastStart = DateTime(
+        _lastPeriodDate!.year, _lastPeriodDate!.month, _lastPeriodDate!.day);
+
+    final daysSinceStart = targetDate.difference(lastStart).inDays;
+    final dayInCycle = (daysSinceStart % effectiveCycleLength) + 1;
+    return dayInCycle >= 1 && dayInCycle <= _periodDuration;
+  }
+
+  /// Clinical fertile window: 5 days before ovulation + ovulation day.
+/// Now works for future predicted cycles using modular arithmetic.
+bool isFertileDay(DateTime date) {
+  if (_lastPeriodDate == null) return false;
+  final targetDate = DateTime(date.year, date.month, date.day);
+  final lastStart = DateTime(
+      _lastPeriodDate!.year, _lastPeriodDate!.month, _lastPeriodDate!.day);
+
+  final daysSinceStart = targetDate.difference(lastStart).inDays;
+  if (daysSinceStart < 0) return false;
+  final dayInCycle = (daysSinceStart % effectiveCycleLength) + 1;
+  final ovDay = effectiveCycleLength - 14;
+  // Clinical fertile window: 5 days before ovulation through ovulation day
+  return dayInCycle >= (ovDay - 5) && dayInCycle <= ovDay;
+}
+
+/// Whether this date is a predicted (future) date vs confirmed history.
+bool isPredictedDay(DateTime date) {
+  final targetDate = DateTime(date.year, date.month, date.day);
+  final today = DateTime.now();
+  final todayNorm = DateTime(today.year, today.month, today.day);
+  return targetDate.isAfter(todayNorm);
+}
+
+/// Returns which phase day this is within the cycle for background coloring.
+/// Returns: 'menstrual', 'follicular', 'ovulatory', 'luteal', or 'none'.
+String getPhaseTypeForDate(DateTime date) {
+  if (_lastPeriodDate == null) return 'none';
+  final targetDate = DateTime(date.year, date.month, date.day);
+  final lastStart = DateTime(
+      _lastPeriodDate!.year, _lastPeriodDate!.month, _lastPeriodDate!.day);
+
+  final daysSinceStart = targetDate.difference(lastStart).inDays;
+  if (daysSinceStart < 0) return 'none';
+  final dayInCycle = (daysSinceStart % effectiveCycleLength) + 1;
+  final ovDay = effectiveCycleLength - 14;
+
+  if (dayInCycle >= 1 && dayInCycle <= _periodDuration) return 'menstrual';
+  if (dayInCycle <= ovDay - 5) return 'follicular';
+  if (dayInCycle <= ovDay) return 'ovulatory';
+  return 'luteal';
+}
+}

@@ -1,0 +1,34 @@
+class UserModel {
+  final String uid;
+  final String email;
+  final String name;
+  final int cycleLength;
+
+  UserModel({
+    required this.uid,
+    required this.email,
+    this.name = '',
+    this.cycleLength = 28,
+  });
+
+  /// Convert to Map to send to Supabase
+  Map<String, dynamic> toMap() {
+    return {
+      'uid': uid,
+      'email': email,
+      'name': name,
+      'cycle_length': cycleLength,
+      'created_at': DateTime.now().toIso8601String(),
+    };
+  }
+
+  /// Create from Supabase response map
+  factory UserModel.fromMap(Map<String, dynamic> map) {
+    return UserModel(
+      uid: map['uid'] ?? '',
+      email: map['email'] ?? '',
+      name: map['name'] ?? '',
+      cycleLength: map['cycle_length'] ?? 28,
+    );
+  }
+}

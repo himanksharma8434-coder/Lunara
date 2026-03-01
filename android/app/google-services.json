@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "227886790166",
+    "project_id": "lunara-446ec",
+    "storage_bucket": "lunara-446ec.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:227886790166:android:960080b81f797ae2942737",
+        "android_client_info": {
+          "package_name": "com.example.lunara"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "227886790166-4gt3a9tr5n3vmphti2iinu9hvotqcrdg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSy_REPLACEME_OR_IGNORE_IF_NOT_FIREBASE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "227886790166-4gt3a9tr5n3vmphti2iinu9hvotqcrdg.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "227886790166-7h3b6o7jg8vdrk1ac7eeaan9n320m7vp.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.lunara"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

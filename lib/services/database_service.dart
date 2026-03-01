@@ -1,0 +1,282 @@
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/user_model.dart';
+
+class DatabaseService {
+  final SupabaseClient _db = Supabase.instance.client;
+
+  /// Helper to get the current authenticated user ID.
+  String? get _currentUserId => _db.auth.currentUser?.id;
+
+  // ─── USER PROFILE ──────────────────────────────────
+
+  /// Create or update the full user profile (upsert).
+  Future<void> saveUserProfile({
+    required String uid,
+    required String email,
+    String name = '',
+    int cycleLength = 28,
+    int periodDuration = 5,
+    int age = 0,
+    int weight = 60,
+    int height = 165,
+    bool trackingForOthers = false,
+    String trackedPersonName = '',
+    String trackedPersonRelation = 'Partner',
+  }) async {
+    try {
+      await _db.from('users').upsert({
+        'uid': uid,
+        'email': email,
+        'name': name,
+        'cycle_length': cycleLength,
+        'period_duration': periodDuration,
+        'age': age,
+        'weight': weight,
+        'height': height,
+        'tracking_for_others': trackingForOthers,
+        'tracked_person_name': trackedPersonName,
+        'tracked_person_relation': trackedPersonRelation,
+      });
+    } catch (e) {
+      debugPrint('Cloud sync error (saveUserProfile): $e');
+    }
+  }
+
+  /// Create or update user profile (upsert) — legacy method.
+  Future<void> saveUser(UserModel user) async {
+    try {
+      await _db.from('users').upsert(user.toMap());
+    } catch (e) {
+      debugPrint('Cloud sync error (saveUser): $e');
+    }
+  }
+
+  /// Get user data as a one-time fetch.
+  Future<Map<String, dynamic>?> getUserProfile(String uid) async {
+    try {
+      final response =
+          await _db.from('users').select().eq('uid', uid).maybeSingle();
+      return response;
+    } catch (e) {
+      debugPrint('Cloud fetch error (getUserProfile): $e');
+      return null;
+    }
+  }
+
+  /// Get user data as UserModel.
+  Future<UserModel?> getUser(String uid) async {
+    try {
+      final response =
+          await _db.from('users').select().eq('uid', uid).maybeSingle();
+      if (response != null) {
+        return UserModel.fromMap(response);
+      }
+    } catch (e) {
+      debugPrint('Cloud fetch error (getUser): $e');
+    }
+    return null;
+  }
+
+  /// Listen to user data in real-time.
+  Stream<UserModel?> getUserStream(String uid) {
+    return _db
+        .from('users')
+        .stream(primaryKey: ['uid'])
+        .eq('uid', uid)
+        .map((data) {
+          if (data.isNotEmpty) {
+            return UserModel.fromMap(data.first);
+          }
+          return null;
+        });
+  }
+
+  // ─── CYCLES ────────────────────────────────────────
+
+  /// Upsert a cycle record (avoids duplicates by user_id + start_date).
+  Future<void> upsertCycle({
+    required String userId,
+    required DateTime startDate,
+    DateTime? endDate,
+    int? cycleLength,
+  }) async {
+    try {
+      await _db.from('cycles').upsert(
+        {
+          'user_id': userId,
+          'start_date': startDate.toIso8601String().split('T')[0],
+          'end_date': endDate?.toIso8601String().split('T')[0],
+          'cycle_length': cycleLength,
+          'status': 'completed',
+        },
+        onConflict: 'user_id, start_date',
+      );
+    } catch (e) {
+      debugPrint('Cloud sync error (upsertCycle): $e');
+    }
+  }
+
+  /// Sync a batch of cycle start dates at once.
+  Future<void> syncCycleHistory({
+    required String userId,
+    required List<DateTime> cycleStartDates,
+  }) async {
+    try {
+      final rows = cycleStartDates.map((d) => {
+        'user_id': userId,
+        'start_date': d.toIso8601String().split('T')[0],
+        'status': 'completed',
+      }).toList();
+
+      await _db.from('cycles').upsert(
+        rows,
+        onConflict: 'user_id, start_date',
+      );
+    } catch (e) {
+      debugPrint('Cloud sync error (syncCycleHistory): $e');
+    }
+  }
+
+  /// Get all cycles for a user, sorted newest first.
+  Future<List<Map<String, dynamic>>> getCycles(String userId) async {
+    try {
+      final response = await _db
+          .from('cycles')
+          .select()
+          .eq('user_id', userId)
+          .order('start_date', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Cloud fetch error (getCycles): $e');
+      return [];
+    }
+  }
+
+  /// Log a new cycle period.
+  Future<void> addCycle(String userId, Map<String, dynamic> data) async {
+    try {
+      data['user_id'] = userId;
+      await _db.from('cycles').insert(data);
+    } catch (e) {
+      debugPrint('Cloud sync error (addCycle): $e');
+    }
+  }
+
+  /// Update a cycle record.
+  Future<void> updateCycle(int id, Map<String, dynamic> data) async {
+    try {
+      await _db.from('cycles').update(data).eq('id', id);
+    } catch (e) {
+      debugPrint('Cloud sync error (updateCycle): $e');
+    }
+  }
+
+  // ─── ASSESSMENTS ───────────────────────────────────
+
+  /// Upsert a daily assessment (avoids duplicates by user_id + date).
+  Future<void> upsertAssessment({
+    required String userId,
+    required DateTime date,
+    String? mood,
+    List<String>? symptoms,
+    int waterIntake = 0,
+    double sleepHours = 0,
+    int steps = 0,
+  }) async {
+    try {
+      await _db.from('assessments').upsert(
+        {
+          'user_id': userId,
+          'date': date.toIso8601String().split('T')[0],
+          'mood': mood,
+          'symptoms': symptoms ?? [],
+          'water_intake': waterIntake,
+          'sleep_hours': sleepHours,
+          'steps': steps,
+        },
+        onConflict: 'user_id, date',
+      );
+    } catch (e) {
+      debugPrint('Cloud sync error (upsertAssessment): $e');
+    }
+  }
+
+  /// Get assessment history for a user.
+  Future<List<Map<String, dynamic>>> getAssessments(String userId) async {
+    try {
+      final response = await _db
+          .from('assessments')
+          .select()
+          .eq('user_id', userId)
+          .order('date', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Cloud fetch error (getAssessments): $e');
+      return [];
+    }
+  }
+
+  /// Save a daily assessment (legacy insert).
+  Future<void> addAssessment(String userId, Map<String, dynamic> data) async {
+    try {
+      data['user_id'] = userId;
+      await _db.from('assessments').insert(data);
+    } catch (e) {
+      debugPrint('Cloud sync error (addAssessment): $e');
+    }
+  }
+
+  // ─── APPOINTMENTS ──────────────────────────────────
+
+  /// Add a new appointment.
+  Future<void> addAppointment(String userId, Map<String, dynamic> data) async {
+    try {
+      data['user_id'] = userId;
+      await _db.from('appointments').insert(data);
+    } catch (e) {
+      debugPrint('Cloud sync error (addAppointment): $e');
+    }
+  }
+
+  /// Get all appointments for a user.
+  Future<List<Map<String, dynamic>>> getAppointments(String userId) async {
+    try {
+      final response = await _db
+          .from('appointments')
+          .select()
+          .eq('user_id', userId)
+          .order('date', ascending: true);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Cloud fetch error (getAppointments): $e');
+      return [];
+    }
+  }
+
+  /// Update an appointment.
+  Future<void> updateAppointment(int id, Map<String, dynamic> data) async {
+    try {
+      await _db.from('appointments').update(data).eq('id', id);
+    } catch (e) {
+      debugPrint('Cloud sync error (updateAppointment): $e');
+    }
+  }
+
+  /// Delete an appointment.
+  Future<void> deleteAppointment(int id) async {
+    try {
+      await _db.from('appointments').delete().eq('id', id);
+    } catch (e) {
+      debugPrint('Cloud sync error (deleteAppointment): $e');
+    }
+  }
+
+  // ─── GENERIC HELPERS ───────────────────────────────
+
+  /// Stream any table's data in real-time for a specific user.
+  Stream<List<Map<String, dynamic>>> streamUserData(
+      String table, String userId) {
+    return _db.from(table).stream(primaryKey: ['id']).eq('user_id', userId);
+  }
+}
