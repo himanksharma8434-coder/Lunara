@@ -1,7 +1,6 @@
 // lib/screens/login_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import '../providers/cycle_provider.dart';
@@ -294,8 +293,9 @@ class _LoginScreenState extends State<LoginScreen>
                               }
                             } catch (e) {
                               if (context.mounted) Navigator.pop(context);
-                              if (context.mounted)
+                              if (context.mounted) {
                                 _showError(context, "An error occurred: $e");
+                              }
                             }
                           },
                           style: ElevatedButton.styleFrom(

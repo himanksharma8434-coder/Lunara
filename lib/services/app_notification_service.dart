@@ -41,7 +41,7 @@ class AppNotificationService extends ChangeNotifier {
 
     const settings =
         InitializationSettings(android: androidSettings, iOS: iosSettings);
-    await _notifications.initialize(settings);
+    await _notifications.initialize(settings: settings);
 
     // Load preferences
     final prefs = await SharedPreferences.getInstance();
@@ -69,7 +69,7 @@ class AppNotificationService extends ChangeNotifier {
     if (enable) {
       await scheduleDailyReminder();
     } else {
-      await _notifications.cancel(_dailyReminderId);
+      await _notifications.cancel(id: _dailyReminderId);
     }
     notifyListeners();
   }
@@ -80,8 +80,8 @@ class AppNotificationService extends ChangeNotifier {
     _cycleEnabled = enable;
 
     if (!enable) {
-      await _notifications.cancel(_periodReminderId);
-      await _notifications.cancel(_ovulationReminderId);
+      await _notifications.cancel(id: _periodReminderId);
+      await _notifications.cancel(id: _ovulationReminderId);
     }
     notifyListeners();
   }
@@ -103,19 +103,19 @@ class AppNotificationService extends ChangeNotifier {
     }
 
     final title = isTrackingForSomeoneElse
-        ? 'Log for ${trackedPersonName.isNotEmpty ? trackedPersonName : 'Partner'}'
-        : 'Time to reflect! 🌸';
+        ? "Log for ${trackedPersonName.isNotEmpty ? trackedPersonName : "Partner"}"
+        : "Time to reflect! 🌸";
         
     final body = isTrackingForSomeoneElse
-        ? 'Don\'t forget to log their symptoms and mood today!'
-        : 'Log your mood, water intake, and sleep to keep your wellness streaks going.';
+        ? "Don't forget to log their symptoms and mood today!"
+        : "Log your mood, water intake, and sleep to keep your wellness streaks going.";
 
     await _notifications.zonedSchedule(
-      _dailyReminderId,
-      title,
-      body,
-      scheduledDate,
-      const NotificationDetails(
+      id: _dailyReminderId,
+      title: title,
+      body: body,
+      scheduledDate: scheduledDate,
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'daily_channel',
           'Daily Reminders',
@@ -125,8 +125,6 @@ class AppNotificationService extends ChangeNotifier {
         iOS: DarwinNotificationDetails(),
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }
@@ -142,19 +140,19 @@ class AppNotificationService extends ChangeNotifier {
     if (reminderDate.isBefore(DateTime.now())) return;
 
     final title = isTrackingForSomeoneElse 
-        ? '${trackedPersonName.isNotEmpty ? trackedPersonName : 'Partner'}\'s Period is Approaching'
-        : 'Period approaching';
+        ? "${trackedPersonName.isNotEmpty ? trackedPersonName : "Partner"}'s Period is Approaching"
+        : "Period approaching";
         
     final body = isTrackingForSomeoneElse
-        ? 'Their period is predicted to start in 2 days. Time to be extra supportive!'
-        : 'Your cycle is expected to start in 2 days. Stay prepared! 🌸';
+        ? "Their period is predicted to start in 2 days. Time to be extra supportive!"
+        : "Your cycle is expected to start in 2 days. Stay prepared! 🌸";
 
     await _notifications.zonedSchedule(
-      _periodReminderId,
-      title,
-      body,
-      tz.TZDateTime.from(reminderDate, tz.local),
-      const NotificationDetails(
+      id: _periodReminderId,
+      title: title,
+      body: body,
+      scheduledDate: tz.TZDateTime.from(reminderDate, tz.local),
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'period_channel',
           'Period Reminders',
@@ -164,8 +162,6 @@ class AppNotificationService extends ChangeNotifier {
         iOS: DarwinNotificationDetails(),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 
@@ -180,19 +176,19 @@ class AppNotificationService extends ChangeNotifier {
     if (reminderDate.isBefore(DateTime.now())) return;
 
     final title = isTrackingForSomeoneElse
-        ? '${trackedPersonName.isNotEmpty ? trackedPersonName : 'Partner'}\'s Fertile Window'
-        : 'Fertile Window Approaching';
+        ? "${trackedPersonName.isNotEmpty ? trackedPersonName : "Partner"}'s Fertile Window"
+        : "Fertile Window Approaching";
         
     final body = isTrackingForSomeoneElse
-        ? 'Their fertile window begins tomorrow.'
-        : 'Your fertile window begins tomorrow.';
+        ? "Their fertile window begins tomorrow."
+        : "Your fertile window begins tomorrow.";
 
     await _notifications.zonedSchedule(
-      _ovulationReminderId,
-      title,
-      body,
-      tz.TZDateTime.from(reminderDate, tz.local),
-      const NotificationDetails(
+      id: _ovulationReminderId,
+      title: title,
+      body: body,
+      scheduledDate: tz.TZDateTime.from(reminderDate, tz.local),
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'fertility_channel',
           'Fertility Reminders',
@@ -202,8 +198,6 @@ class AppNotificationService extends ChangeNotifier {
         iOS: DarwinNotificationDetails(),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 }

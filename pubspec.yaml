@@ -10,26 +10,27 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  supabase_flutter: ^2.8.4
+  supabase_flutter: ^2.12.0
   shared_preferences: ^2.5.4
 
   smooth_page_indicator: ^2.0.1
   provider: ^6.1.5+1
   intl: ^0.20.2
 
-  google_generative_ai: ^0.4.6
+  google_generative_ai: ^0.4.7
 
   http: ^1.6.0
   app_links: ^6.4.1
-  dio: ^5.9.0
+  dio: ^5.9.1
   flutter_secure_storage: ^10.0.0
-  flutter_local_notifications: ^17.0.0
-  url_launcher: ^6.3.0
-  timezone: 0.9.4
-  fl_chart: ^0.70.2
-  pdf: ^3.11.1
-  printing: ^5.13.0
+  flutter_local_notifications: ^20.1.0
+  url_launcher: ^6.3.2
+  timezone: ^0.10.0
+  fl_chart: ^1.1.1
+  pdf: ^3.11.3
+  printing: ^5.14.2
   google_sign_in: ^7.2.0
+  health: ^13.3.1
 
 dev_dependencies:
   flutter_test:

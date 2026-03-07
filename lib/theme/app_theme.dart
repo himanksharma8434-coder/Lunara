@@ -83,6 +83,24 @@ class AppTheme {
   static Color divider(BuildContext context) =>
       Theme.of(context).colorScheme.outlineVariant;
 
+  // Semantic Surface Colors
+  static Color cardColor(BuildContext context) =>
+      Theme.of(context).colorScheme.surfaceContainerHighest;
+  static Color subtleBackground(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.light
+          ? const Color(0xFFFCE4EC)
+          : const Color(0xFF2A1525);
+
+  // Shimmer Loading Colors
+  static Color shimmerBase(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.light
+          ? Colors.grey.shade300
+          : Colors.grey.shade700;
+  static Color shimmerHighlight(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.light
+          ? Colors.grey.shade100
+          : Colors.grey.shade600;
+
   // Custom Extensions Accessors
   static LunaraThemeExtension _ext(BuildContext context) =>
       Theme.of(context).extension<LunaraThemeExtension>()!;

@@ -15,6 +15,7 @@ import 'profile_screen.dart';
 import 'insights_screen.dart';
 import 'assessment_screen.dart';
 import 'dart:math' as math;
+import '../widgets/animations.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -125,14 +126,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               margin: const EdgeInsets.only(top: 30),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFF8989), Color(0xFFD8405B)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                gradient: AppTheme.primaryGradient(context),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFFF8989).withOpacity(glowIntensity),
+                    color: AppTheme.primary(context).withOpacity(glowIntensity),
                     blurRadius: 20 + (_breathingController.value * 10),
                     offset: const Offset(0, 8),
                     spreadRadius: 2,
@@ -196,21 +193,15 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   Widget _buildModernBottomBar() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.cardColor(context),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
-          ),
-        ],
+        boxShadow: AppTheme.softShadow(context),
       ),
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         child: BottomAppBar(
           height: 83,
-          color: Colors.white,
+          color: AppTheme.cardColor(context),
           elevation: 0,
           notchMargin: 8,
           shape: const CircularNotchedRectangle(),
@@ -254,7 +245,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                       decoration: BoxDecoration(
                         color: Color.lerp(
                           Colors.transparent,
-                          const Color(0xFFFF8989).withOpacity(0.15),
+                          AppTheme.primary(context).withOpacity(0.15),
                           value,
                         ),
                         shape: BoxShape.circle,
@@ -263,7 +254,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                         icon,
                         color: Color.lerp(
                           Colors.grey[400],
-                          const Color(0xFFFF8989),
+                          AppTheme.primary(context),
                           value,
                         ),
                         size: 24,
@@ -285,9 +276,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                       gradient: LinearGradient(
                         colors: [
                           Color.lerp(Colors.transparent,
-                              const Color(0xFFFF8989), value)!,
+                              AppTheme.primary(context), value)!,
                           Color.lerp(Colors.transparent,
-                              const Color(0xFFD8405B), value)!,
+                              Theme.of(context).colorScheme.secondary, value)!,
                         ],
                       ),
                       borderRadius: BorderRadius.circular(2),
@@ -348,11 +339,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
 
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFFCE4EC), Color(0xFFF8BBD0), Color(0xFFF3E5F5)],
-        ),
+        gradient: AppTheme.backgroundGradient(context),
       ),
       child: SafeArea(
         bottom: false,
@@ -382,10 +369,10 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                             children: [
                               ShaderMask(
                                 shaderCallback: (bounds) =>
-                                    const LinearGradient(
+                                    LinearGradient(
                                   colors: [
-                                    Color(0xFF3E2723),
-                                    Color(0xFFFF8989)
+                                    AppTheme.textDark(context),
+                                    AppTheme.primary(context)
                                   ],
                                 ).createShader(bounds),
                                 child: Text(
@@ -403,18 +390,18 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                               const SizedBox(height: 6),
                               Row(
                                 children: [
-                                  const Icon(
+                                  Icon(
                                     Icons.auto_awesome_rounded,
                                     size: 14,
-                                    color: Color(0xFFD8405B),
+                                    color: Theme.of(context).colorScheme.secondary,
                                   ),
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
                                       provider.dynamicGreeting,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 13,
-                                        color: Color(0xFF6D4C41),
+                                        color: AppTheme.textLight(context),
                                         fontWeight: FontWeight.w600,
                                         fontStyle: FontStyle.italic,
                                       ),
@@ -433,12 +420,12 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                           child: Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.9),
+                              color: AppTheme.cardColor(context).withOpacity(0.9),
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
                                   color:
-                                      const Color(0xFFFF8989).withOpacity(0.2),
+                                      AppTheme.primary(context).withOpacity(0.2),
                                   blurRadius: 12,
                                   offset: const Offset(0, 4),
                                 ),
@@ -458,16 +445,11 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                     width: 8,
                                     height: 8,
                                     decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFFFF8989),
-                                          Color(0xFFD8405B)
-                                        ],
-                                      ),
+                                      gradient: AppTheme.primaryGradient(context),
                                       shape: BoxShape.circle,
                                       boxShadow: [
                                         BoxShadow(
-                                          color: const Color(0xFFFF8989)
+                                          color: AppTheme.primary(context)
                                               .withOpacity(0.5),
                                           blurRadius: 4,
                                           spreadRadius: 1,
@@ -1187,6 +1169,106 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
 
             const SliverToBoxAdapter(child: SizedBox(height: 14)),
 
+            if (provider.currentPredictions.isNotEmpty) ...[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: FadeSlideIn(
+                    delay: const Duration(milliseconds: 200),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.cardColor(context),
+                        gradient: LinearGradient(
+                          colors: [
+                            AppTheme.primary(context).withOpacity(0.15),
+                            AppTheme.primary(context).withOpacity(0.00),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppTheme.primary(context).withOpacity(0.3),
+                          width: 1.5,
+                        ),
+                        boxShadow: AppTheme.softShadow(context),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.auto_awesome_rounded,
+                                color: AppTheme.primary(context),
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                "Today's Predictions",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.textDark(context),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            "Based on your past cycles, you might experience:",
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppTheme.textLight(context),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: provider.currentPredictions.map((symptom) {
+                              return ActionChip(
+                                backgroundColor: AppTheme.primaryGradient(context).colors.first,
+                                side: BorderSide.none,
+                                labelStyle: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                                label: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.add_circle, color: Colors.white, size: 14),
+                                    const SizedBox(width: 4),
+                                    Text("Log $symptom"),
+                                  ],
+                                ),
+                                onPressed: () {
+                                  HapticFeedback.lightImpact();
+                                  provider.addSymptom(symptom);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('$symptom logged for today'),
+                                      backgroundColor: AppTheme.primary(context),
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 14)),
+            ],
+
             // Premium AI Cards with animation
             SliverToBoxAdapter(
               child: Padding(
@@ -1571,7 +1653,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
 
   Widget _buildModernActionCard(String text, IconData icon, Color bgColor,
       Color accentColor, VoidCallback onTap) {
-    return GestureDetector(
+    return AnimatedPressableCard(
       onTap: () {
         HapticFeedback.lightImpact();
         onTap();
@@ -1582,7 +1664,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
           color: bgColor,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: Colors.white.withOpacity(0.6),
+            color: AppTheme.cardColor(context).withOpacity(0.6),
             width: 2,
           ),
           boxShadow: [
@@ -1598,7 +1680,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.7),
+                color: AppTheme.cardColor(context).withOpacity(0.7),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 28, color: accentColor),
@@ -1606,10 +1688,10 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
             const SizedBox(height: 10),
             Text(
               text,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF3E2723),
+                color: AppTheme.textDark(context),
               ),
               textAlign: TextAlign.center,
             ),

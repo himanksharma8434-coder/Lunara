@@ -33,6 +33,7 @@ class _AIChatScreenState extends State<AIChatScreen>
   late AnimationController _pulseController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _pulseAnimation;
+  final List<String> _suggestedSymptoms = [];
 
   final String _apiKey = AppConfig.geminiApiKey;
 
@@ -168,6 +169,7 @@ class _AIChatScreenState extends State<AIChatScreen>
     Next Period: $periodContext
     Fertility Status: $fertilityContext
     Today's Logged Symptoms: $symptomsString
+    Predicted Symptoms for Today: ${stats.currentPredictions.isNotEmpty ? stats.currentPredictions.join(', ') : 'None'}
     Tracking Context: $trackingContext
     Goal: Tracking hormonal health and cycle symptoms.
   """;
@@ -190,18 +192,19 @@ class _AIChatScreenState extends State<AIChatScreen>
           "Be warm, professional, brief (2-3 sentences for quick questions, detailed for diet/workout plans), and supportive. Use emojis occasionally."
           "1. Acknowledge their current cycle phase and any symptoms logged TODAY before giving advice. "
           "2. If they are close to their period (e.g. within 3-5 days), politely recommend PMS-friendly remedies when relevant. "
-          "3. You have full general knowledge (history, science, etc.). "
-          "4. Be friendly and natural. "
-          "5. Provide direct answers. DO NOT wrap your response in double quotes. "
-          "6. Answer any general knowledge or medical questions naturally. "
-          "7. For diet plans: Provide detailed meal plans based on their cycle phase. "
-          "8. For workout plans: Provide specific exercises based on their current phase. "
-          "9. dont make it too lengthy. for example:- 7:30 70gram oats with 400 ml tond milk. "
-          "10. Refer to the patient being tracked as '${stats.isTrackingForSomeoneElse ? stats.trackedPersonName : stats.userName}'. If the user is a caregiver, address them as the caregiver. "
-          "11. If you don't know the answer, say 'I'm here to help! Could you rephrase that for me?' "
-          "12. Always prioritize user safety and well-being. "
-          "13. shortened the answer as much as possible, keep it short and precise of max 6-7 lines. "
-          "14. NEVER ask for personal information like full name, address, phone number, or email."),
+          "3. If they have 'Predicted Symptoms for Today' that are NOT yet logged, proactively advise them on how to manage or prevent them. "
+          "4. You have full general knowledge (history, science, etc.). "
+          "5. Be friendly and natural. "
+          "6. Provide direct answers. DO NOT wrap your response in double quotes. "
+          "7. Answer any general knowledge or medical questions naturally. "
+          "8. For diet plans: Provide detailed meal plans based on their cycle phase. "
+          "9. For workout plans: Provide specific exercises based on their current phase. "
+          "10. dont make it too lengthy. for example:- 7:30 70gram oats with 400 ml tond milk. "
+          "11. Refer to the patient being tracked as '${stats.isTrackingForSomeoneElse ? stats.trackedPersonName : stats.userName}'. If the user is a caregiver, address them as the caregiver. "
+          "12. If you don't know the answer, say 'I'm here to help! Could you rephrase that for me?' "
+          "13. Always prioritize user safety and well-being. "
+          "14. shortened the answer as much as possible, keep it short and precise of max 6-7 lines. "
+          "15. NEVER ask for personal information like full name, address, phone number, or email."),
     );
 
     _chat = _model!.startChat(history: history);
@@ -281,6 +284,7 @@ class _AIChatScreenState extends State<AIChatScreen>
     if (text.isEmpty || _chat == null) return;
 
     HapticFeedback.lightImpact();
+    _analyzeForSymptoms(text);
 
     if (_apiKey.isEmpty) {
       setState(() {
@@ -363,6 +367,44 @@ class _AIChatScreenState extends State<AIChatScreen>
     });
   }
 
+  void _analyzeForSymptoms(String text) {
+    final lowerText = text.toLowerCase();
+    final List<String> detected = [];
+
+    // Simple keyword matching for common symptoms
+    final keywordMap = {
+      'cramp': 'Cramps',
+      'headache': 'Headache',
+      'bloating': 'Bloating',
+      'bloat': 'Bloating',
+      'tired': 'Fatigue',
+      'fatigue': 'Fatigue',
+      'sad': 'Sadness',
+      'nausea': 'Nausea',
+      'acne': 'Acne',
+      'breakout': 'Acne',
+      'backache': 'Backache',
+      'back hurts': 'Backache',
+      'tender': 'Breast Tenderness',
+    };
+
+    keywordMap.forEach((keyword, symptom) {
+      if (lowerText.contains(keyword) && !detected.contains(symptom)) {
+        detected.add(symptom);
+      }
+    });
+
+    if (detected.isNotEmpty) {
+      setState(() {
+        for (var s in detected) {
+          if (!_suggestedSymptoms.contains(s)) {
+            _suggestedSymptoms.add(s);
+          }
+        }
+      });
+    }
+  }
+
   void _clearChat() {
     HapticFeedback.mediumImpact();
     showDialog(
@@ -403,15 +445,7 @@ class _AIChatScreenState extends State<AIChatScreen>
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFFFCE4EC).withOpacity(0.4),
-              const Color(0xFFF8BBD0).withOpacity(0.3),
-              AppTheme.background(context),
-            ],
-          ),
+          gradient: AppTheme.softBackground(context),
         ),
         child: SafeArea(
           child: FadeTransition(
@@ -436,14 +470,8 @@ class _AIChatScreenState extends State<AIChatScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 15,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        color: AppTheme.cardColor(context),
+        boxShadow: AppTheme.softShadow(context),
       ),
       child: Row(
         children: [
@@ -455,11 +483,11 @@ class _AIChatScreenState extends State<AIChatScreen>
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFFCE4EC),
+                color: AppTheme.subtleBackground(context),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.arrow_back_ios_new,
-                  size: 18, color: Color(0xFF3E2723)),
+              child: Icon(Icons.arrow_back_ios_new,
+                  size: 18, color: AppTheme.textDark(context)),
             ),
           ),
           const SizedBox(width: 15),
@@ -468,24 +496,16 @@ class _AIChatScreenState extends State<AIChatScreen>
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFF8989), Color(0xFFD8405B)],
-                ),
+                gradient: AppTheme.primaryGradient(context),
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFF8989).withOpacity(0.4),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
+                boxShadow: AppTheme.glowShadow(context),
               ),
               child: const Icon(Icons.auto_awesome_rounded,
                   color: Colors.white, size: 24),
             ),
           ),
           const SizedBox(width: 15),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -494,7 +514,7 @@ class _AIChatScreenState extends State<AIChatScreen>
                   style: TextStyle(
                     fontSize: 19,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF3E2723),
+                    color: AppTheme.textDark(context),
                     letterSpacing: -0.3,
                   ),
                 ),
@@ -502,7 +522,7 @@ class _AIChatScreenState extends State<AIChatScreen>
                   'Personalized wellness guide',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF6D4C41),
+                    color: AppTheme.textLight(context),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -514,11 +534,11 @@ class _AIChatScreenState extends State<AIChatScreen>
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFFCE4EC),
+                color: AppTheme.subtleBackground(context),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.delete_outline_rounded,
-                  size: 20, color: Color(0xFF3E2723)),
+              child: Icon(Icons.delete_outline_rounded,
+                  size: 20, color: AppTheme.textDark(context)),
             ),
           ),
         ],
@@ -554,13 +574,13 @@ class _AIChatScreenState extends State<AIChatScreen>
               ),
             ),
             const SizedBox(height: 30),
-            const Text(
+            Text(
               'Preparing Your\nPersonalized Plan',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w900,
-                color: Color(0xFF3E2723),
+                color: AppTheme.textDark(context),
                 height: 1.3,
                 letterSpacing: -0.5,
               ),
@@ -607,13 +627,13 @@ class _AIChatScreenState extends State<AIChatScreen>
               ),
             ),
             const SizedBox(height: 30),
-            const Text(
+            Text(
               'Your Personal Health\nCompanion',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w900,
-                color: Color(0xFF3E2723),
+                color: AppTheme.textDark(context),
                 height: 1.3,
                 letterSpacing: -0.5,
               ),
@@ -662,10 +682,8 @@ class _AIChatScreenState extends State<AIChatScreen>
               decoration: BoxDecoration(
                 gradient: isAi
                     ? null
-                    : const LinearGradient(
-                        colors: [Color(0xFFFF8989), Color(0xFFD8405B)],
-                      ),
-                color: isAi ? Colors.white : null,
+                    : AppTheme.primaryGradient(context),
+                color: isAi ? AppTheme.cardColor(context) : null,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(22),
                   topRight: const Radius.circular(22),
@@ -690,7 +708,7 @@ class _AIChatScreenState extends State<AIChatScreen>
                     child: Text(
                       m["text"],
                       style: TextStyle(
-                        color: isAi ? const Color(0xFF3E2723) : Colors.white,
+                        color: isAi ? AppTheme.textDark(context) : Colors.white,
                         fontSize: 15,
                         height: 1.6,
                         fontWeight: isAi ? FontWeight.w500 : FontWeight.w600,
@@ -722,9 +740,7 @@ class _AIChatScreenState extends State<AIChatScreen>
             width: 2,
             height: 18,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFF8989), Color(0xFFD8405B)],
-              ),
+              gradient: AppTheme.primaryGradient(context),
               borderRadius: BorderRadius.circular(1),
             ),
           ),
@@ -858,10 +874,8 @@ class _AIChatScreenState extends State<AIChatScreen>
             child: Container(
               width: 9,
               height: 9,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFFF8989), Color(0xFFD8405B)],
-                ),
+              decoration: BoxDecoration(
+                gradient: AppTheme.primaryGradient(context),
                 shape: BoxShape.circle,
               ),
             ),
@@ -883,29 +897,67 @@ class _AIChatScreenState extends State<AIChatScreen>
         top: 18,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, -8),
-          ),
-        ],
+        color: AppTheme.cardColor(context),
+        boxShadow: AppTheme.softShadow(context),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_suggestedSymptoms.isNotEmpty) ...[
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _suggestedSymptoms.map((symptom) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
+                    child: ActionChip(
+                      backgroundColor: AppTheme.primary(context).withOpacity(0.1),
+                      side: BorderSide(color: AppTheme.primary(context).withOpacity(0.5)),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add_circle_outline, size: 14, color: AppTheme.primary(context)),
+                          const SizedBox(width: 4),
+                          Text(
+                            "Log $symptom",
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.primary(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        Provider.of<CycleProvider>(context, listen: false).addSymptom(symptom);
+                        setState(() {
+                          _suggestedSymptoms.remove(symptom);
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('$symptom logged for today'),
+                            backgroundColor: AppTheme.primary(context),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+          Row(
+            children: [
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFFFCE4EC).withOpacity(0.8),
-                    const Color(0xFFF8BBD0).withOpacity(0.6),
-                  ],
-                ),
+                color: AppTheme.subtleBackground(context).withOpacity(0.5),
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(
-                  color: const Color(0xFFFF8989).withOpacity(0.2),
+                  color: AppTheme.primary(context).withOpacity(0.2),
                   width: 1.5,
                 ),
               ),
@@ -930,9 +982,9 @@ class _AIChatScreenState extends State<AIChatScreen>
                     borderSide: BorderSide.none,
                   ),
                 ),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
-                  color: Color(0xFF3E2723),
+                  color: AppTheme.textDark(context),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -947,17 +999,9 @@ class _AIChatScreenState extends State<AIChatScreen>
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFF8989), Color(0xFFD8405B)],
-                ),
+                gradient: AppTheme.primaryGradient(context),
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFF8989).withOpacity(0.5),
-                    blurRadius: 15,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+                boxShadow: AppTheme.glowShadow(context),
               ),
               child: const Icon(
                 Icons.send_rounded,
@@ -966,6 +1010,8 @@ class _AIChatScreenState extends State<AIChatScreen>
               ),
             ),
           ),
+        ],
+      ),
         ],
       ),
     );

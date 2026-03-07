@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/app_notification_service.dart';
 import '../services/database_service.dart';
+import '../services/health_service.dart';
 import 'dart:convert';
 import 'dart:math';
 
@@ -48,6 +49,17 @@ class CycleProvider extends ChangeNotifier {
   DateTime? _nextPeriodDate;
   DateTime? _ovulationDate;
 
+  // Health Connect Integration
+  bool _healthConnected = false;
+  int? _heartRate;
+
+  // Partner Sync
+  String? _partnerLinkId;
+  String? _partnerLinkRole;
+  String? _linkedPartnerName;
+  String? _linkedPartnerUid;
+  String? _activeInviteCode;
+
   // Constructor - Automatically loads data on startup
   CycleProvider(this._prefs) {
     _loadFromPrefs();
@@ -92,10 +104,19 @@ class CycleProvider extends ChangeNotifier {
     }
 
     _calculatePredictions();
+    _healthConnected = _prefs.getBool('health_connected') ?? false;
     notifyListeners();
 
     // Fetch cloud history asynchronously to keep UI fast
     _fetchCloudHistory();
+
+    // Auto-sync health data if connected
+    if (_healthConnected) {
+      _autoSyncHealth();
+    }
+
+    // Load partner link status
+    _loadPartnerLink();
   }
 
   Future<void> _fetchCloudHistory() async {
@@ -318,6 +339,156 @@ class CycleProvider extends ChangeNotifier {
   double get sleepHours => _sleepHours;
   String get currentMood => _currentMood;
 
+  // Getters - Health Connect
+  bool get isHealthConnected => _healthConnected;
+  int? get heartRate => _heartRate;
+
+  /// Connect to Health Connect / Apple HealthKit.
+  Future<bool> connectHealth() async {
+    final service = HealthService();
+    final available = await service.isAvailable();
+    if (!available) return false;
+
+    final granted = await service.requestPermissions();
+    if (!granted) return false;
+
+    _healthConnected = true;
+    await _prefs.setBool('health_connected', true);
+    notifyListeners();
+
+    // Immediately sync after connecting
+    await syncFromHealth();
+    return true;
+  }
+
+  /// Disconnect from Health Connect.
+  Future<void> disconnectHealth() async {
+    _healthConnected = false;
+    _heartRate = null;
+    await _prefs.setBool('health_connected', false);
+    notifyListeners();
+  }
+
+  /// Sync health data from the platform into this provider.
+  Future<void> syncFromHealth() async {
+    if (!_healthConnected) return;
+    final service = HealthService();
+
+    await service.syncAll(this);
+
+    // Also fetch heart rate (stored locally, not in provider setters)
+    final hr = await service.fetchLatestHeartRate();
+    if (hr != null) {
+      _heartRate = hr;
+    }
+
+    notifyListeners();
+  }
+
+  /// Auto-sync on app startup (called from _loadFromPrefs).
+  Future<void> _autoSyncHealth() async {
+    try {
+      await syncFromHealth();
+    } catch (e) {
+      debugPrint('Auto health sync error: $e');
+    }
+  }
+
+  // ─── Partner Sync ──────────────────────────────────────
+
+  // Getters
+  String? get partnerLinkId => _partnerLinkId;
+  String? get partnerLinkRole => _partnerLinkRole;
+  String? get linkedPartnerName => _linkedPartnerName;
+  String? get linkedPartnerUid => _linkedPartnerUid;
+  String? get activeInviteCode => _activeInviteCode;
+  bool get isPartnerLinked => _partnerLinkId != null && _partnerLinkRole != null;
+
+  /// Load partner link from Supabase on startup.
+  Future<void> _loadPartnerLink() async {
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid == null) return;
+
+      final db = DatabaseService();
+      final link = await db.getActivePartnerLink(uid);
+      if (link != null) {
+        _partnerLinkId = link['id'];
+        _partnerLinkRole = link['role'];
+
+        // Fetch partner's name
+        final otherUid = link['role'] == 'tracker'
+            ? link['partner_uid']
+            : link['tracker_uid'];
+        if (otherUid != null) {
+          _linkedPartnerUid = otherUid;
+          final profile = await db.getPartnerProfile(otherUid);
+          _linkedPartnerName = profile?['name'] ?? 'Partner';
+        }
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Load partner link error: $e');
+    }
+  }
+
+  /// Generate a 6-digit invite code for partner linking.
+  Future<String?> generateInviteCode() async {
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid == null) return null;
+
+      final db = DatabaseService();
+      final code = await db.createPartnerInvite(uid);
+      if (code != null) {
+        _activeInviteCode = code;
+        notifyListeners();
+      }
+      return code;
+    } catch (e) {
+      debugPrint('Generate invite error: $e');
+      return null;
+    }
+  }
+
+  /// Accept an invite code from a partner.
+  Future<bool> acceptInviteCode(String code) async {
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid == null) return false;
+
+      final db = DatabaseService();
+      final link = await db.acceptPartnerInvite(uid, code);
+      if (link == null) return false;
+
+      // Reload the link to populate all fields
+      await _loadPartnerLink();
+      return true;
+    } catch (e) {
+      debugPrint('Accept invite error: $e');
+      return false;
+    }
+  }
+
+  /// Revoke (disconnect) the active partner link.
+  Future<void> revokePartnerLink() async {
+    try {
+      if (_partnerLinkId == null) return;
+
+      final db = DatabaseService();
+      await db.revokePartnerLink(_partnerLinkId!);
+
+      _partnerLinkId = null;
+      _partnerLinkRole = null;
+      _linkedPartnerName = null;
+      _linkedPartnerUid = null;
+      _activeInviteCode = null;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Revoke partner error: $e');
+    }
+  }
+
   // Getters - Symptoms
   List<String> get todaySymptoms => _todaySymptoms;
   Map<DateTime, List<String>> get symptomHistory => _symptomHistory;
@@ -391,6 +562,24 @@ class CycleProvider extends ChangeNotifier {
   // Getters - Predictions
   DateTime? get nextPeriodDate => _nextPeriodDate;
   DateTime? get ovulationDate => _ovulationDate;
+
+  /// Predicts likely symptoms for today based on historical occurrences in the current phase.
+  List<String> get currentPredictions {
+    final phaseSymptoms = symptomsByPhase[currentPhase];
+    if (phaseSymptoms == null || phaseSymptoms.isEmpty) return [];
+    
+    final sorted = phaseSymptoms.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+      
+    final predictions = <String>[];
+    for (var entry in sorted.take(2)) {
+      // Only predict if it has happened at least twice in this phase historically
+      if (entry.value >= 2) {
+        predictions.add(entry.key);
+      }
+    }
+    return predictions;
+  }
 
   // ─── MULTI-CYCLE INTELLIGENCE ────────────────────────
 
@@ -554,7 +743,7 @@ class CycleProvider extends ChangeNotifier {
     if (_cycleHistory.length < 3) return null;
     if (!isCycleIrregular) return null;
     return 'Your cycles vary by $cycleLengthVariation days '
-        '(${shortestCycle}–${longestCycle} days). '
+        '($shortestCycle–$longestCycle days). '
         'This variation is above average. Consider discussing with your doctor.';
   }
 

@@ -23,7 +23,7 @@ android {
     defaultConfig {
         applicationId = "com.example.lunaraai"
         // Fixed syntax for Kotlin DSL
-        minSdk = flutter.minSdkVersion
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -44,5 +44,5 @@ flutter {
 
 dependencies {
     // Kotlin requires parentheses and double quotes
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

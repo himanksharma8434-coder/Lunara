@@ -11,19 +11,60 @@ class AuthProvider with ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
   final DatabaseService _db = DatabaseService();
 
-  bool _isLoading = false;
+  bool _isLoading = true; // Initialize as true for session checking
+  bool _isLoggedIn = false;
   String _userName = '';
   DateTime? _lastAssessmentDate;
   bool _hasCompletedOnboarding = false;
   bool _assessmentDeferred = false;
+  StreamSubscription<AuthState>? _authSubscription;
 
   AuthProvider(this._prefs) {
     _loadUserData();
+    _initializeAuthListener();
+  }
+
+  void _initializeAuthListener() {
+    // Check initial session
+    final session = _supabase.auth.currentSession;
+    _isLoggedIn = session != null;
+    _isLoading = false;
+    notifyListeners();
+
+    // Listen for future auth state changes
+    _authSubscription = _supabase.auth.onAuthStateChange.listen((data) {
+      final AuthChangeEvent event = data.event;
+      debugPrint('AuthProvider: Auth event: $event');
+
+      bool oldIsLoggedIn = _isLoggedIn;
+
+      if (event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.tokenRefreshed ||
+          event == AuthChangeEvent.initialSession ||
+          event == AuthChangeEvent.userUpdated) {
+        _isLoggedIn = true;
+        if (!oldIsLoggedIn) {
+           _loadUserData(); // Reload if we just signed in
+        }
+      } else if (event == AuthChangeEvent.signedOut ||
+          event == AuthChangeEvent.userDeleted) {
+        _isLoggedIn = false;
+      }
+
+      _isLoading = false;
+      notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   // ─── GETTERS ──────────────────────────────────────
 
-  bool get isLoggedIn => _supabase.auth.currentSession != null;
+  bool get isLoggedIn => _isLoggedIn;
   bool get isLoading => _isLoading;
   String get userId => _supabase.auth.currentUser?.id ?? '';
   String get userEmail => _supabase.auth.currentUser?.email ?? '';

@@ -195,20 +195,14 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                               child: Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: AppTheme.cardColor(context),
                                   shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.06),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
+                                  boxShadow: AppTheme.softShadow(context),
                                 ),
-                                child: const Icon(
+                                child: Icon(
                                   Icons.arrow_back_ios_new,
                                   size: 18,
-                                  color: Color(0xFF3E2723),
+                                  color: AppTheme.textDark(context),
                                 ),
                               ),
                             ),
@@ -219,7 +213,6 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 18,
-                                color: Color(0xFF3E2723),
                                 letterSpacing: 0.3,
                               ),
                             ),
@@ -246,7 +239,6 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w900,
-                                  color: Color(0xFF3E2723),
                                   letterSpacing: 1.2,
                                 ),
                               ),
@@ -272,7 +264,6 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF3E2723),
                               letterSpacing: -0.5,
                             ),
                           ),
@@ -286,7 +277,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                         "Drag the slider to express your mood",
                         style: TextStyle(
                           fontSize: 15,
-                          color: Colors.grey[600],
+                          color: AppTheme.textLight(context),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -368,7 +359,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 32, vertical: 20),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppTheme.cardColor(context),
                             borderRadius: BorderRadius.circular(25),
                             boxShadow: [
                               BoxShadow(
@@ -394,7 +385,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                 activeMood['subtitle'],
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey[600],
+                                  color: AppTheme.textLight(context),
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),

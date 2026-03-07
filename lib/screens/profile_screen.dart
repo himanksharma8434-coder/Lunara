@@ -6,11 +6,13 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../providers/cycle_provider.dart';
+import '../providers/theme_provider.dart';
 import '../services/app_notification_service.dart';
 import '../services/pdf_export_service.dart';
 import '../theme/app_theme.dart';
 import 'account_settings_screen.dart';
 import 'login_screen.dart';
+import 'partner_sync_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -20,6 +22,7 @@ class ProfileScreen extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context);
     final cycleProvider = Provider.of<CycleProvider>(context);
     final notificationService = Provider.of<AppNotificationService>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
 
     return Container(
       decoration: BoxDecoration(
@@ -78,7 +81,7 @@ class ProfileScreen extends StatelessWidget {
                             child: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFF8989),
+                                color: AppTheme.primary(context),
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
@@ -204,7 +207,17 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
 
-                    // Dark Mode Toggle removed
+                    // Dark Mode Toggle
+                    _buildNotificationToggle(
+                      context,
+                      themeProvider.isDarkMode
+                          ? Icons.dark_mode_rounded
+                          : Icons.light_mode_rounded,
+                      'Dark Mode',
+                      'Switch to ${themeProvider.isDarkMode ? 'light' : 'dark'} theme',
+                      themeProvider.isDarkMode,
+                      (_) => themeProvider.toggleTheme(),
+                    ),
 
                     // Notification Toggles
                     _buildNotificationToggle(
@@ -233,9 +246,9 @@ class ProfileScreen extends StatelessWidget {
                         HapticFeedback.mediumImpact();
 
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Generating Health Report...'),
-                            backgroundColor: Color(0xFF3E2723),
+                          SnackBar(
+                            content: const Text('Generating Health Report...'),
+                            backgroundColor: AppTheme.textDark(context),
                             duration: Duration(seconds: 2),
                           ),
                         );
@@ -263,6 +276,24 @@ class ProfileScreen extends StatelessWidget {
 
                     _buildSettingItem(
                       context,
+                      Icons.people_rounded,
+                      'Partner Sync',
+                      cycleProvider.isPartnerLinked
+                          ? 'Linked with ${cycleProvider.linkedPartnerName ?? "Partner"}'
+                          : 'Share cycle data with partner',
+                      () {
+                        HapticFeedback.lightImpact();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const PartnerSyncScreen(),
+                          ),
+                        );
+                      },
+                    ),
+
+                    _buildSettingItem(
+                      context,
                       Icons.notifications_outlined,
                       'Notifications',
                       'Manage notification preferences',
@@ -272,15 +303,162 @@ class ProfileScreen extends StatelessWidget {
                       },
                     ),
 
-                    _buildSettingItem(
-                      context,
-                      Icons.sync_rounded,
-                      'Sync & Backup',
-                      'Google Fit & data backup',
-                      () {
-                        HapticFeedback.lightImpact();
-                        _showSyncOptions(context);
-                      },
+                    // ─── Connected Apps (Health) ──────────────
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.cardColor(context),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: cycleProvider.isHealthConnected
+                              ? Colors.green.withOpacity(0.4)
+                              : AppTheme.divider(context),
+                        ),
+                        boxShadow: AppTheme.softShadow(context),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.favorite_rounded,
+                                  color: Colors.green,
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Connected Apps',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppTheme.textDark(context),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      cycleProvider.isHealthConnected
+                                          ? 'Health Connect synced'
+                                          : 'Sync steps, sleep & more',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.textLight(context),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Switch(
+                                value: cycleProvider.isHealthConnected,
+                                activeColor: Colors.green,
+                                onChanged: (val) async {
+                                  HapticFeedback.mediumImpact();
+                                  if (val) {
+                                    final success =
+                                        await cycleProvider.connectHealth();
+                                    if (!success && context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Health Connect not available or permission denied'),
+                                          backgroundColor: Colors.orange,
+                                        ),
+                                      );
+                                    }
+                                  } else {
+                                    await cycleProvider.disconnectHealth();
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                          if (cycleProvider.isHealthConnected) ...[
+                            const SizedBox(height: 14),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppTheme.subtleBackground(context),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                children: [
+                                  _buildHealthStat(
+                                      context,
+                                      Icons.directions_walk,
+                                      '${cycleProvider.dailySteps}',
+                                      'Steps'),
+                                  _buildHealthStat(
+                                      context,
+                                      Icons.bedtime_rounded,
+                                      '${cycleProvider.sleepHours}h',
+                                      'Sleep'),
+                                  _buildHealthStat(
+                                      context,
+                                      Icons.monitor_heart_outlined,
+                                      cycleProvider.heartRate != null
+                                          ? '${cycleProvider.heartRate}'
+                                          : '--',
+                                      'BPM'),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              child: TextButton.icon(
+                                onPressed: () async {
+                                  HapticFeedback.lightImpact();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content:
+                                          const Text('Syncing health data...'),
+                                      backgroundColor:
+                                          AppTheme.primary(context),
+                                      duration: const Duration(seconds: 1),
+                                    ),
+                                  );
+                                  await cycleProvider.syncFromHealth();
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Sync complete! ✓'),
+                                        backgroundColor: Colors.green,
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                },
+                                icon: Icon(Icons.sync_rounded,
+                                    size: 18,
+                                    color: AppTheme.primary(context)),
+                                label: Text(
+                                  'Sync Now',
+                                  style: TextStyle(
+                                    color: AppTheme.primary(context),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
 
                     _buildSettingItem(
@@ -429,6 +607,31 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildHealthStat(
+      BuildContext context, IconData icon, String value, String label) {
+    return Column(
+      children: [
+        Icon(icon, color: AppTheme.primary(context), size: 20),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textDark(context),
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: AppTheme.textLight(context),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSettingItem(
     BuildContext context,
     IconData icon,
@@ -457,10 +660,10 @@ class ProfileScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFFF8989).withOpacity(0.1),
+                color: AppTheme.primary(context).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: const Color(0xFFFF8989), size: 22),
+              child: Icon(icon, color: AppTheme.primary(context), size: 22),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -562,69 +765,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  void _showSyncOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Sync & Backup',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: const Icon(Icons.sync, color: Color(0xFF64B5F6)),
-              title: const Text('Connect Google Fit'),
-              subtitle: const Text('Sync health data automatically'),
-              trailing: Switch(
-                value: false,
-                onChanged: (value) {
-                  // Implement Google Fit connection
-                },
-                activeColor: const Color(0xFFFF8989),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.cloud_upload, color: Color(0xFF81C784)),
-              title: const Text('Backup to Cloud'),
-              subtitle: const Text('Last backup: Never'),
-              trailing: ElevatedButton(
-                onPressed: () {
-                  // Implement backup
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF8989),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: const Text('Backup Now', style: TextStyle(fontSize: 12)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   void _showAboutDialog(BuildContext context) {
     showDialog(

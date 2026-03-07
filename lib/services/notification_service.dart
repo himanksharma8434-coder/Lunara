@@ -1,7 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -36,7 +36,7 @@ class NotificationService {
     );
 
     await _notificationsPlugin.initialize(
-      initializationSettings,
+      settings: initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         debugPrint('Notification clicked: ${response.payload}');
       },
@@ -106,14 +106,12 @@ class NotificationService {
 
     try {
       await _notificationsPlugin.zonedSchedule(
-        id,
-        title,
-        body,
-        tzScheduledDate,
-        _getNotificationDetails(),
+        id: id,
+        title: title,
+        body: body,
+        scheduledDate: tzScheduledDate,
+        notificationDetails: _getNotificationDetails(),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
       );
       debugPrint('Scheduled notification $id for $tzScheduledDate');
     } catch (e) {
@@ -143,14 +141,12 @@ class NotificationService {
 
     try {
       await _notificationsPlugin.zonedSchedule(
-        id,
-        title,
-        body,
-        tzScheduledDate,
-        _getNotificationDetails(),
+        id: id,
+        title: title,
+        body: body,
+        scheduledDate: tzScheduledDate,
+        notificationDetails: _getNotificationDetails(),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time, // Make it repeating daily
       );
       debugPrint('Scheduled daily reminder $id for ${time.hour}:${time.minute}');

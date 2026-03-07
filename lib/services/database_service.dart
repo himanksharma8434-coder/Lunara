@@ -5,9 +5,6 @@ import '../models/user_model.dart';
 class DatabaseService {
   final SupabaseClient _db = Supabase.instance.client;
 
-  /// Helper to get the current authenticated user ID.
-  String? get _currentUserId => _db.auth.currentUser?.id;
-
   // ─── USER PROFILE ──────────────────────────────────
 
   /// Create or update the full user profile (upsert).
@@ -278,5 +275,138 @@ class DatabaseService {
   Stream<List<Map<String, dynamic>>> streamUserData(
       String table, String userId) {
     return _db.from(table).stream(primaryKey: ['id']).eq('user_id', userId);
+  }
+
+  // ─── PARTNER SYNC ─────────────────────────────────────
+
+  /// Generate a 6-digit invite code and create a pending partner link.
+  Future<String?> createPartnerInvite(String trackerUid) async {
+    try {
+      // Generate a random 6-digit code
+      final random = DateTime.now().millisecondsSinceEpoch;
+      final code = ((random % 900000) + 100000).toString();
+
+      await _db.from('partner_links').insert({
+        'tracker_uid': trackerUid,
+        'invite_code': code,
+        'status': 'pending',
+      });
+      return code;
+    } catch (e) {
+      debugPrint('Partner invite error: $e');
+      return null;
+    }
+  }
+
+  /// Accept a pending invite by entering the 6-digit code.
+  Future<Map<String, dynamic>?> acceptPartnerInvite(
+      String partnerUid, String code) async {
+    try {
+      // Find the pending invite
+      final results = await _db
+          .from('partner_links')
+          .select()
+          .eq('invite_code', code)
+          .eq('status', 'pending')
+          .limit(1);
+
+      if (results.isEmpty) return null;
+
+      final linkId = results.first['id'];
+
+      // Update to active with the partner's uid
+      await _db.from('partner_links').update({
+        'partner_uid': partnerUid,
+        'status': 'active',
+      }).eq('id', linkId);
+
+      return results.first;
+    } catch (e) {
+      debugPrint('Accept invite error: $e');
+      return null;
+    }
+  }
+
+  /// Get the active partner link for a user (as tracker OR partner).
+  Future<Map<String, dynamic>?> getActivePartnerLink(String uid) async {
+    try {
+      // Check as tracker first
+      final asTracker = await _db
+          .from('partner_links')
+          .select()
+          .eq('tracker_uid', uid)
+          .eq('status', 'active')
+          .limit(1);
+
+      if (asTracker.isNotEmpty) {
+        return {...asTracker.first, 'role': 'tracker'};
+      }
+
+      // Check as partner
+      final asPartner = await _db
+          .from('partner_links')
+          .select()
+          .eq('partner_uid', uid)
+          .eq('status', 'active')
+          .limit(1);
+
+      if (asPartner.isNotEmpty) {
+        return {...asPartner.first, 'role': 'partner'};
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('Get partner link error: $e');
+      return null;
+    }
+  }
+
+  /// Revoke (disconnect) a partner link.
+  Future<void> revokePartnerLink(String linkId) async {
+    try {
+      await _db
+          .from('partner_links')
+          .update({'status': 'revoked'})
+          .eq('id', linkId);
+    } catch (e) {
+      debugPrint('Revoke partner error: $e');
+    }
+  }
+
+  /// Fetch the profile of a linked partner by their UID.
+  Future<Map<String, dynamic>?> getPartnerProfile(String uid) async {
+    try {
+      final result =
+          await _db.from('users').select().eq('uid', uid).limit(1);
+      if (result.isNotEmpty) return result.first;
+      return null;
+    } catch (e) {
+      debugPrint('Get partner profile error: $e');
+      return null;
+    }
+  }
+
+  /// Stream the partner's assessments in real-time.
+  Stream<List<Map<String, dynamic>>> streamPartnerAssessments(
+      String partnerUserId) {
+    return _db
+        .from('assessments')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', partnerUserId);
+  }
+
+  /// Fetch partner's cycle history.
+  Future<List<Map<String, dynamic>>> getPartnerCycles(
+      String partnerUserId) async {
+    try {
+      return await _db
+          .from('cycles')
+          .select()
+          .eq('user_id', partnerUserId)
+          .order('start_date', ascending: false);
+    } catch (e) {
+      debugPrint('Get partner cycles error: $e');
+      return [];
+    }
   }
 }

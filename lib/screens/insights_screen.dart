@@ -557,7 +557,6 @@ class _WellnessTrendsCard extends StatelessWidget {
                 barTouchData: BarTouchData(
                   enabled: true,
                   touchTooltipData: BarTouchTooltipData(
-                    tooltipRoundedRadius: 12,
                     getTooltipColor: (_) => LunaraColors.textDark,
                     tooltipPadding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -798,7 +797,6 @@ class _MoodTrendCard extends StatelessWidget {
                 lineTouchData: LineTouchData(
                   enabled: true,
                   touchTooltipData: LineTouchTooltipData(
-                    tooltipRoundedRadius: 12,
                     getTooltipColor: (_) => LunaraColors.textDark,
                     tooltipPadding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

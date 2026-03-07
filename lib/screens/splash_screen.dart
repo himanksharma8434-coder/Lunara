@@ -106,7 +106,7 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                   const SizedBox(height: 30),
                   const Text(
-                    'Period Tracker',
+                    'Lunara',
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w900,

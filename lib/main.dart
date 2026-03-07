@@ -53,34 +53,9 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  bool _isLoading = true;
-  bool _isLoggedIn = false;
-
   @override
   void initState() {
     super.initState();
-
-    // Check initial session
-    final session = supabase.auth.currentSession;
-    _isLoggedIn = session != null;
-    _isLoading = false;
-
-    // Listen for future auth state changes (login, logout, token refresh)
-    supabase.auth.onAuthStateChange.listen((data) {
-      final AuthChangeEvent event = data.event;
-      debugPrint('Auth event: $event');
-
-      if (mounted) {
-        setState(() {
-          if (event == AuthChangeEvent.signedIn ||
-              event == AuthChangeEvent.tokenRefreshed) {
-            _isLoggedIn = true;
-          } else if (event == AuthChangeEvent.signedOut) {
-            _isLoggedIn = false;
-          }
-        });
-      }
-    });
   }
 
   @override
@@ -94,15 +69,16 @@ class _MyAppState extends State<MyApp> {
       ],
       child: Builder(
         builder: (context) {
+          final authProvider = context.watch<AuthProvider>();
           final themeProvider = context.watch<ThemeProvider>();
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             themeMode: themeProvider.themeMode,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
-            home: _isLoading
+            home: authProvider.isLoading
                 ? const SplashScreen()
-                : _isLoggedIn
+                : authProvider.isLoggedIn
                     ? const InitialRouter()
                     : const LoginScreen(),
           );
