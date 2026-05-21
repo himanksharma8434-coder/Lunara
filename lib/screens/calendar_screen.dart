@@ -54,7 +54,7 @@ class _CalendarScreenState extends State<CalendarScreen>
 
   @override
   Widget build(BuildContext context) {
-    final cycleProvider = Provider.of<CycleProvider>(context);
+    final cycleProvider = Provider.of<CycleProvider>(context, listen: false);
     final textColor = Theme.of(context).colorScheme.onSurface;
     final cardColor = Theme.of(context).colorScheme.surfaceContainerHighest;
 
@@ -85,14 +85,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            '${cycleProvider.cycleOwnerName} Calendar',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                          const _CalendarHeaderOwnerName(),
                           const SizedBox(height: 5),
                           Text(
                             DateFormat('MMMM yyyy').format(_focusedMonth),
@@ -279,7 +272,11 @@ class _CalendarScreenState extends State<CalendarScreen>
                 const SizedBox(height: 20),
 
                 // Selected Date Info Card
-                _buildSelectedDateCard(cycleProvider),
+                _SelectedDateCard(
+                  selectedDate: _selectedDate,
+                  onLogSymptom: () => _showSymptomDialog(_selectedDate, cycleProvider),
+                  onAddNote: () => _showNoteDialog(_selectedDate, cycleProvider),
+                ),
 
                 const SizedBox(height: 20),
               ],
@@ -307,7 +304,20 @@ class _CalendarScreenState extends State<CalendarScreen>
     // Add actual days
     for (int day = 1; day <= lastDayOfMonth.day; day++) {
       final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
-      dayWidgets.add(_buildDayCell(date, provider));
+      dayWidgets.add(
+        _DayCell(
+          date: date,
+          selectedDate: _selectedDate,
+          onTap: (clickedDate) {
+            setState(() {
+              _selectedDate = clickedDate;
+            });
+          },
+          onLongPress: (longPressedDate) {
+            _showDayDetailsDialog(longPressedDate, provider);
+          },
+        ),
+      );
     }
 
     return GridView.count(
@@ -319,415 +329,7 @@ class _CalendarScreenState extends State<CalendarScreen>
     );
   }
 
-  Widget _buildDayCell(DateTime date, CycleProvider provider) {
-    final defaultTextColor = Theme.of(context).colorScheme.onSurface;
-    final isToday = _isSameDay(date, DateTime.now());
-    final isSelected = _isSameDay(date, _selectedDate);
-    final isPeriod = provider.isPeriodDay(date);
-    final isFertile = provider.isFertileDay(date);
-    final isOvulation = provider.isOvulationDay(date);
-    final isPastDate = date.isBefore(DateTime.now()) && !isToday;
-    final hasSymptoms = provider.getSymptomsForDate(date).isNotEmpty;
-    final isPredicted = provider.isPredictedDay(date);
-    final phaseType = provider.getPhaseTypeForDate(date);
 
-    Color backgroundColor = Colors.transparent;
-    Color textColor = defaultTextColor;
-    bool hasBorder = false;
-
-    // Subtle phase background for all days
-    if (phaseType == 'luteal' && !isSelected && !isToday) {
-      backgroundColor = const Color(0xFF90CAF9).withOpacity(0.08);
-    }
-
-    if (isSelected) {
-      backgroundColor = const Color(0xFF118AB2);
-      textColor = Colors.white;
-    } else if (isToday) {
-      hasBorder = true;
-      backgroundColor = const Color(0xFF118AB2).withOpacity(0.15);
-      textColor = const Color(0xFF118AB2);
-    } else if (isOvulation) {
-      backgroundColor =
-          const Color(0xFFBA68C8).withOpacity(isPredicted ? 0.12 : 0.2);
-      textColor = const Color(0xFFBA68C8);
-    } else if (isPeriod) {
-      backgroundColor =
-          const Color(0xFFE57373).withOpacity(isPredicted ? 0.12 : 0.2);
-      textColor = const Color(0xFFE57373);
-    } else if (isFertile) {
-      backgroundColor =
-          const Color(0xFFFFD54F).withOpacity(isPredicted ? 0.12 : 0.2);
-      textColor = const Color(0xFFD4A000);
-    }
-
-    if (isPastDate && !isSelected) {
-      textColor = textColor.withOpacity(0.4);
-    }
-
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        setState(() {
-          _selectedDate = date;
-        });
-      },
-      onLongPress: () {
-        HapticFeedback.mediumImpact();
-        _showDayDetailsDialog(date, provider);
-      },
-      child: TweenAnimationBuilder<double>(
-        duration: const Duration(milliseconds: 200),
-        tween: Tween(begin: 1.0, end: isSelected ? 1.0 : 1.0),
-        builder: (context, value, child) {
-          return Transform.scale(
-            scale: value,
-            child: Container(
-              decoration: BoxDecoration(
-                color: backgroundColor,
-                shape: BoxShape.circle,
-                border: hasBorder
-                    ? Border.all(color: const Color(0xFF118AB2), width: 2)
-                    : isPredicted &&
-                            (isPeriod || isFertile || isOvulation) &&
-                            !isSelected
-                        ? Border.all(
-                            color: isPeriod
-                                ? const Color(0xFFE57373).withOpacity(0.4)
-                                : isOvulation
-                                    ? const Color(0xFFBA68C8).withOpacity(0.4)
-                                    : const Color(0xFFFFD54F).withOpacity(0.4),
-                            width: 1.5,
-                          )
-                        : null,
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: const Color(0xFF118AB2).withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : [],
-              ),
-              child: Stack(
-                children: [
-                  Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '${date.day}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: isSelected || isToday
-                                ? FontWeight.bold
-                                : FontWeight.w600,
-                            color: textColor,
-                          ),
-                        ),
-                        if ((isPeriod || isFertile || isOvulation) &&
-                            !isSelected)
-                          Container(
-                            margin: const EdgeInsets.only(top: 2),
-                            width: 4,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: isOvulation
-                                  ? const Color(0xFFBA68C8)
-                                  : isPeriod
-                                      ? const Color(0xFFE57373)
-                                      : const Color(0xFFFFD54F),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  if (hasSymptoms && !isSelected)
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(
-                          color: LunaraColors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildSelectedDateCard(CycleProvider provider) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = Theme.of(context).colorScheme.onSurface;
-    final isPeriod = provider.isPeriodDay(_selectedDate);
-    final isFertile = provider.isFertileDay(_selectedDate);
-    final isOvulation = provider.isOvulationDay(_selectedDate);
-    final isToday = _isSameDay(_selectedDate, DateTime.now());
-    final symptoms = provider.getSymptomsForDate(_selectedDate);
-    final phase = provider.getPhaseForDate(_selectedDate);
-
-    String statusText = 'Regular Day';
-    Color statusColor = Colors.grey[600]!;
-    IconData statusIcon = Icons.calendar_today_rounded;
-
-    if (isOvulation) {
-      statusText = 'Ovulation Day';
-      statusColor = const Color(0xFFBA68C8);
-      statusIcon = Icons.favorite_rounded;
-    } else if (isPeriod) {
-      statusText = 'Period Day';
-      statusColor = const Color(0xFFE57373);
-      statusIcon = Icons.water_drop_rounded;
-    } else if (isFertile) {
-      statusText = 'Fertile Window';
-      statusColor = const Color(0xFFFFD54F);
-      statusIcon = Icons.spa_rounded;
-    }
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            statusColor.withOpacity(isDark ? 0.08 : 0.15),
-            statusColor.withOpacity(isDark ? 0.03 : 0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(25),
-        border: Border.all(
-          color: statusColor.withOpacity(0.3),
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: statusColor.withOpacity(0.1),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(statusIcon, color: statusColor, size: 24),
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      DateFormat('EEEE, MMMM d').format(_selectedDate),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            statusText,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: statusColor,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            phase,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                        ),
-                        if (isToday) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF118AB2).withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text(
-                              'Today',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF118AB2),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-
-          // Symptoms Display
-          if (symptoms.isNotEmpty) ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.medical_services_rounded,
-                          size: 16,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Symptoms',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: symptoms
-                        .map((symptom) => Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: LunaraColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: LunaraColors.primary.withOpacity(0.3),
-                                ),
-                              ),
-                              child: Text(
-                                symptom,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: LunaraColors.primaryDark,
-                                ),
-                              ),
-                            ))
-                        .toList(),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-          ],
-
-          // Quick Actions
-          Row(
-            children: [
-              Expanded(
-                child: _buildQuickActionButton(
-                  'Log Symptom',
-                  Icons.add_circle_outline_rounded,
-                  LunaraColors.primary,
-                  () {
-                    HapticFeedback.mediumImpact();
-                    _showSymptomDialog(_selectedDate, provider);
-                  },
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _buildQuickActionButton(
-                  'Add Note',
-                  Icons.edit_note_rounded,
-                  const Color(0xFF06D6A0),
-                  () {
-                    HapticFeedback.mediumImpact();
-                    _showNoteDialog(_selectedDate, provider);
-                  },
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActionButton(
-      String label, IconData icon, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildNavButton(IconData icon, VoidCallback onTap) {
     return GestureDetector(
@@ -776,9 +378,6 @@ class _CalendarScreenState extends State<CalendarScreen>
     );
   }
 
-  bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
 
   // Dialog Functions
   void _showSymptomDialog(DateTime date, CycleProvider provider) {
@@ -1034,6 +633,477 @@ class _CalendarScreenState extends State<CalendarScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CalendarHeaderOwnerName extends StatelessWidget {
+  const _CalendarHeaderOwnerName();
+
+  @override
+  Widget build(BuildContext context) {
+    final cycleOwnerName = context.select<CycleProvider, String>(
+      (provider) => provider.cycleOwnerName,
+    );
+    return Text(
+      '$cycleOwnerName Calendar',
+      style: TextStyle(
+        fontSize: 16,
+        color: Colors.grey[600],
+        fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+}
+
+class _DayCell extends StatelessWidget {
+  final DateTime date;
+  final DateTime selectedDate;
+  final ValueChanged<DateTime> onTap;
+  final ValueChanged<DateTime> onLongPress;
+
+  const _DayCell({
+    required this.date,
+    required this.selectedDate,
+    required this.onTap,
+    required this.onLongPress,
+  });
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isToday = _isSameDay(date, DateTime.now());
+    final isSelected = _isSameDay(date, selectedDate);
+    final isPastDate = date.isBefore(DateTime.now()) && !isToday;
+
+    // Use context.select to listen only to the properties required for this day cell
+    final (isPeriod, isFertile, isOvulation, hasSymptoms, isPredicted, phaseType) =
+        context.select<CycleProvider, (bool, bool, bool, bool, bool, String)>(
+      (p) => (
+        p.isPeriodDay(date),
+        p.isFertileDay(date),
+        p.isOvulationDay(date),
+        p.getSymptomsForDate(date).isNotEmpty,
+        p.isPredictedDay(date),
+        p.getPhaseTypeForDate(date),
+      ),
+    );
+
+    final defaultTextColor = Theme.of(context).colorScheme.onSurface;
+    Color backgroundColor = Colors.transparent;
+    Color textColor = defaultTextColor;
+    bool hasBorder = false;
+
+    // Subtle phase background for all days
+    if (phaseType == 'luteal' && !isSelected && !isToday) {
+      backgroundColor = const Color(0xFF90CAF9).withOpacity(0.08);
+    }
+
+    if (isSelected) {
+      backgroundColor = const Color(0xFF118AB2);
+      textColor = Colors.white;
+    } else if (isToday) {
+      hasBorder = true;
+      backgroundColor = const Color(0xFF118AB2).withOpacity(0.15);
+      textColor = const Color(0xFF118AB2);
+    } else if (isOvulation) {
+      backgroundColor =
+          const Color(0xFFBA68C8).withOpacity(isPredicted ? 0.12 : 0.2);
+      textColor = const Color(0xFFBA68C8);
+    } else if (isPeriod) {
+      backgroundColor =
+          const Color(0xFFE57373).withOpacity(isPredicted ? 0.12 : 0.2);
+      textColor = const Color(0xFFE57373);
+    } else if (isFertile) {
+      backgroundColor =
+          const Color(0xFFFFD54F).withOpacity(isPredicted ? 0.12 : 0.2);
+      textColor = const Color(0xFFD4A000);
+    }
+
+    if (isPastDate && !isSelected) {
+      textColor = textColor.withOpacity(0.4);
+    }
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap(date);
+      },
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        onLongPress(date);
+      },
+      child: TweenAnimationBuilder<double>(
+        duration: const Duration(milliseconds: 200),
+        tween: Tween(begin: 1.0, end: isSelected ? 1.0 : 1.0),
+        builder: (context, value, child) {
+          return Transform.scale(
+            scale: value,
+            child: Container(
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                shape: BoxShape.circle,
+                border: hasBorder
+                    ? Border.all(color: const Color(0xFF118AB2), width: 2)
+                    : isPredicted &&
+                            (isPeriod || isFertile || isOvulation) &&
+                            !isSelected
+                        ? Border.all(
+                            color: isPeriod
+                                ? const Color(0xFFE57373).withOpacity(0.4)
+                                : isOvulation
+                                    ? const Color(0xFFBA68C8).withOpacity(0.4)
+                                    : const Color(0xFFFFD54F).withOpacity(0.4),
+                            width: 1.5,
+                          )
+                        : null,
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFF118AB2).withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : [],
+              ),
+              child: Stack(
+                children: [
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '${date.day}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: isSelected || isToday
+                                ? FontWeight.bold
+                                : FontWeight.w600,
+                            color: textColor,
+                          ),
+                        ),
+                        if ((isPeriod || isFertile || isOvulation) &&
+                            !isSelected)
+                          Container(
+                            margin: const EdgeInsets.only(top: 2),
+                            width: 4,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: isOvulation
+                                  ? const Color(0xFFBA68C8)
+                                  : isPeriod
+                                      ? const Color(0xFFE57373)
+                                      : const Color(0xFFFFD54F),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (hasSymptoms && !isSelected)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: LunaraColors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SelectedDateCard extends StatelessWidget {
+  final DateTime selectedDate;
+  final VoidCallback onLogSymptom;
+  final VoidCallback onAddNote;
+
+  const _SelectedDateCard({
+    required this.selectedDate,
+    required this.onLogSymptom,
+    required this.onAddNote,
+  });
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).colorScheme.onSurface;
+    final isToday = _isSameDay(selectedDate, DateTime.now());
+
+    // Use context.select to listen only to the properties of the selected date.
+    final (isPeriod, isFertile, isOvulation, symptoms, phase) =
+        context.select<CycleProvider, (bool, bool, bool, List<String>, String)>(
+      (p) => (
+        p.isPeriodDay(selectedDate),
+        p.isFertileDay(selectedDate),
+        p.isOvulationDay(selectedDate),
+        p.getSymptomsForDate(selectedDate),
+        p.getPhaseForDate(selectedDate),
+      ),
+    );
+
+    String statusText = 'Regular Day';
+    Color statusColor = Colors.grey[600]!;
+    IconData statusIcon = Icons.calendar_today_rounded;
+
+    if (isOvulation) {
+      statusText = 'Ovulation Day';
+      statusColor = const Color(0xFFBA68C8);
+      statusIcon = Icons.favorite_rounded;
+    } else if (isPeriod) {
+      statusText = 'Period Day';
+      statusColor = const Color(0xFFE57373);
+      statusIcon = Icons.water_drop_rounded;
+    } else if (isFertile) {
+      statusText = 'Fertile Window';
+      statusColor = const Color(0xFFFFD54F);
+      statusIcon = Icons.spa_rounded;
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            statusColor.withOpacity(isDark ? 0.08 : 0.15),
+            statusColor.withOpacity(isDark ? 0.03 : 0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(
+          color: statusColor.withOpacity(0.3),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: statusColor.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(statusIcon, color: statusColor, size: 24),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      DateFormat('EEEE, MMMM d').format(selectedDate),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            statusText,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: statusColor,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            phase,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ),
+                        if (isToday) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF118AB2).withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'Today',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF118AB2),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 15),
+
+          // Symptoms Display
+          if (symptoms.isNotEmpty) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.medical_services_rounded,
+                          size: 16,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Symptoms',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: symptoms
+                        .map((symptom) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: LunaraColors.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: LunaraColors.primary.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Text(
+                                symptom,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: LunaraColors.primaryDark,
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+
+          // Quick Actions
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickActionButton(
+                  'Log Symptom',
+                  Icons.add_circle_outline_rounded,
+                  LunaraColors.primary,
+                  onLogSymptom,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildQuickActionButton(
+                  'Add Note',
+                  Icons.edit_note_rounded,
+                  const Color(0xFF06D6A0),
+                  onAddNote,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionButton(
+      String label, IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

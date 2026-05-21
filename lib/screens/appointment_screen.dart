@@ -129,7 +129,7 @@ class _AppointmentScreenState extends State<AppointmentScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: AppTheme.isDark(context)
-              ? [const Color(0xFF1A1A2E), const Color(0xFF16213E), const Color(0xFF1A1A2E)]
+              ? [AppTheme.background(context), AppTheme.background(context)]
               : [LunaraColors.primaryLight, LunaraColors.backgroundPink, const Color(0xFFF3E5F5)],
         ),
       ),
