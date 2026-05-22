@@ -1527,6 +1527,17 @@ class CycleProvider extends ChangeNotifier {
       await HomeWidget.saveWidgetData<String>('cycle_day', 'Day $day of $total');
       await HomeWidget.saveWidgetData<String>('fertility_status', fertility);
 
+      // Save raw widget configuration for native-side dynamic calculations
+      if (_lastPeriodDate != null) {
+        await HomeWidget.saveWidgetData<int>(
+            'last_period_date_ms', _lastPeriodDate!.millisecondsSinceEpoch);
+      } else {
+        await HomeWidget.saveWidgetData<int>('last_period_date_ms', 0);
+      }
+      await HomeWidget.saveWidgetData<int>('cycle_length', effectiveCycleLength);
+      await HomeWidget.saveWidgetData<int>('period_duration', _periodDuration);
+      await HomeWidget.saveWidgetData<int>('ovulation_day', _ovulationDay);
+
       // Request launcher database refresh
       await HomeWidget.updateWidget(
         name: 'LunaraWidgetProvider',
