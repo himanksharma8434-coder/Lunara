@@ -1467,20 +1467,12 @@ class AnimatedForegroundRingPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 15;
 
-    // Progress indicator with animated glow
+    // Progress indicator with animated glow - optimized by using semi-transparent solid color and removing MaskFilter.blur
     final progressGlowPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          LunaraColors.primary.withOpacity(0.5),
-          LunaraColors.primaryDark.withOpacity(0.5),
-        ],
-      ).createShader(Rect.fromCircle(center: center, radius: radius))
+      ..color = LunaraColors.primary.withOpacity(0.12)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 10 + (breathAnimation * 3)
-      ..strokeCap = StrokeCap.round
-      // Note: MaskFilter.blur is kept here because it's for a very small arc
-      // but if mobile is still slow, this can be removed.
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 4 + breathAnimation);
+      ..strokeWidth = 12 + (breathAnimation * 3)
+      ..strokeCap = StrokeCap.round;
 
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
@@ -1495,23 +1487,23 @@ class AnimatedForegroundRingPainter extends CustomPainter {
     final markerX = center.dx + radius * math.cos(angle);
     final markerY = center.dy + radius * math.sin(angle);
 
-    // Outer glow ring
-    final outerGlowPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          LunaraColors.primary.withOpacity(0.6),
-          LunaraColors.primary.withOpacity(0.0),
-        ],
-      ).createShader(Rect.fromCircle(
-        center: Offset(markerX, markerY),
-        radius: 15 + (breathAnimation * 5),
-      ))
+    // Outer glow ring - optimized by drawing concentric circles instead of expensive dynamic RadialGradient
+    final outerGlowPaint1 = Paint()
+      ..color = LunaraColors.primary.withOpacity(0.15)
       ..style = PaintingStyle.fill;
-
     canvas.drawCircle(
       Offset(markerX, markerY),
       15 + (breathAnimation * 5),
-      outerGlowPaint,
+      outerGlowPaint1,
+    );
+
+    final outerGlowPaint2 = Paint()
+      ..color = LunaraColors.primary.withOpacity(0.3)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(
+      Offset(markerX, markerY),
+      10 + (breathAnimation * 3),
+      outerGlowPaint2,
     );
 
     // Marker background
@@ -1525,14 +1517,9 @@ class AnimatedForegroundRingPainter extends CustomPainter {
       markerBgPaint,
     );
 
-    // Marker with gradient
+    // Marker - optimized by using solid color instead of creating a shader every frame
     final markerPaint = Paint()
-      ..shader = const LinearGradient(
-        colors: [LunaraColors.primary, LunaraColors.primaryDark],
-      ).createShader(Rect.fromCircle(
-        center: Offset(markerX, markerY),
-        radius: 8,
-      ))
+      ..color = LunaraColors.primary
       ..style = PaintingStyle.fill;
 
     canvas.drawCircle(
@@ -2141,22 +2128,124 @@ class CycleRingCard extends StatelessWidget {
           ),
           child: AnimatedBuilder(
             animation: breathingAnimation,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                RepaintBoundary(
+                  child: CustomPaint(
+                    size: const Size(200, 200),
+                    painter: StaticBackgroundRingPainter(
+                      progress: currentCycleDay / cycleLength,
+                    ),
+                  ),
+                ),
+                // Center info
+                Container(
+                  width: 130,
+                  height: 130,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppTheme.cardColor(context).withOpacity(0.8),
+                    border: Border.all(
+                      color: AppTheme.cardColor(context).withOpacity(0.6),
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 15,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              LunaraColors.primary,
+                              LunaraColors.primaryDark
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          currentPhase.toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          ShaderMask(
+                            shaderCallback: (bounds) =>
+                                const LinearGradient(
+                              colors: [
+                                LunaraColors.textDark,
+                                LunaraColors.primary
+                              ],
+                            ).createShader(bounds),
+                            child: Text(
+                              '$currentCycleDay',
+                              style: const TextStyle(
+                                fontSize: 44,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '/$cycleLength',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.secondaryText(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'cycle days',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.secondaryText(context),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
             builder: (context, child) {
               return Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Animated glow effect
-                  Container(
-                    width: 200 + (breathingAnimation.value * 15),
-                    height: 200 + (breathingAnimation.value * 15),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          LunaraColors.primary.withOpacity(
-                              0.1 * breathingAnimation.value),
-                          Colors.transparent,
-                        ],
+                  // Animated glow effect - optimized to scale via compositor Transform.scale without rebuilding paint
+                  Transform.scale(
+                    scale: 1.0 + (breathingAnimation.value * 0.08),
+                    child: Container(
+                      width: 200,
+                      height: 200,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: LunaraColors.primary.withOpacity(0.08),
                       ),
                     ),
                   ),
@@ -2167,14 +2256,9 @@ class CycleRingCard extends StatelessWidget {
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        RepaintBoundary(
-                          child: CustomPaint(
-                            size: const Size(200, 200),
-                            painter: StaticBackgroundRingPainter(
-                              progress: currentCycleDay / cycleLength,
-                            ),
-                          ),
-                        ),
+                        // Static child containing background ring and center info
+                        child!,
+                        // Animated foreground ring draws on top
                         RepaintBoundary(
                           child: CustomPaint(
                             size: const Size(200, 200),
@@ -2182,98 +2266,6 @@ class CycleRingCard extends StatelessWidget {
                               progress: currentCycleDay / cycleLength,
                               breathAnimation: breathingAnimation.value,
                             ),
-                          ),
-                        ),
-                        // Center info
-                        Container(
-                          width: 130,
-                          height: 130,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppTheme.cardColor(context).withOpacity(0.8),
-                            border: Border.all(
-                              color: AppTheme.cardColor(context).withOpacity(0.6),
-                              width: 2,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 15,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 5,
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      LunaraColors.primary,
-                                      LunaraColors.primaryDark
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  currentPhase.toUpperCase(),
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                    letterSpacing: 1.2,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.baseline,
-                                textBaseline: TextBaseline.alphabetic,
-                                children: [
-                                  ShaderMask(
-                                    shaderCallback: (bounds) =>
-                                        const LinearGradient(
-                                      colors: [
-                                        LunaraColors.textDark,
-                                        LunaraColors.primary
-                                      ],
-                                    ).createShader(bounds),
-                                    child: Text(
-                                      '$currentCycleDay',
-                                      style: const TextStyle(
-                                        fontSize: 44,
-                                        fontWeight: FontWeight.w900,
-                                        color: Colors.white,
-                                        height: 1,
-                                      ),
-                                    ),
-                                  ),
-                                  Text(
-                                    '/$cycleLength',
-                                    style: TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppTheme.secondaryText(context),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'cycle days',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppTheme.secondaryText(context),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
                           ),
                         ),
                       ],
