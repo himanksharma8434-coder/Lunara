@@ -49,6 +49,10 @@
 	<string>Lunara reads your health data (steps, sleep, heart rate, weight, height) to provide personalized cycle and wellness insights.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Lunara can write menstrual cycle data back to Apple Health so all your health information stays in one place.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Lunara needs access to your photo library so you can choose a profile picture.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Lunara needs access to your camera so you can take a profile picture.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
