@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
@@ -7,6 +8,32 @@ class DatabaseService {
   final SupabaseClient _db = Supabase.instance.client;
 
   // ─── USER PROFILE ──────────────────────────────────
+
+  /// Upload a profile avatar to Supabase storage.
+  Future<String?> uploadAvatar(String uid, File imageFile) async {
+    try {
+      final fileExt = imageFile.path.split('.').last;
+      final fileName = '${uid}_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      final filePath = '$uid/$fileName';
+
+      await _db.storage.from('avatars').upload(
+            filePath,
+            imageFile,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+          );
+
+      final imageUrl = _db.storage.from('avatars').getPublicUrl(filePath);
+      
+      // Update the user's profile with the new avatar URL
+      await _db.from('users').update({'avatar_url': imageUrl}).eq('uid', uid);
+      
+      return imageUrl;
+    } catch (e) {
+      debugPrint('Error uploading avatar: $e');
+      return null;
+    }
+  }
+
 
   /// Create or update the full user profile (upsert).
   Future<void> saveUserProfile({
