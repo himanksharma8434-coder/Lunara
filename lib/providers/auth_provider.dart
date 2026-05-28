@@ -14,6 +14,7 @@ class AuthProvider with ChangeNotifier {
   bool _isLoading = true; // Initialize as true for session checking
   bool _isLoggedIn = false;
   String _userName = '';
+  String _userAvatarUrl = '';
   DateTime? _lastAssessmentDate;
   bool _hasCompletedOnboarding = false;
   bool _assessmentDeferred = false;
@@ -116,6 +117,7 @@ class AuthProvider with ChangeNotifier {
   String get userId => _supabase.auth.currentUser?.id ?? '';
   String get userEmail => _supabase.auth.currentUser?.email ?? '';
   String get userName => _userName;
+  String get userAvatarUrl => _userAvatarUrl;
   DateTime? get lastAssessmentDate => _lastAssessmentDate;
   bool get hasCompletedOnboarding => _hasCompletedOnboarding;
   bool get hasSeenOnboarding => _prefs.getBool('seenOnboarding') ?? false;
@@ -127,6 +129,7 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> _loadUserData() async {
     _userName = _prefs.getString('userName') ?? '';
+    _userAvatarUrl = _prefs.getString('userAvatarUrl') ?? '';
     _hasCompletedOnboarding = _prefs.getBool('hasCompletedOnboarding') ?? false;
     _assessmentDeferred = _prefs.getBool('assessmentDeferred') ?? false;
 
@@ -150,11 +153,15 @@ class AuthProvider with ChangeNotifier {
       if (uid == null) return;
 
       final profile = await _db.getUserProfile(uid);
-      if (profile != null &&
-          profile['name'] != null &&
-          (profile['name'] as String).isNotEmpty) {
-        _userName = profile['name'];
-        await _prefs.setString('userName', _userName);
+      if (profile != null) {
+        if (profile['name'] != null && (profile['name'] as String).isNotEmpty) {
+          _userName = profile['name'];
+          await _prefs.setString('userName', _userName);
+        }
+        if (profile['avatar_url'] != null && (profile['avatar_url'] as String).isNotEmpty) {
+          _userAvatarUrl = profile['avatar_url'];
+          await _prefs.setString('userAvatarUrl', _userAvatarUrl);
+        }
       } else {
         // Try metadata as fallback
         final metadata = _supabase.auth.currentUser?.userMetadata;
@@ -265,6 +272,12 @@ class AuthProvider with ChangeNotifier {
       _setLoading(false);
       return 'An unexpected error occurred: $e';
     }
+  }
+
+  void updateUserAvatar(String newUrl) async {
+    _userAvatarUrl = newUrl;
+    await _prefs.setString('userAvatarUrl', newUrl);
+    notifyListeners();
   }
 
   // ─── PHONE AUTH (OTP) ─────────────────────────────
