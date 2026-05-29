@@ -10,6 +10,7 @@ import '../models/community_post_model.dart';
 import '../models/community_comment_model.dart';
 import '../providers/auth_provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import '../widgets/custom_toast.dart';
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -23,14 +24,27 @@ class _CommunityScreenState extends State<CommunityScreen>
   late TabController _tabController;
   final DatabaseService _dbService = DatabaseService();
 
+  // Search state
+  bool _isSearchActive = false;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text.trim().toLowerCase();
+      });
+    });
   }
 
   @override
   void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -38,6 +52,7 @@ class _CommunityScreenState extends State<CommunityScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: AppTheme.background(context),
       body: SafeArea(
         child: Column(
@@ -45,8 +60,119 @@ class _CommunityScreenState extends State<CommunityScreen>
             // Header
             Padding(
               padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, -0.15),
+                        end: Offset.zero,
+                      ).animate(CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutCubic,
+                      )),
+                      child: child,
+                    ),
+                  );
+                },
+                child: _isSearchActive
+                    ? Row(
+                        key: const ValueKey('search_bar'),
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: AppTheme.cardColor(context),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: LunaraColors.primary.withOpacity(0.3),
+                                  width: 1.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: LunaraColors.primary.withOpacity(0.08),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.search_rounded,
+                                    color: LunaraColors.primary,
+                                    size: 22,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _searchController,
+                                      focusNode: _searchFocusNode,
+                                      autofocus: true,
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        color: AppTheme.textDark(context),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      decoration: InputDecoration(
+                                        hintText: 'Search posts, authors...',
+                                        hintStyle: TextStyle(
+                                          color: AppTheme.secondaryText(context),
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                        border: InputBorder.none,
+                                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                                      ),
+                                    ),
+                                  ),
+                                  if (_searchQuery.isNotEmpty)
+                                    GestureDetector(
+                                      onTap: () {
+                                        _searchController.clear();
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.secondaryText(context).withOpacity(0.15),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          Icons.close_rounded,
+                                          size: 16,
+                                          color: AppTheme.secondaryText(context),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          GestureDetector(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              _searchController.clear();
+                              setState(() {
+                                _isSearchActive = false;
+                              });
+                            },
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: LunaraColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        key: const ValueKey('header'),
+                        children: [
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -94,9 +220,9 @@ class _CommunityScreenState extends State<CommunityScreen>
                   IconButton(
                     onPressed: () {
                       HapticFeedback.lightImpact();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Search coming soon')),
-                      );
+                      setState(() {
+                        _isSearchActive = true;
+                      });
                     },
                     icon: const Icon(Icons.search_rounded),
                   ),
@@ -115,7 +241,8 @@ class _CommunityScreenState extends State<CommunityScreen>
                       tooltip: 'Create Post',
                     ),
                   ),
-                ],
+                        ],
+                      ),
               ),
             ),
 
@@ -188,11 +315,64 @@ class _CommunityScreenState extends State<CommunityScreen>
           return const Center(child: Text('No posts yet in this category.'));
         }
 
+        // Apply search filter
+        final filteredPosts = _searchQuery.isEmpty
+            ? postsData
+            : postsData.where((postData) {
+                final content = (postData['content'] ?? '').toString().toLowerCase();
+                final authorName = (postData['author_name'] ?? '').toString().toLowerCase();
+                return content.contains(_searchQuery) ||
+                    authorName.contains(_searchQuery);
+              }).toList();
+
+        if (filteredPosts.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: LunaraColors.primary.withOpacity(0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.search_off_rounded,
+                      size: 48,
+                      color: LunaraColors.primary.withOpacity(0.5),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No results found',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textDark(context),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Try different keywords or check spelling',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.secondaryText(context),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          itemCount: postsData.length,
+          itemCount: filteredPosts.length,
           itemBuilder: (context, index) {
-            final postModel = CommunityPostModel.fromJson(postsData[index]);
+            final postModel = CommunityPostModel.fromJson(filteredPosts[index]);
             return CommunityPostCard(post: postModel);
           },
         );
@@ -252,9 +432,11 @@ class _CommunityScreenState extends State<CommunityScreen>
                     TextButton(
                       onPressed: () async {
                         if (contentController.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Please write something')),
+                          CustomToast.show(
+                            context,
+                            message: 'Please write something',
+                            icon: Icons.error_outline_rounded,
+                            backgroundColor: Colors.orange[400],
                           );
                           return;
                         }
@@ -279,19 +461,19 @@ class _CommunityScreenState extends State<CommunityScreen>
                             if (!context.mounted) return;
 
                             Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Post created successfully!'),
-                                backgroundColor: Color(0xFF06D6A0),
-                              ),
+                            CustomToast.show(
+                              context,
+                              message: 'Post created successfully!',
+                              icon: Icons.check_circle_rounded,
+                              backgroundColor: const Color(0xFF06D6A0),
                             );
                           } catch (e) {
                             if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Failed to create post: $e'),
-                                backgroundColor: Colors.red[400],
-                              ),
+                            CustomToast.show(
+                              context,
+                              message: 'Failed to create post: $e',
+                              icon: Icons.error_outline_rounded,
+                              backgroundColor: Colors.red[400],
                             );
                           }
                         }
@@ -717,6 +899,25 @@ class _CommentsSheetContentState extends State<_CommentsSheetContent> {
   final DatabaseService _dbService = DatabaseService();
   final TextEditingController _commentController = TextEditingController();
 
+  List<Map<String, dynamic>> _comments = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadComments();
+  }
+
+  Future<void> _loadComments() async {
+    final comments = await _dbService.getComments(widget.post.id!);
+    if (mounted) {
+      setState(() {
+        _comments = comments;
+        _isLoading = false;
+      });
+    }
+  }
+
   Future<void> _submitComment() async {
     final text = _commentController.text.trim();
     if (text.isEmpty) return;
@@ -726,15 +927,42 @@ class _CommentsSheetContentState extends State<_CommentsSheetContent> {
     final userName = authProvider.userName;
 
     if (userId.isNotEmpty) {
-      await _dbService.addComment(
-        postId: widget.post.id!, // Assuming id is always non-null when interacting with comments
-        authorId: userId,
-        authorName: userName.isNotEmpty ? userName : 'Anonymous',
-        authorAvatar: widget.post.category == 'Women' ? '👩' : '👨', // Simplify for now, better to pull from user profile
-        content: text,
-      );
+      final tempComment = {
+        'id': DateTime.now().millisecondsSinceEpoch,
+        'post_id': widget.post.id,
+        'author_id': userId,
+        'author_name': userName.isNotEmpty ? userName : 'Anonymous',
+        'author_avatar': widget.post.category == 'Women' ? '👩' : '👨',
+        'content': text,
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      setState(() {
+        _comments.add(tempComment);
+      });
       _commentController.clear();
-      setState(() {}); // Refresh comments list
+
+      try {
+        await _dbService.addComment(
+          postId: widget.post.id!,
+          authorId: userId,
+          authorName: userName.isNotEmpty ? userName : 'Anonymous',
+          authorAvatar: widget.post.category == 'Women' ? '👩' : '👨',
+          content: text,
+        );
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _comments.removeWhere((c) => c['id'] == tempComment['id']);
+          });
+          CustomToast.show(
+            context,
+            message: 'Failed to post comment',
+            icon: Icons.error_outline_rounded,
+            backgroundColor: Colors.red[400],
+          );
+        }
+      }
     }
   }
 
@@ -768,7 +996,7 @@ class _CommentsSheetContentState extends State<_CommentsSheetContent> {
             child: Row(
               children: [
                 Text(
-                  '${widget.post.commentCount} Comments',
+                  '${_isLoading ? widget.post.commentCount : _comments.length} Comments',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -788,42 +1016,36 @@ class _CommentsSheetContentState extends State<_CommentsSheetContent> {
 
           // Comments List
           Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: _dbService.getComments(widget.post.id!),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                
-                final commentsData = snapshot.data ?? [];
-                
-                if (commentsData.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.chat_bubble_outline,
-                            size: 60, color: Colors.grey[300]),
-                        const SizedBox(height: 15),
-                        Text(
-                          'No comments yet',
-                          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _comments.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.chat_bubble_outline,
+                                size: 60, color: Colors.grey[300]),
+                            const SizedBox(height: 15),
+                            Text(
+                              'No comments yet',
+                              style: TextStyle(
+                                  fontSize: 16, color: Colors.grey[600]),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Be the first to comment',
+                              style: TextStyle(
+                                  fontSize: 14, color: Colors.grey[500]),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Be the first to comment',
-                          style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  itemCount: commentsData.length,
-                  itemBuilder: (context, index) {
-                    final commentData = commentsData[index];
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 10),
+                        itemCount: _comments.length,
+                        itemBuilder: (context, index) {
+                          final commentData = _comments[index];
                     final comment = CommunityCommentModel.fromJson(commentData);
                     
                     return Container(
@@ -900,9 +1122,7 @@ class _CommentsSheetContentState extends State<_CommentsSheetContent> {
                       ),
                     );
                   },
-                );
-              },
-            ),
+                ),
           ),
 
           // Comment Input

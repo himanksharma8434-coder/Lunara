@@ -442,13 +442,22 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
           firstDate: DateTime.now().subtract(const Duration(days: 90)),
           lastDate: DateTime.now(),
           builder: (context, child) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
             return Theme(
               data: Theme.of(context).copyWith(
-                colorScheme: ColorScheme.light(
-                  primary: AppTheme.primary(context),
-                  onPrimary: Colors.white,
-                  onSurface: AppTheme.textDark(context),
-                ),
+                colorScheme: isDark
+                    ? ColorScheme.dark(
+                        primary: AppTheme.primary(context),
+                        onPrimary: Colors.white,
+                        surface: const Color(0xFF1E1E1E),
+                        onSurface: Colors.white,
+                      )
+                    : ColorScheme.light(
+                        primary: AppTheme.primary(context),
+                        onPrimary: Colors.white,
+                        surface: Colors.white,
+                        onSurface: const Color(0xFF3E2723),
+                      ),
               ),
               child: child!,
             );

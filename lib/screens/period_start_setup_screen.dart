@@ -238,14 +238,22 @@ class _PeriodStartSetupScreenState extends State<PeriodStartSetupScreen>
           firstDate: DateTime.now().subtract(const Duration(days: 60)),
           lastDate: DateTime.now(),
           builder: (context, child) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
             return Theme(
               data: Theme.of(context).copyWith(
-                colorScheme: const ColorScheme.light(
-                  primary: LunaraColors.primary,
-                  onPrimary: Colors.white,
-                  surface: Colors.white,
-                  onSurface: LunaraColors.textDark,
-                ),
+                colorScheme: isDark
+                    ? const ColorScheme.dark(
+                        primary: LunaraColors.primary,
+                        onPrimary: Colors.white,
+                        surface: Color(0xFF1E1E1E),
+                        onSurface: Colors.white,
+                      )
+                    : const ColorScheme.light(
+                        primary: LunaraColors.primary,
+                        onPrimary: Colors.white,
+                        surface: Colors.white,
+                        onSurface: LunaraColors.textDark,
+                      ),
               ),
               child: child!,
             );

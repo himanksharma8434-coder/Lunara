@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
+import 'dart:ui';
 import '../../providers/cycle_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
@@ -14,6 +15,7 @@ import '../premium_screen.dart';
 import '../assessment_screen.dart';
 import '../bbt_log_screen.dart';
 import '../../widgets/animations.dart';
+import '../../widgets/custom_toast.dart';
 import '../../models/prediction_result.dart';
 import '../../services/premium_service.dart';
 
@@ -28,6 +30,7 @@ class HomeTab extends StatefulWidget {
 class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
   late AnimationController _breathingController;
   late AnimationController _scrollController;
+  final GlobalKey _irregularButtonKey = GlobalKey();
 
   @override
   void initState() {
@@ -49,6 +52,39 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
     _breathingController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Plays the premium irregular-toggle animation:
+  /// 1. Glowing orb with particle trail rises from the button to the top header.
+  /// 2. Glassmorphism info card drops in explaining what Lunara Intelligence adapts.
+  void _showIrregularAnimation(CycleProvider provider) {
+    final renderBox =
+        _irregularButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+
+    final buttonPos = renderBox.localToGlobal(Offset.zero);
+    final buttonSize = renderBox.size;
+    final overlay = Overlay.of(context);
+    final screenSize = MediaQuery.of(context).size;
+    final willBeIrregular = !provider.isIrregular;
+
+    // Toggle the value first
+    provider.setIsIrregular(willBeIrregular);
+    HapticFeedback.mediumImpact();
+
+    late OverlayEntry overlayEntry;
+    overlayEntry = OverlayEntry(
+      builder: (_) => _IrregularAnimationOverlay(
+        startOffset: Offset(
+          buttonPos.dx + buttonSize.width / 2,
+          buttonPos.dy + buttonSize.height / 2,
+        ),
+        screenSize: screenSize,
+        isIrregular: willBeIrregular,
+        onDismiss: () => overlayEntry.remove(),
+      ),
+    );
+    overlay.insert(overlayEntry);
   }
 
   void _showSetNameDialog(BuildContext context, CycleProvider provider) {
@@ -600,32 +636,12 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                 onTap: () {
                                   HapticFeedback.lightImpact();
                                   provider.dismissPeriodConfirmation();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.auto_awesome_rounded,
-                                            color: Colors.white,
-                                            size: 18,
-                                          ),
-                                          const SizedBox(width: 10),
-                                          const Expanded(
-                                            child: Text(
-                                              'Noted! Lunara\'s intelligence will adjust your predictions.',
-                                              style: TextStyle(fontWeight: FontWeight.w600),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      backgroundColor: LunaraColors.primaryDark,
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                      margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                                      duration: const Duration(seconds: 3),
-                                    ),
+                                  CustomToast.show(
+                                    context,
+                                    message: 'Noted! Lunara\'s intelligence will adjust your predictions.',
+                                    icon: Icons.auto_awesome_rounded,
+                                    backgroundColor: LunaraColors.primaryDark,
+                                    duration: const Duration(seconds: 4),
                                   );
                                 },
                                 child: Container(
@@ -667,13 +683,22 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                 firstDate: DateTime.now().subtract(const Duration(days: 30)),
                                 lastDate: DateTime.now(),
                                 builder: (context, child) {
+                                  final isDark = Theme.of(context).brightness == Brightness.dark;
                                   return Theme(
                                     data: Theme.of(context).copyWith(
-                                      colorScheme: ColorScheme.light(
-                                        primary: AppTheme.primary(context),
-                                        onPrimary: Colors.white,
-                                        onSurface: AppTheme.textDark(context),
-                                      ),
+                                      colorScheme: isDark
+                                          ? ColorScheme.dark(
+                                              primary: AppTheme.primary(context),
+                                              onPrimary: Colors.white,
+                                              surface: const Color(0xFF1E1E1E),
+                                              onSurface: Colors.white,
+                                            )
+                                          : ColorScheme.light(
+                                              primary: AppTheme.primary(context),
+                                              onPrimary: Colors.white,
+                                              surface: Colors.white,
+                                              onSurface: const Color(0xFF3E2723),
+                                            ),
                                     ),
                                     child: child!,
                                   );
@@ -682,32 +707,11 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                               if (picked != null) {
                                 provider.updateLastPeriodDate(picked);
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: const Row(
-                                        children: [
-                                          Icon(
-                                            Icons.check_circle_rounded,
-                                            color: Colors.white,
-                                            size: 18,
-                                          ),
-                                          SizedBox(width: 10),
-                                          Expanded(
-                                            child: Text(
-                                              'Period date updated! Predictions recalculated.',
-                                              style: TextStyle(fontWeight: FontWeight.w600),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      backgroundColor: const Color(0xFF06D6A0),
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                      margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                                      duration: const Duration(seconds: 3),
-                                    ),
+                                  CustomToast.show(
+                                    context,
+                                    message: 'Period date updated! Predictions recalculated.',
+                                    icon: Icons.check_circle_rounded,
+                                    backgroundColor: const Color(0xFF06D6A0),
                                   );
                                 }
                               }
@@ -828,13 +832,21 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                 child: AnimatedBuilder(
                   animation: _breathingController,
                   builder: (context, child) {
-                    return Container(
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(30),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                        child: Container(
                       height: 250,
                       margin: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 8),
                       decoration: BoxDecoration(
-                        color: AppTheme.cardColor(context).withOpacity(0.5),
+                        color: AppTheme.cardColor(context).withOpacity(0.35),
                         borderRadius: BorderRadius.circular(30),
+                        border: Border.all(
+                          color: AppTheme.cardColor(context).withOpacity(0.3),
+                          width: 1.5,
+                        ),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.05),
@@ -985,6 +997,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                             ),
                           ),
                         ],
+                      ),
+                    ),
                       ),
                     );
                   },
@@ -1139,21 +1153,24 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: FadeSlideIn(
                     delay: const Duration(milliseconds: 200),
-                    child: Container(
+                    child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppTheme.cardColor(context),
                         gradient: LinearGradient(
                           colors: [
-                            AppTheme.primary(context).withOpacity(0.15),
-                            AppTheme.primary(context).withOpacity(0.00),
+                            AppTheme.primary(context).withOpacity(0.12),
+                            AppTheme.cardColor(context).withOpacity(0.3),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: AppTheme.primary(context).withOpacity(0.3),
+                          color: AppTheme.primary(context).withOpacity(0.2),
                           width: 1.5,
                         ),
                         boxShadow: AppTheme.softShadow(context),
@@ -1218,20 +1235,20 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                 onPressed: () {
                                   HapticFeedback.lightImpact();
                                   provider.addSymptom(symptom);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content:
-                                          Text('$symptom logged for today'),
-                                      backgroundColor:
-                                          AppTheme.primary(context),
-                                      duration: const Duration(seconds: 2),
-                                    ),
+                                  CustomToast.show(
+                                    context,
+                                    message: '$symptom logged for today',
+                                    icon: Icons.health_and_safety_rounded,
+                                    backgroundColor: AppTheme.primary(context),
+                                    duration: const Duration(seconds: 2),
                                   );
                                 },
                               );
                             }).toList(),
                           ),
                         ],
+                      ),
+                    ),
                       ),
                     ),
                   ),
@@ -1318,15 +1335,23 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                       ),
                     );
                   },
-                  child: Container(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                      child: Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [LunaraColors.textDark, Color(0xFF5D4037)],
+                      gradient: LinearGradient(
+                        colors: [LunaraColors.textDark.withOpacity(0.85), const Color(0xFF5D4037).withOpacity(0.85)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.1),
+                        width: 1,
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: LunaraColors.textDark.withOpacity(0.3),
@@ -1373,6 +1398,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                         ),
                       ],
                     ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -1412,15 +1439,23 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                       ),
                     );
                   },
-                  child: Container(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                      child: Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF6C63FF), Color(0xFF5B52CC)],
+                      gradient: LinearGradient(
+                        colors: [const Color(0xFF6C63FF).withOpacity(0.85), const Color(0xFF5B52CC).withOpacity(0.85)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.1),
+                        width: 1,
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: const Color(0xFF6C63FF).withOpacity(0.3),
@@ -1490,6 +1525,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                         const Icon(Icons.arrow_forward_ios_rounded,
                             color: Colors.white54, size: 16),
                       ],
+                    ),
+                      ),
                     ),
                   ),
                 ),
@@ -1561,15 +1598,23 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                             builder: (_) => const PremiumScreen()),
                       );
                     },
-                    child: Container(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(22),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                        child: Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
+                        gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [Color(0xFF2D1B4E), Color(0xFF44206E)],
+                          colors: [const Color(0xFF2D1B4E).withOpacity(0.85), const Color(0xFF44206E).withOpacity(0.85)],
                         ),
                         borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.08),
+                          width: 1,
+                        ),
                         boxShadow: [
                           BoxShadow(
                             color: const Color(0xFF44206E).withOpacity(0.3),
@@ -1623,6 +1668,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                           ),
                         ],
                       ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -1635,104 +1682,158 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
               sliver: SliverToBoxAdapter(
                 child: Column(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: provider.isIrregular
-                            ? const Color(0xFFFF8566).withOpacity(0.08)
-                            : AppTheme.subtleBackground(context),
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(
-                          color: provider.isIrregular
-                              ? const Color(0xFFFF8566).withOpacity(0.2)
-                              : AppTheme.primary(context).withOpacity(0.1),
-                          width: 2,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(28),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 500),
+                          curve: Curves.easeInOut,
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: provider.isIrregular
+                                ? const Color(0xFFFF8566).withOpacity(0.08)
+                                : AppTheme.subtleBackground(context).withOpacity(0.4),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(
+                              color: provider.isIrregular
+                                  ? const Color(0xFFFF8566).withOpacity(0.25)
+                                  : AppTheme.primary(context).withOpacity(0.15),
+                              width: 2,
+                            ),
+                          ),
+                          child: Column(
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: provider.isIrregular
-                                      ? const Color(0xFFFF8566).withOpacity(0.15)
-                                      : AppTheme.primary(context).withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Icon(
-                                  provider.isIrregular
-                                      ? Icons.event_busy_rounded
-                                      : Icons.event_available_rounded,
-                                  color: provider.isIrregular
-                                      ? const Color(0xFFFF8566)
-                                      : AppTheme.primary(context),
-                                  size: 26,
-                                ),
+                              Row(
+                                children: [
+                                  TweenAnimationBuilder<double>(
+                                    duration: const Duration(milliseconds: 400),
+                                    tween: Tween<double>(
+                                      begin: provider.isIrregular ? 0.0 : 1.0,
+                                      end: provider.isIrregular ? 1.0 : 0.0,
+                                    ),
+                                    builder: (context, value, child) {
+                                      final color = Color.lerp(
+                                        AppTheme.primary(context),
+                                        const Color(0xFFFF8566),
+                                        value,
+                                      )!;
+                                      return Container(
+                                        padding: const EdgeInsets.all(14),
+                                        decoration: BoxDecoration(
+                                          color: color.withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                        child: AnimatedSwitcher(
+                                          duration: const Duration(milliseconds: 300),
+                                          child: Icon(
+                                            provider.isIrregular
+                                                ? Icons.event_busy_rounded
+                                                : Icons.event_available_rounded,
+                                            key: ValueKey<bool>(provider.isIrregular),
+                                            color: color,
+                                            size: 26,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(width: 18),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        AnimatedSwitcher(
+                                          duration: const Duration(milliseconds: 300),
+                                          transitionBuilder: (child, animation) {
+                                            return FadeTransition(opacity: animation, child: child);
+                                          },
+                                          child: Text(
+                                            provider.isIrregular
+                                                ? 'Period is Irregular'
+                                                : 'Period is Regular',
+                                            key: ValueKey<bool>(provider.isIrregular),
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w900,
+                                              color: AppTheme.textDark(context),
+                                            ),
+                                          ),
+                                        ),
+                                        AnimatedSwitcher(
+                                          duration: const Duration(milliseconds: 300),
+                                          transitionBuilder: (child, animation) {
+                                            return FadeTransition(opacity: animation, child: child);
+                                          },
+                                          child: Text(
+                                            provider.isIrregular
+                                                ? 'Predictions are adjusted for variability'
+                                                : 'Predictions follow a steady pattern',
+                                            key: ValueKey<bool>(provider.isIrregular),
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: AppTheme.textLight(context),
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 18),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
+                              const SizedBox(height: 24),
+                              SizedBox(
+                                key: _irregularButtonKey,
+                                width: double.infinity,
+                                height: 56,
+                                child: TweenAnimationBuilder<double>(
+                                  duration: const Duration(milliseconds: 400),
+                                  tween: Tween<double>(
+                                    begin: provider.isIrregular ? 0.0 : 1.0,
+                                    end: provider.isIrregular ? 1.0 : 0.0,
+                                  ),
+                                  builder: (context, value, child) {
+                                    final color = Color.lerp(
+                                      AppTheme.primary(context),
+                                      const Color(0xFFFF8566),
+                                      value,
+                                    )!;
+                                    return ElevatedButton(
+                                      onPressed: () => _showIrregularAnimation(provider),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: color,
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                      ),
+                                      child: child,
+                                    );
+                                  },
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 300),
+                                    transitionBuilder: (child, animation) {
+                                      return FadeTransition(opacity: animation, child: child);
+                                    },
+                                    child: Text(
                                       provider.isIrregular
-                                          ? 'Period is Irregular'
-                                          : 'Period is Regular',
-                                      style: TextStyle(
-                                        fontSize: 18,
+                                          ? 'Mark as Regular'
+                                          : 'Mark as Irregular',
+                                      key: ValueKey<bool>(provider.isIrregular),
+                                      style: const TextStyle(
+                                        fontSize: 16,
                                         fontWeight: FontWeight.w900,
-                                        color: AppTheme.textDark(context),
+                                        letterSpacing: 0.5,
                                       ),
                                     ),
-                                    Text(
-                                      provider.isIrregular
-                                          ? 'Predictions are adjusted for variability'
-                                          : 'Predictions follow a steady pattern',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: AppTheme.textLight(context),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 24),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                provider.setIsIrregular(!provider.isIrregular);
-                                HapticFeedback.mediumImpact();
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: provider.isIrregular
-                                    ? const Color(0xFFFF8566)
-                                    : AppTheme.primary(context),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                              ),
-                              child: Text(
-                                provider.isIrregular
-                                    ? 'Mark as Regular'
-                                    : 'Mark as Irregular',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -1801,15 +1902,19 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
           child: GestureDetector(
             onTapDown: (_) => HapticFeedback.lightImpact(),
             onTap: onTap,
-            child: Container(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
               decoration: BoxDecoration(
-                color: AppTheme.cardColor(context),
+                color: AppTheme.cardColor(context).withOpacity(0.4),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: color.withOpacity(0.3), width: 2),
+                border: Border.all(color: color.withOpacity(0.25), width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: color.withOpacity(0.2),
+                    color: color.withOpacity(0.15),
                     blurRadius: 15,
                     offset: const Offset(0, 5),
                   ),
@@ -1849,6 +1954,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                     ),
                   ),
                 ],
+              ),
+            ),
               ),
             ),
           ),
@@ -1969,20 +2076,24 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
         HapticFeedback.lightImpact();
         onTap();
       },
-      child: Container(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
         padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 14),
         decoration: BoxDecoration(
-          color: effectiveBg,
+          color: effectiveBg.withOpacity(isDark ? 0.3 : 0.5),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isDark
-                ? accentColor.withOpacity(0.3)
-                : AppTheme.cardColor(context).withOpacity(0.6),
-            width: 2,
+                ? accentColor.withOpacity(0.2)
+                : accentColor.withOpacity(0.15),
+            width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: accentColor.withOpacity(isDark ? 0.05 : 0.15),
+              color: accentColor.withOpacity(isDark ? 0.05 : 0.1),
               blurRadius: 12,
               offset: const Offset(0, 5),
             ),
@@ -2009,6 +2120,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
               textAlign: TextAlign.center,
             ),
           ],
+        ),
+          ),
         ),
       ),
     );
@@ -2274,14 +2387,18 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
             MaterialPageRoute(builder: (context) => const BbtLogScreen()),
           );
         },
-        child: Container(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: AppTheme.cardColor(context),
+            color: AppTheme.cardColor(context).withOpacity(0.4),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: statusColor.withOpacity(0.3),
-              width: 2,
+              color: statusColor.withOpacity(0.2),
+              width: 1.5,
             ),
             boxShadow: AppTheme.softShadow(context),
           ),
@@ -2345,6 +2462,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                 child: Icon(Icons.add_rounded, color: statusColor, size: 20),
               ),
             ],
+          ),
+            ),
           ),
         ),
       ),
@@ -2516,4 +2635,512 @@ class AnimatedForegroundRingPainter extends CustomPainter {
   bool shouldRepaint(AnimatedForegroundRingPainter oldDelegate) =>
       oldDelegate.progress != progress ||
       oldDelegate.breathAnimation != breathAnimation;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  IRREGULAR ANIMATION OVERLAY
+//  A premium orb-rise + info card animation for irregular toggle.
+// ═══════════════════════════════════════════════════════════════════
+
+class _IrregularAnimationOverlay extends StatefulWidget {
+  final Offset startOffset;
+  final Size screenSize;
+  final bool isIrregular;
+  final VoidCallback onDismiss;
+
+  const _IrregularAnimationOverlay({
+    required this.startOffset,
+    required this.screenSize,
+    required this.isIrregular,
+    required this.onDismiss,
+  });
+
+  @override
+  State<_IrregularAnimationOverlay> createState() =>
+      _IrregularAnimationOverlayState();
+}
+
+class _IrregularAnimationOverlayState
+    extends State<_IrregularAnimationOverlay> with TickerProviderStateMixin {
+  late AnimationController _orbController;
+  late AnimationController _cardController;
+  late AnimationController _bgController;
+  late AnimationController _pulseController;
+
+  late Animation<double> _orbProgress;
+  late Animation<double> _orbScale;
+  late Animation<double> _cardSlide;
+  late Animation<double> _cardOpacity;
+  late Animation<double> _bgOpacity;
+  late List<Animation<double>> _pointOpacities;
+
+  // Trail particles state
+  final List<_TrailParticle> _trailParticles = [];
+  final math.Random _rng = math.Random();
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Phase 1: Orb rises from button to top (800ms)
+    _orbController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _orbProgress = CurvedAnimation(
+      parent: _orbController,
+      curve: Curves.easeInOutCubic,
+    );
+    _orbScale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.2), weight: 20),
+      TweenSequenceItem(tween: Tween(begin: 1.2, end: 1.0), weight: 10),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.0), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.8), weight: 10),
+      TweenSequenceItem(tween: Tween(begin: 1.8, end: 0.0), weight: 10),
+    ]).animate(_orbController);
+
+    // Phase 2: Info card slides up
+    _cardController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _cardSlide = CurvedAnimation(
+      parent: _cardController,
+      curve: Curves.easeOutBack,
+    );
+    _cardOpacity = CurvedAnimation(
+      parent: _cardController,
+      curve: Curves.easeOut,
+    );
+
+    // Staggered fade animations for the info card's points
+    _pointOpacities = List.generate(3, (index) {
+      final start = 0.3 + index * 0.2;
+      final end = (start + 0.4).clamp(0.0, 1.0);
+      return CurvedAnimation(
+        parent: _cardController,
+        curve: Interval(start, end, curve: Curves.easeOut),
+      );
+    });
+
+    // Background dim
+    _bgController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _bgOpacity = CurvedAnimation(
+      parent: _bgController,
+      curve: Curves.easeOut,
+    );
+
+    // Pulse glow
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+
+    _orbController.addListener(() {
+      // Generate trail particles during the orb's journey
+      if (_orbController.value > 0.05 && _orbController.value < 0.85) {
+        _generateTrailParticle();
+      }
+      setState(() {});
+    });
+
+    _startSequence();
+  }
+
+  void _generateTrailParticle() {
+    final endY = 80.0;
+    final currentX = widget.startOffset.dx +
+        (_rng.nextDouble() - 0.5) *
+            30 *
+            math.sin(_orbProgress.value * math.pi);
+    final currentY = widget.startOffset.dy +
+        (endY - widget.startOffset.dy) * _orbProgress.value;
+
+    _trailParticles.add(_TrailParticle(
+      x: currentX + (_rng.nextDouble() - 0.5) * 20,
+      y: currentY + (_rng.nextDouble() - 0.5) * 20,
+      radius: 2 + _rng.nextDouble() * 4,
+      opacity: 0.6 + _rng.nextDouble() * 0.4,
+      createdAt: _orbController.value,
+    ));
+
+    // Remove old particles
+    _trailParticles
+        .removeWhere((p) => _orbController.value - p.createdAt > 0.25);
+  }
+
+  Future<void> _startSequence() async {
+    _bgController.forward();
+    await Future.delayed(const Duration(milliseconds: 150));
+    _orbController.forward();
+    await Future.delayed(const Duration(milliseconds: 700));
+    HapticFeedback.lightImpact();
+    _cardController.forward();
+  }
+
+  Future<void> _dismiss() async {
+    await _bgController.reverse();
+    widget.onDismiss();
+  }
+
+  @override
+  void dispose() {
+    _orbController.dispose();
+    _cardController.dispose();
+    _bgController.dispose();
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final orbColor = widget.isIrregular
+        ? const Color(0xFFFF8566)
+        : const Color(0xFF7C4DFF);
+    final endY = 80.0;
+
+    // Calculate orb position along a curved path
+    final orbX = widget.startOffset.dx +
+        math.sin(_orbProgress.value * math.pi) *
+            (widget.screenSize.width / 2 - widget.startOffset.dx) *
+            0.3;
+    final orbY =
+        widget.startOffset.dy + (endY - widget.startOffset.dy) * _orbProgress.value;
+
+    return Material(
+      color: Colors.transparent,
+      child: GestureDetector(
+        onTap: _dismiss,
+        child: AnimatedBuilder(
+          animation:
+              Listenable.merge([_bgOpacity, _orbController, _cardController, _pulseController]),
+          builder: (context, _) {
+            return Stack(
+              children: [
+                // Dimmed background
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black.withOpacity(0.4 * _bgOpacity.value),
+                  ),
+                ),
+
+                // Trail particles
+                ..._trailParticles.map((p) {
+                  final age = (_orbController.value - p.createdAt).clamp(0.0, 0.25);
+                  final fadeout = 1.0 - (age / 0.25);
+                  return Positioned(
+                    left: p.x - p.radius,
+                    top: p.y - p.radius,
+                    child: Opacity(
+                      opacity: p.opacity * fadeout,
+                      child: Container(
+                        width: p.radius * 2,
+                        height: p.radius * 2,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: orbColor.withOpacity(0.6),
+                          boxShadow: [
+                            BoxShadow(
+                              color: orbColor.withOpacity(0.3 * fadeout),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+
+                // Main orb
+                if (_orbScale.value > 0)
+                  Positioned(
+                    left: orbX - 18,
+                    top: orbY - 18,
+                    child: Transform.scale(
+                      scale: _orbScale.value,
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              Colors.white,
+                              orbColor,
+                              orbColor.withOpacity(0.0),
+                            ],
+                            stops: const [0.0, 0.4, 1.0],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: orbColor.withOpacity(
+                                  0.6 + 0.3 * math.sin(_pulseController.value * math.pi)),
+                              blurRadius: 30 + 10 * _pulseController.value,
+                              spreadRadius: 5,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // Info card (after orb arrives)
+                Positioned(
+                  left: 24,
+                  right: 24,
+                  top: 100 + (1 - _cardSlide.value) * 60,
+                  child: Opacity(
+                    opacity: _cardOpacity.value,
+                    child: _buildInfoCard(context, orbColor),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(BuildContext context, Color accentColor) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final title = widget.isIrregular
+        ? '🌀  Lunara Intelligence Activated'
+        : '✨  Lunara Intelligence Updated';
+
+    final subtitle = widget.isIrregular
+        ? 'Your cycle has been marked as irregular'
+        : 'Your cycle has been marked as regular';
+
+    final List<_IntelligencePoint> points = widget.isIrregular
+        ? [
+            _IntelligencePoint(
+              icon: Icons.trending_up_rounded,
+              title: 'Wider Prediction Windows',
+              desc: 'Predictions will account for variability — showing ranges instead of exact dates.',
+            ),
+            _IntelligencePoint(
+              icon: Icons.psychology_rounded,
+              title: 'Adaptive Learning',
+              desc: 'Lunara will learn your unique pattern over 3–6 cycles to improve accuracy.',
+            ),
+            _IntelligencePoint(
+              icon: Icons.notifications_active_rounded,
+              title: 'Smarter Reminders',
+              desc: 'Notifications will be sent earlier to prepare you for a wider window.',
+            ),
+          ]
+        : [
+            _IntelligencePoint(
+              icon: Icons.calendar_today_rounded,
+              title: 'Precise Predictions',
+              desc: 'Predictions will follow a steady cycle length pattern.',
+            ),
+            _IntelligencePoint(
+              icon: Icons.auto_awesome_rounded,
+              title: 'Optimized Tracking',
+              desc: 'Insights and tips are tuned for a consistent cycle rhythm.',
+            ),
+          ];
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withOpacity(0.08)
+                : Colors.white.withOpacity(0.85),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: accentColor.withOpacity(0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: accentColor.withOpacity(0.15),
+                blurRadius: 40,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Animated icon
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      accentColor.withOpacity(0.2),
+                      accentColor.withOpacity(0.05),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(
+                    color: accentColor.withOpacity(0.4),
+                    width: 2,
+                  ),
+                ),
+                child: Icon(
+                  widget.isIrregular
+                      ? Icons.auto_fix_high_rounded
+                      : Icons.check_circle_outline_rounded,
+                  color: accentColor,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Title
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? Colors.white : Colors.black87,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isDark
+                      ? Colors.white.withOpacity(0.6)
+                      : Colors.black54,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Intelligence points
+              ...List.generate(points.length, (index) {
+                final point = points[index];
+                final anim = index < _pointOpacities.length
+                    ? _pointOpacities[index]
+                    : _cardOpacity;
+                return FadeTransition(
+                  opacity: anim,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.15),
+                      end: Offset.zero,
+                    ).animate(CurvedAnimation(
+                      parent: anim,
+                      curve: Curves.easeOutCubic,
+                    )),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: accentColor.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              point.icon,
+                              color: accentColor,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  point.title,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDark
+                                        ? Colors.white
+                                        : Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  point.desc,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: isDark
+                                        ? Colors.white.withOpacity(0.5)
+                                        : Colors.black45,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+
+              const SizedBox(height: 8),
+              Text(
+                'Tap anywhere to dismiss',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isDark
+                      ? Colors.white.withOpacity(0.3)
+                      : Colors.black26,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TrailParticle {
+  final double x;
+  final double y;
+  final double radius;
+  final double opacity;
+  final double createdAt;
+
+  _TrailParticle({
+    required this.x,
+    required this.y,
+    required this.radius,
+    required this.opacity,
+    required this.createdAt,
+  });
+}
+
+class _IntelligencePoint {
+  final IconData icon;
+  final String title;
+  final String desc;
+
+  _IntelligencePoint({
+    required this.icon,
+    required this.title,
+    required this.desc,
+  });
 }

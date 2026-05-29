@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/prediction_result.dart';
@@ -1506,6 +1507,35 @@ class CycleProvider extends ChangeNotifier {
 
     _nextPeriodDate = _latestPrediction.predictedNextPeriod;
     _ovulationDate = _latestPrediction.predictedOvulation;
+
+    // Trigger update for the Home Screen widget asynchronously
+    _updateHomeWidget();
+  }
+
+  /// Update home screen widget using the home_widget package bridge.
+  Future<void> _updateHomeWidget() async {
+    try {
+      final phase = currentPhase;
+      final day = currentCycleDay;
+      final total = cycleLength;
+      final fertility = isOnPeriod
+          ? "Menstruation"
+          : (isInFertileWindow ? "High Fertility" : "Low Fertility");
+
+      // Save widget keys (shared with Android remote views)
+      await HomeWidget.saveWidgetData<String>('cycle_phase', '$phase Phase');
+      await HomeWidget.saveWidgetData<String>('cycle_day', 'Day $day of $total');
+      await HomeWidget.saveWidgetData<String>('fertility_status', fertility);
+
+      // Request launcher database refresh
+      await HomeWidget.updateWidget(
+        name: 'LunaraWidgetProvider',
+        androidName: 'LunaraWidgetProvider',
+      );
+      debugPrint('Home Widget updated: $phase Phase, Day $day of $total, $fertility');
+    } catch (e) {
+      debugPrint('Error updating home widget: $e');
+    }
   }
 
   // Trigger Notification Scheduling

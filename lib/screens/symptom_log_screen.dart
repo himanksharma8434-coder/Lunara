@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../providers/cycle_provider.dart';
+import '../widgets/custom_toast.dart';
 import 'bbt_log_screen.dart';
 
 class SymptomLogScreen extends StatefulWidget {
@@ -492,12 +493,11 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                 onPressed: () {
                   HapticFeedback.mediumImpact();
                   provider.setTodaySymptoms(_selectedSymptoms.toList());
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                          '${_selectedSymptoms.length} symptom(s) logged successfully!'),
-                      backgroundColor: const Color(0xFF06D6A0),
-                    ),
+                  CustomToast.show(
+                    context,
+                    message: '${_selectedSymptoms.length} symptom(s) logged successfully!',
+                    icon: Icons.check_circle_rounded,
+                    backgroundColor: const Color(0xFF06D6A0),
                   );
                   Navigator.pop(context);
                 },

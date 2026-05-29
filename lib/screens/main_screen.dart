@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 import '../providers/cycle_provider.dart';
 import 'tabs/home_tab.dart';
 import '../services/app_notification_service.dart';
+import '../widgets/custom_toast.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -58,40 +59,20 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       
       if (action == 'action_period_started') {
         provider.confirmPeriodStarted();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Expanded(child: Text("Period start logged successfully!")),
-              ],
-            ),
-            backgroundColor: Colors.green.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            margin: const EdgeInsets.all(16),
-          ),
+        CustomToast.show(
+          context,
+          message: "Period start logged successfully!",
+          icon: Icons.check_circle,
+          backgroundColor: Colors.green.shade600,
         );
       } else if (action == 'action_not_yet') {
         provider.dismissPeriodConfirmation();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.auto_awesome, color: Colors.white),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text("Noted! Lunara's intelligence will adjust your predictions."),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFF6C63FF),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            margin: const EdgeInsets.all(16),
-            duration: const Duration(seconds: 4),
-          ),
+        CustomToast.show(
+          context,
+          message: "Noted! Lunara's intelligence will adjust your predictions.",
+          icon: Icons.auto_awesome,
+          backgroundColor: const Color(0xFF6C63FF),
+          duration: const Duration(seconds: 4),
         );
       }
     });
@@ -127,6 +108,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: AppTheme.background(context),
       extendBody: true,
       body: IndexedStack(

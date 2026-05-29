@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    android:background="@drawable/widget_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center_vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@mipmap/ic_launcher" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Lunara"
+                android:textColor="#E0E0E0"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:layout_marginStart="6dp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/widget_cycle_phase"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Luteal Phase"
+            android:textColor="#FF8A80"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_cycle_day"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Day 23 of 28"
+            android:textColor="#9E9E9E"
+            android:textSize="13sp"
+            android:layout_marginTop="2dp" />
+
+        <TextView
+            android:id="@+id/widget_fertility_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Low Fertility"
+            android:textColor="#81C784"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:layout_marginTop="8dp"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="3dp"
+            android:background="@drawable/fertility_pill_bg" />
+
+    </LinearLayout>
+
+</RelativeLayout>
