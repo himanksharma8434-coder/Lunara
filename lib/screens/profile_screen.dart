@@ -14,6 +14,9 @@ import 'legal_screen.dart';
 import 'login_screen.dart';
 import 'partner_sync_screen.dart';
 import 'help_support_screen.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import '../services/database_service.dart';
 import '../services/premium_service.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -46,12 +49,62 @@ class ProfileScreen extends StatelessWidget {
 
 // ─── SUB-WIDGETS ───────────────────────────────────────────────────
 
-class _ProfileHeader extends StatelessWidget {
+class _ProfileHeader extends StatefulWidget {
   const _ProfileHeader();
+
+  @override
+  State<_ProfileHeader> createState() => _ProfileHeaderState();
+}
+
+class _ProfileHeaderState extends State<_ProfileHeader> {
+  bool _isUploading = false;
+  final ImagePicker _picker = ImagePicker();
+  final DatabaseService _dbService = DatabaseService();
+
+  Future<void> _pickAndUploadImage(BuildContext context) async {
+    final authProvider = context.read<AuthProvider>();
+    if (authProvider.userId.isEmpty) return;
+
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 75,
+      );
+
+      if (image == null) return;
+
+      setState(() => _isUploading = true);
+
+      final file = File(image.path);
+      final newUrl = await _dbService.uploadAvatar(authProvider.userId, file);
+
+      if (newUrl != null) {
+        authProvider.updateUserAvatar(newUrl);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile picture updated successfully!')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to upload image. Please try again.')),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final userName = context.select<CycleProvider, String>((p) => p.userName);
+    final avatarUrl = context.select<AuthProvider, String>((p) => p.userAvatarUrl);
 
     return Container(
       margin: const EdgeInsets.all(20),
@@ -64,28 +117,60 @@ class _ProfileHeader extends StatelessWidget {
       child: Column(
         children: [
           // Avatar
-          Stack(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: AppTheme.primaryGradient(context),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
+          GestureDetector(
+            onTap: _isUploading ? null : () => _pickAndUploadImage(context),
+            child: Stack(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     shape: BoxShape.circle,
+                    gradient: AppTheme.primaryGradient(context),
                   ),
-                  child: Icon(
-                    Icons.person,
-                    size: 50,
-                    color: AppTheme.primary(context),
+                  child: Container(
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      shape: BoxShape.circle,
+                    ),
+                    clipBehavior: Clip.hardEdge,
+                    child: _isUploading
+                        ? const Center(child: CircularProgressIndicator())
+                        : (avatarUrl.isNotEmpty
+                            ? Image.network(
+                                avatarUrl,
+                                fit: BoxFit.cover,
+                              )
+                            : Icon(
+                                Icons.person,
+                                size: 50,
+                                color: AppTheme.primary(context),
+                              )),
                   ),
                 ),
-              ),
-            ],
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary(context),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        width: 2,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      size: 16,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
 

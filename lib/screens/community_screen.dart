@@ -9,6 +9,7 @@ import '../services/database_service.dart';
 import '../models/community_post_model.dart';
 import '../models/community_comment_model.dart';
 import '../providers/auth_provider.dart';
+import 'dart:async';
 import 'package:timeago/timeago.dart' as timeago;
 import '../widgets/custom_toast.dart';
 
@@ -33,6 +34,7 @@ class _CommunityScreenState extends State<CommunityScreen>
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  Timer? _searchDebounceTimer;
 
   @override
   void initState() {
@@ -40,8 +42,13 @@ class _CommunityScreenState extends State<CommunityScreen>
     _tabController = TabController(length: 2, vsync: this);
     _initStreams();
     _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text.trim().toLowerCase();
+      if (_searchDebounceTimer?.isActive ?? false) _searchDebounceTimer!.cancel();
+      _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          setState(() {
+            _searchQuery = _searchController.text.trim().toLowerCase();
+          });
+        }
       });
     });
   }
@@ -53,6 +60,7 @@ class _CommunityScreenState extends State<CommunityScreen>
 
   @override
   void dispose() {
+    _searchDebounceTimer?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     _tabController.dispose();
@@ -772,6 +780,13 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
   final DatabaseService _dbService = DatabaseService();
   bool? _isLikedLocal;
   int? _likesCountLocal;
+  Future<bool>? _isLikedFuture;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _initFutureIfNeeded();
+  }
 
   @override
   void didUpdateWidget(CommunityPostCard oldWidget) {
@@ -779,6 +794,20 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     if (oldWidget.post.id != widget.post.id) {
       _isLikedLocal = null;
       _likesCountLocal = null;
+      _isLikedFuture = null;
+      _initFutureIfNeeded();
+    }
+  }
+
+  void _initFutureIfNeeded() {
+    if (_isLikedFuture == null) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final currentUserId = authProvider.userId;
+      if (widget.post.id != null && currentUserId.isNotEmpty) {
+        _isLikedFuture = _dbService.hasUserLikedPost(widget.post.id!, currentUserId);
+      } else {
+        _isLikedFuture = Future.value(false);
+      }
     }
   }
 
@@ -790,7 +819,7 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
     return FutureBuilder<bool>(
       future: _isLikedLocal != null
           ? Future.value(_isLikedLocal)
-          : _dbService.hasUserLikedPost(widget.post.id!, currentUserId),
+          : _isLikedFuture,
       builder: (context, snapshot) {
         final isLiked = _isLikedLocal ?? snapshot.data ?? false;
         final likesCount = _likesCountLocal ?? widget.post.likesCount;
@@ -826,10 +855,19 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                       shape: BoxShape.circle,
                     ),
                     child: Center(
-                      child: Text(
-                        widget.post.authorAvatar ?? (widget.post.category == 'Women' ? '👩' : '👨'),
-                        style: const TextStyle(fontSize: 24),
-                      ),
+                      child: widget.post.authorAvatar != null && widget.post.authorAvatar!.startsWith('http')
+                          ? ClipOval(
+                              child: Image.network(
+                                widget.post.authorAvatar!,
+                                width: 45,
+                                height: 45,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Text(
+                              widget.post.authorAvatar ?? (widget.post.category == 'Women' ? '👩' : '👨'),
+                              style: const TextStyle(fontSize: 24),
+                            ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1068,12 +1106,16 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
           ? '[reply:${_replyingToComment!.comment.id}]$text'
           : text;
 
+      final userAvatar = authProvider.userAvatarUrl.isNotEmpty 
+          ? authProvider.userAvatarUrl 
+          : (widget.post.category == 'Women' ? '👩' : '👨');
+
       final tempComment = {
         'id': DateTime.now().millisecondsSinceEpoch,
         'post_id': widget.post.id,
         'author_id': userId,
         'author_name': userName.isNotEmpty ? userName : 'Anonymous',
-        'author_avatar': widget.post.category == 'Women' ? '👩' : '👨',
+        'author_avatar': userAvatar,
         'content': contentToSend,
         'created_at': DateTime.now().toIso8601String(),
       };
@@ -1089,7 +1131,7 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
           postId: widget.post.id!,
           authorId: userId,
           authorName: userName.isNotEmpty ? userName : 'Anonymous',
-          authorAvatar: widget.post.category == 'Women' ? '👩' : '👨',
+          authorAvatar: userAvatar,
           content: contentToSend,
         );
       } catch (e) {
@@ -1157,10 +1199,19 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
               shape: BoxShape.circle,
             ),
             child: Center(
-              child: Text(
-                comment.authorAvatar ?? '👤',
-                style: TextStyle(fontSize: isReply ? 14 : 18),
-              ),
+              child: comment.authorAvatar != null && comment.authorAvatar!.startsWith('http')
+                  ? ClipOval(
+                      child: Image.network(
+                        comment.authorAvatar!,
+                        width: isReply ? 30 : 35,
+                        height: isReply ? 30 : 35,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Text(
+                      comment.authorAvatar ?? '👤',
+                      style: TextStyle(fontSize: isReply ? 14 : 18),
+                    ),
             ),
           ),
           const SizedBox(width: 10),
@@ -1225,6 +1276,8 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
 
   @override
   Widget build(BuildContext context) {
+    final rootComments = buildCommentTree(_comments);
+
     return Container(
       height: MediaQuery.of(context).size.height * 0.7,
       padding: EdgeInsets.only(
@@ -1300,9 +1353,8 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 20, vertical: 10),
-                        itemCount: buildCommentTree(_comments).length,
+                        itemCount: rootComments.length,
                         itemBuilder: (context, index) {
-                          final rootComments = buildCommentTree(_comments);
                           final rootComment = rootComments[index];
                           
                           return Column(

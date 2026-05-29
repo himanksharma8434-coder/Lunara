@@ -1467,7 +1467,7 @@ class AnimatedForegroundRingPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 15;
 
-    // Progress indicator with animated glow - optimized by using semi-transparent solid color and removing MaskFilter.blur
+    // Progress indicator with animated glow effect
     final progressGlowPaint = Paint()
       ..color = LunaraColors.primary.withOpacity(0.12)
       ..style = PaintingStyle.stroke
@@ -1482,63 +1482,8 @@ class AnimatedForegroundRingPainter extends CustomPainter {
       progressGlowPaint,
     );
 
-    // Current day marker with glow
-    final angle = -math.pi / 2 + (2 * math.pi * progress);
-    final markerX = center.dx + radius * math.cos(angle);
-    final markerY = center.dy + radius * math.sin(angle);
-
-    // Outer glow ring - optimized by drawing concentric circles instead of expensive dynamic RadialGradient
-    final outerGlowPaint1 = Paint()
-      ..color = LunaraColors.primary.withOpacity(0.15)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(
-      Offset(markerX, markerY),
-      15 + (breathAnimation * 5),
-      outerGlowPaint1,
-    );
-
-    final outerGlowPaint2 = Paint()
-      ..color = LunaraColors.primary.withOpacity(0.3)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(
-      Offset(markerX, markerY),
-      10 + (breathAnimation * 3),
-      outerGlowPaint2,
-    );
-
-    // Marker background
-    final markerBgPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(
-      Offset(markerX, markerY),
-      10,
-      markerBgPaint,
-    );
-
-    // Marker - optimized by using solid color instead of creating a shader every frame
-    final markerPaint = Paint()
-      ..color = LunaraColors.primary
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(
-      Offset(markerX, markerY),
-      8,
-      markerPaint,
-    );
-
-    // Marker border
-    final markerBorderPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
-
-    canvas.drawCircle(
-      Offset(markerX, markerY),
-      8,
-      markerBorderPaint,
-    );
+    // Note: The marker has been moved to a Flutter Widget layer (Container + Transform)
+    // to allow for high-quality box shadows and gradients without repainting the canvas on every frame.
   }
 
   @override
@@ -2234,41 +2179,87 @@ class CycleRingCard extends StatelessWidget {
               ],
             ),
             builder: (context, child) {
+              // Calculate marker position mathematically
+              final progress = currentCycleDay / cycleLength;
+              final angle = -math.pi / 2 + (2 * math.pi * progress);
+              // Radius matches the painter's radius: (200 / 2) - 15 = 85
+              final radiusX = 85 * math.cos(angle);
+              final radiusY = 85 * math.sin(angle);
+
               return Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Animated glow effect - optimized to scale via compositor Transform.scale without rebuilding paint
+                  // 1. Premium background breathing glow (Restored RadialGradient)
+                  // Wrapped in Transform.scale so it doesn't repaint!
                   Transform.scale(
-                    scale: 1.0 + (breathingAnimation.value * 0.08),
+                    scale: 1.0 + (breathingAnimation.value * 0.06),
                     child: Container(
                       width: 200,
                       height: 200,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: LunaraColors.primary.withOpacity(0.08),
+                        gradient: RadialGradient(
+                          colors: [
+                            LunaraColors.primary.withOpacity(0.15),
+                            LunaraColors.primary.withOpacity(0.0),
+                          ],
+                          stops: const [0.5, 1.0],
+                        ),
                       ),
                     ),
                   ),
-                  // Ring
+                  
+                  // 2. Ring Stack
                   SizedBox(
                     width: 200,
                     height: 200,
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // Static child containing background ring and center info
+                        // Static background ring and center text
                         child!,
-                        // Animated foreground ring draws on top
+                        
+                        // Animated foreground arc (Simple arc, no expensive shadows here)
                         RepaintBoundary(
                           child: CustomPaint(
                             size: const Size(200, 200),
                             painter: AnimatedForegroundRingPainter(
-                              progress: currentCycleDay / cycleLength,
+                              progress: progress,
                               breathAnimation: breathingAnimation.value,
                             ),
                           ),
                         ),
                       ],
+                    ),
+                  ),
+
+                  // 3. Premium Glowing Marker (Restored shadows and gradients)
+                  // Translated and scaled via GPU compositor, zero repaint cost!
+                  Transform.translate(
+                    offset: Offset(radiusX, radiusY),
+                    child: Transform.scale(
+                      scale: 1.0 + (breathingAnimation.value * 0.2),
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: LunaraColors.primary,
+                          border: Border.all(color: Colors.white, width: 3),
+                          boxShadow: [
+                            BoxShadow(
+                              color: LunaraColors.primary.withOpacity(0.6),
+                              blurRadius: 12,
+                              spreadRadius: 4,
+                            ),
+                            BoxShadow(
+                              color: Colors.white.withOpacity(0.8),
+                              blurRadius: 4,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ],
