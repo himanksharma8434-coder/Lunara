@@ -69,7 +69,7 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen>
             center: const Alignment(0, -0.5),
             radius: 1.5,
             colors: [
-              const Color(0xFFFF8989).withOpacity(0.08),
+              LunaraColors.primary.withOpacity(0.08),
               AppTheme.background(context),
             ],
           ),
@@ -92,12 +92,15 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen>
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [Color(0xFFFF8989), Color(0xFFD8405B)],
+                              colors: [
+                                LunaraColors.primary,
+                                LunaraColors.primaryDark
+                              ],
                             ),
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFFF8989).withOpacity(0.4),
+                                color: LunaraColors.primary.withOpacity(0.4),
                                 blurRadius: 20,
                                 offset: const Offset(0, 8),
                               ),
@@ -110,12 +113,12 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen>
                           ),
                         ),
                         const SizedBox(height: 16),
-                        const Text(
+                        Text(
                           'Body Metrics',
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFF3E2723),
+                            color: AppTheme.textDark(context),
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -151,7 +154,7 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen>
                                     minValue: 30,
                                     maxValue: 200,
                                     controller: _weightController,
-                                    color: const Color(0xFFFF8989),
+                                    color: LunaraColors.primary,
                                     onChanged: (index) {
                                       HapticFeedback.selectionClick();
                                       setState(() {
@@ -249,10 +252,10 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen>
                       child: ElevatedButton(
                         onPressed: _saveAndContinue,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFF8989),
+                          backgroundColor: LunaraColors.primary,
                           foregroundColor: Colors.white,
                           elevation: 8,
-                          shadowColor: const Color(0xFFFF8989).withOpacity(0.4),
+                          shadowColor: LunaraColors.primary.withOpacity(0.4),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),

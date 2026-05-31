@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../providers/cycle_provider.dart';
 import '../theme/app_theme.dart';
 import '../services/pdf_export_service.dart';
+import '../widgets/shimmer_loading.dart';
 
 class InsightsScreen extends StatefulWidget {
   const InsightsScreen({super.key});
@@ -20,6 +21,7 @@ class _InsightsScreenState extends State<InsightsScreen>
     with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+  late Future<void> _fetchInsightsFuture;
 
   @override
   void initState() {
@@ -30,6 +32,7 @@ class _InsightsScreenState extends State<InsightsScreen>
     );
     _fadeAnimation =
         CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
+    _fetchInsightsFuture = Future.delayed(const Duration(milliseconds: 800));
     _fadeController.forward();
   }
 
@@ -46,48 +49,63 @@ class _InsightsScreenState extends State<InsightsScreen>
       backgroundColor: LunaraColors.background,
       body: FadeTransition(
         opacity: _fadeAnimation,
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            _buildHeader(context),
-            // Cycle Phase Overview
-            SliverToBoxAdapter(
-              child: _buildAnimatedCard(
-                delay: 0,
-                child: _CyclePhaseCard(provider: provider),
-              ),
-            ),
-            // Wellness Trends
-            SliverToBoxAdapter(
-              child: _buildAnimatedCard(
-                delay: 100,
-                child: _WellnessTrendsCard(provider: provider),
-              ),
-            ),
-            // Mood Trend
-            SliverToBoxAdapter(
-              child: _buildAnimatedCard(
-                delay: 200,
-                child: _MoodTrendCard(provider: provider),
-              ),
-            ),
-            // Symptom Frequency
-            SliverToBoxAdapter(
-              child: _buildAnimatedCard(
-                delay: 300,
-                child: _SymptomFrequencyCard(provider: provider),
-              ),
-            ),
+        child: FutureBuilder<void>(
+          future: _fetchInsightsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return CustomScrollView(
+                physics: const NeverScrollableScrollPhysics(),
+                slivers: [
+                  _buildHeader(context),
+                  const SliverToBoxAdapter(child: InsightsShimmer()),
+                ],
+              );
+            }
 
-            // Export Button
-            SliverToBoxAdapter(
-              child: _buildAnimatedCard(
-                delay: 400,
-                child: _buildExportButton(context, provider),
-              ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 40)),
-          ],
+            return CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                _buildHeader(context),
+                // Cycle Phase Overview
+                SliverToBoxAdapter(
+                  child: _buildAnimatedCard(
+                    delay: 0,
+                    child: _CyclePhaseCard(provider: provider),
+                  ),
+                ),
+                // Wellness Trends
+                SliverToBoxAdapter(
+                  child: _buildAnimatedCard(
+                    delay: 100,
+                    child: _WellnessTrendsCard(provider: provider),
+                  ),
+                ),
+                // Mood Trend
+                SliverToBoxAdapter(
+                  child: _buildAnimatedCard(
+                    delay: 200,
+                    child: _MoodTrendCard(provider: provider),
+                  ),
+                ),
+                // Symptom Frequency
+                SliverToBoxAdapter(
+                  child: _buildAnimatedCard(
+                    delay: 300,
+                    child: _SymptomFrequencyCard(provider: provider),
+                  ),
+                ),
+
+                // Export Button
+                SliverToBoxAdapter(
+                  child: _buildAnimatedCard(
+                    delay: 400,
+                    child: _buildExportButton(context, provider),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 40)),
+              ],
+            );
+          },
         ),
       ),
     );

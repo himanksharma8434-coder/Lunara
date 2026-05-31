@@ -70,6 +70,9 @@ class AppTheme {
   // ─── STATIC HELPER METHODS FOR EASY MIGRATION ────────────────────────────
   // We define dynamic getters so UI components don't require massive rewrites.
 
+  static bool isDark(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark;
+
   static Color primary(BuildContext context) =>
       Theme.of(context).colorScheme.primary;
   static Color background(BuildContext context) =>
@@ -82,6 +85,10 @@ class AppTheme {
       Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.8);
   static Color divider(BuildContext context) =>
       Theme.of(context).colorScheme.outlineVariant;
+  static Color secondaryText(BuildContext context) =>
+      isDark(context) ? const Color(0xFF999999) : Colors.grey[600]!;
+  static Color inputFillColor(BuildContext context) =>
+      isDark(context) ? const Color(0xFF2A2A2A) : Colors.grey[100]!;
 
   // Semantic Surface Colors
   static Color cardColor(BuildContext context) =>

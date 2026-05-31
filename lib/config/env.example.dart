@@ -19,4 +19,8 @@ class Env {
   /// Gemini AI API key
   /// Get from: https://aistudio.google.com/apikey
   static const String geminiApiKey = 'YOUR_GEMINI_API_KEY_HERE';
+
+  /// Groq AI API key
+  /// Get from: https://console.groq.com/keys
+  static const String groqApiKey = 'YOUR_GROQ_API_KEY_HERE';
 }

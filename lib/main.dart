@@ -1,44 +1,93 @@
-import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:lunara/services/app_notification_service.dart';
+import 'package:lunara/services/health_service.dart';
+import 'package:lunara/services/logger_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-// Your local files
+// local files
 import 'config/app_config.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/assessment_screen.dart';
+import 'screens/reset_password_screen.dart';
 import 'package:lunara/providers/auth_provider.dart';
 import 'package:lunara/providers/cycle_provider.dart';
 import 'package:lunara/providers/theme_provider.dart';
 import 'package:lunara/theme/app_theme.dart';
 
-class MyHttpOverrides extends HttpOverrides {
-  @override
-  HttpClient createHttpClient(SecurityContext? context) {
-    return super.createHttpClient(context)
-      ..badCertificateCallback =
-          (X509Certificate cert, String host, int port) => true;
-  }
-}
+// Pillar 1: Ghost Mode (Local-First Privacy)
+import 'package:lunara/services/database/hive_service.dart';
+import 'package:lunara/features/privacy/presentation/providers/privacy_provider.dart';
+import 'package:lunara/features/privacy/presentation/screens/lock_screen.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  HttpOverrides.global = MyHttpOverrides();
-  await AppNotificationService().init();
-  final prefs = await SharedPreferences.getInstance();
+void main() {
+  final log = LoggerService.instance;
 
-  // Initialize Supabase
-  await Supabase.initialize(
-    url: AppConfig.supabaseUrl,
-    anonKey: AppConfig.supabaseAnonKey,
-  );
+  // Catch all uncaught asynchronous errors
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(MyApp(prefs: prefs));
+    // Catch Flutter framework errors (e.g. build/layout/paint failures)
+    FlutterError.onError = (details) {
+      log.error(
+        'Flutter framework error',
+        error: details.exception,
+        stackTrace: details.stack,
+        tag: 'FlutterError',
+      );
+      // Forward to the default handler so red-screen still shows in debug
+      FlutterError.presentError(details);
+    };
+
+    try {
+      await AppNotificationService().init();
+      await AppNotificationService().scheduleDailyGuidance(); // 9AM & 8PM Daily alerts
+    } catch (e, st) {
+      log.error('Notification Service Startup Failed (non-fatal)',
+          error: e, stackTrace: st, tag: 'Notifications');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+
+    // Load environment variables
+    await dotenv.load(fileName: ".env");
+
+    // Initialize Supabase
+    await Supabase.initialize(
+      url: AppConfig.supabaseUrl,
+      anonKey: AppConfig.supabaseAnonKey,
+    );
+
+    // Pillar 1: Initialize encrypted local database (Ghost Mode)
+    try {
+      await HiveService.instance.init();
+      log.info('Encrypted Hive database initialized', tag: 'GhostMode');
+    } catch (e, st) {
+      log.error('Hive init error (non-fatal)',
+          error: e, stackTrace: st, tag: 'GhostMode');
+    }
+
+    // Initialize health service (silent config)
+    try {
+      final healthService = HealthService();
+      await healthService.configure();
+      log.info('Health service configured', tag: 'Health');
+    } catch (e, st) {
+      log.error('Health startup config error (non-fatal)',
+          error: e, stackTrace: st, tag: 'Health');
+    }
+
+    runApp(MyApp(prefs: prefs));
+  }, (error, stack) {
+    log.error('Uncaught async error',
+        error: error, stackTrace: stack, tag: 'Zone');
+  });
 }
 
 // Global helper to access the Supabase client anywhere
@@ -52,10 +101,35 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  late final PrivacyProvider _privacyProvider;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _privacyProvider = PrivacyProvider();
+
+    // Initialize privacy provider after Hive is ready
+    if (HiveService.instance.isInitialized) {
+      _privacyProvider.initialize();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Ghost Mode auto-lock: lock when backgrounded, check timeout on resume
+    if (state == AppLifecycleState.paused) {
+      _privacyProvider.lock();
+    } else if (state == AppLifecycleState.resumed) {
+      _privacyProvider.onAppLifecycleChanged(true);
+    }
   }
 
   @override
@@ -66,21 +140,61 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider(create: (_) => ThemeProvider(widget.prefs)),
         ChangeNotifierProvider(create: (_) => AuthProvider(widget.prefs)),
         ChangeNotifierProvider(create: (_) => CycleProvider(widget.prefs)),
+        ChangeNotifierProvider.value(value: _privacyProvider),
       ],
       child: Builder(
         builder: (context) {
           final authProvider = context.watch<AuthProvider>();
           final themeProvider = context.watch<ThemeProvider>();
+          final privacyProvider = context.watch<PrivacyProvider>();
+          final seenOnboarding = authProvider.hasSeenOnboarding;
+          final isLoggedIn = authProvider.isLoggedIn;
+          final isLoading = authProvider.isLoading;
+
+          debugPrint('[MainRouter] loading=$isLoading onboarding=$seenOnboarding loggedIn=$isLoggedIn recovery=${authProvider.isPasswordRecovery} ghost=${privacyProvider.ghostModeEnabled} locked=${privacyProvider.shouldShowLockScreen}');
+
+          // Ghost Mode Lock Gate: intercept ALL routes when locked
+          if (privacyProvider.shouldShowLockScreen) {
+            return MaterialApp(
+              key: const ValueKey('lock'),
+              debugShowCheckedModeBanner: false,
+              themeMode: themeProvider.themeMode,
+              theme: AppTheme.lightTheme,
+              darkTheme: AppTheme.darkTheme,
+              home: const LockScreen(),
+            );
+          }
+
+          // Determine which screen to show
+          final String routeKey;
+          final Widget homeScreen;
+
+          if (isLoading) {
+            routeKey = 'splash';
+            homeScreen = const SplashScreen();
+          } else if (authProvider.isPasswordRecovery) {
+            routeKey = 'reset_password';
+            homeScreen = const ResetPasswordScreen();
+          } else if (!seenOnboarding) {
+            routeKey = 'onboarding';
+            homeScreen = const OnboardingScreen();
+          } else if (isLoggedIn) {
+            routeKey = 'initial_router';
+            homeScreen = const InitialRouter();
+          } else {
+            routeKey = 'login';
+            homeScreen = const LoginScreen();
+          }
+
+          debugPrint('🎯 ROUTING TO: $routeKey');
+
           return MaterialApp(
+            key: ValueKey(routeKey),
             debugShowCheckedModeBanner: false,
             themeMode: themeProvider.themeMode,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
-            home: authProvider.isLoading
-                ? const SplashScreen()
-                : authProvider.isLoggedIn
-                    ? const InitialRouter()
-                    : const LoginScreen(),
+            home: homeScreen,
           );
         },
       ),
@@ -88,16 +202,28 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-class InitialRouter extends StatelessWidget {
+class InitialRouter extends StatefulWidget {
   const InitialRouter({super.key});
 
   @override
+  State<InitialRouter> createState() => _InitialRouterState();
+}
+
+class _InitialRouterState extends State<InitialRouter> {
+  bool _dialogShown = false;
+
+  @override
   Widget build(BuildContext context) {
+    debugPrint('[InitialRouter] building');
     final authProvider = context.watch<AuthProvider>();
     final cycleProvider = context.watch<CycleProvider>();
 
-    if (!authProvider.hasCompletedOnboarding) {
-      return const OnboardingScreen();
+    // Show name prompt dialog if needed (after the frame builds)
+    if (authProvider.needsNamePrompt && !_dialogShown) {
+      _dialogShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showNamePromptDialog(context);
+      });
     }
 
     if (authProvider.shouldShowAssessment(cycleProvider.isOnPeriod)) {
@@ -105,5 +231,87 @@ class InitialRouter extends StatelessWidget {
     }
 
     return const MainScreen();
+  }
+
+  void _showNamePromptDialog(BuildContext context) {
+    final nameController = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Text('👋 ', style: TextStyle(fontSize: 24)),
+            Text(
+              'Welcome!',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: LunaraColors.textDark,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "What should we call you?",
+              style: TextStyle(color: Colors.grey[600], fontSize: 15),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: nameController,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                hintText: 'Enter your name',
+                prefixIcon: const Icon(Icons.person_outline,
+                    color: LunaraColors.primary),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide:
+                      const BorderSide(color: LunaraColors.primary, width: 2),
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                if (name.isEmpty) return;
+
+                await Provider.of<AuthProvider>(ctx, listen: false)
+                    .setUserName(name);
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: LunaraColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: const Text(
+                'Continue',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

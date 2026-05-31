@@ -45,5 +45,20 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Lunara reads your health data (steps, sleep, heart rate, weight, height) to provide personalized cycle and wellness insights.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Lunara can write menstrual cycle data back to Apple Health so all your health information stays in one place.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>io.supabase.lunara</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

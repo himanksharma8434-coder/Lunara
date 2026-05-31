@@ -12,6 +12,7 @@ class DatabaseService {
     required String uid,
     required String email,
     String name = '',
+    String gender = 'Female',
     int cycleLength = 28,
     int periodDuration = 5,
     int age = 0,
@@ -20,20 +21,29 @@ class DatabaseService {
     bool trackingForOthers = false,
     String trackedPersonName = '',
     String trackedPersonRelation = 'Partner',
+    bool isIrregular = false,
   }) async {
     try {
+      final safeAge = age.clamp(13, 120);
+      final safeWeight = weight.clamp(20, 300);
+      final safeHeight = height.clamp(50, 250);
+      final safeCycleLength = cycleLength.clamp(15, 60);
+      final safePeriodDuration = periodDuration.clamp(1, 15);
+
       await _db.from('users').upsert({
         'uid': uid,
         'email': email,
         'name': name,
-        'cycle_length': cycleLength,
-        'period_duration': periodDuration,
-        'age': age,
-        'weight': weight,
-        'height': height,
+        'gender': gender,
+        'cycle_length': safeCycleLength,
+        'period_duration': safePeriodDuration,
+        'age': safeAge,
+        'weight': safeWeight,
+        'height': safeHeight,
         'tracking_for_others': trackingForOthers,
         'tracked_person_name': trackedPersonName,
         'tracked_person_relation': trackedPersonRelation,
+        'is_irregular': isIrregular,
       });
     } catch (e) {
       debugPrint('Cloud sync error (saveUserProfile): $e');
@@ -120,16 +130,18 @@ class DatabaseService {
     required List<DateTime> cycleStartDates,
   }) async {
     try {
-      final rows = cycleStartDates.map((d) => {
-        'user_id': userId,
-        'start_date': d.toIso8601String().split('T')[0],
-        'status': 'completed',
-      }).toList();
+      final rows = cycleStartDates
+          .map((d) => {
+                'user_id': userId,
+                'start_date': d.toIso8601String().split('T')[0],
+                'status': 'completed',
+              })
+          .toList();
 
       await _db.from('cycles').upsert(
-        rows,
-        onConflict: 'user_id, start_date',
-      );
+            rows,
+            onConflict: 'user_id, start_date',
+          );
     } catch (e) {
       debugPrint('Cloud sync error (syncCycleHistory): $e');
     }
@@ -366,8 +378,7 @@ class DatabaseService {
     try {
       await _db
           .from('partner_links')
-          .update({'status': 'revoked'})
-          .eq('id', linkId);
+          .update({'status': 'revoked'}).eq('id', linkId);
     } catch (e) {
       debugPrint('Revoke partner error: $e');
     }
@@ -376,8 +387,7 @@ class DatabaseService {
   /// Fetch the profile of a linked partner by their UID.
   Future<Map<String, dynamic>?> getPartnerProfile(String uid) async {
     try {
-      final result =
-          await _db.from('users').select().eq('uid', uid).limit(1);
+      final result = await _db.from('users').select().eq('uid', uid).limit(1);
       if (result.isNotEmpty) return result.first;
       return null;
     } catch (e) {
@@ -391,8 +401,7 @@ class DatabaseService {
       String partnerUserId) {
     return _db
         .from('assessments')
-        .stream(primaryKey: ['id'])
-        .eq('user_id', partnerUserId);
+        .stream(primaryKey: ['id']).eq('user_id', partnerUserId);
   }
 
   /// Fetch partner's cycle history.
@@ -409,4 +418,128 @@ class DatabaseService {
       return [];
     }
   }
+
+  // ─── COMMUNITY ───────────────────────────────────────
+
+  /// Stream community posts for real-time updates
+  Stream<List<Map<String, dynamic>>> streamCommunityPosts(String category) {
+    return _db
+        .from('community_posts')
+        .stream(primaryKey: ['id'])
+        .eq('category', category)
+        .order('created_at', ascending: false);
+  }
+
+  /// Fetch community posts (legacy one-time fetch)
+  Future<List<Map<String, dynamic>>> getCommunityPosts(String category) async {
+    try {
+      final response = await _db
+          .from('community_posts')
+          .select()
+          .eq('category', category)
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching posts: $e');
+      return [];
+    }
+  }
+
+  /// Check if the current user has liked a specific post
+  Future<bool> hasUserLikedPost(int postId, String userId) async {
+     try {
+       final response = await _db
+           .from('community_likes')
+           .select()
+           .eq('post_id', postId)
+           .eq('user_id', userId)
+           .limit(1);
+       return response.isNotEmpty;
+     } catch (e) {
+       debugPrint('Error checking like status: $e');
+       return false;
+     }
+  }
+
+  /// Create a new community post
+  Future<void> createCommunityPost({
+    required String authorId,
+    required String authorName,
+    String? authorAvatar,
+    required String category,
+    required String content,
+  }) async {
+    try {
+      await _db.from('community_posts').insert({
+        'author_id': authorId,
+        'author_name': authorName,
+        'author_avatar': authorAvatar,
+        'category': category,
+        'content': content,
+      });
+    } catch (e) {
+      debugPrint('Error creating post: $e');
+    }
+  }
+
+  /// Toggle like status for a post
+  Future<void> toggleLikePost(int postId, String userId, bool currentlyLiked) async {
+    try {
+      if (currentlyLiked) {
+        // Remove like record, database trigger handles the decrement
+        await _db
+            .from('community_likes')
+            .delete()
+            .eq('post_id', postId)
+            .eq('user_id', userId);
+      } else {
+        // Add like record, database trigger handles the increment
+        await _db.from('community_likes').insert({
+          'post_id': postId,
+          'user_id': userId,
+        });
+      }
+    } catch (e) {
+      debugPrint('Error toggling like: $e');
+      rethrow;
+    }
+  }
+
+  /// Fetch comments for a post
+  Future<List<Map<String, dynamic>>> getComments(int postId) async {
+    try {
+      final response = await _db
+          .from('community_comments')
+          .select()
+          .eq('post_id', postId)
+          .order('created_at', ascending: true);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching comments: $e');
+      return [];
+    }
+  }
+
+  /// Add a comment to a post
+  Future<void> addComment({
+    required int postId,
+    required String authorId,
+    required String authorName,
+    String? authorAvatar,
+    required String content,
+  }) async {
+    try {
+      // Database trigger handles comments_count increment
+      await _db.from('community_comments').insert({
+        'post_id': postId,
+        'author_id': authorId,
+        'author_name': authorName,
+        'author_avatar': authorAvatar,
+        'content': content,
+      });
+    } catch (e) {
+      debugPrint('Error adding comment: $e');
+    }
+  }
 }
+

@@ -13,20 +13,26 @@ class AppConfig {
   AppConfig._();
 
   /// Gemini AI API key — uses --dart-define override, else falls back to Env.
-  static const String geminiApiKey = String.fromEnvironment(
-    'GEMINI_API_KEY',
-    defaultValue: Env.geminiApiKey,
-  );
+  static String get geminiApiKey {
+    const fromEnv = String.fromEnvironment('GEMINI_API_KEY');
+    return fromEnv.isNotEmpty ? fromEnv : Env.geminiApiKey;
+  }
+
+  /// Groq AI API key — uses --dart-define override, else falls back to Env.
+  static String get groqApiKey {
+    const fromEnv = String.fromEnvironment('GROQ_API_KEY');
+    return fromEnv.isNotEmpty ? fromEnv : Env.groqApiKey;
+  }
 
   /// Supabase Project URL — uses --dart-define override, else falls back to Env.
-  static const String supabaseUrl = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: Env.supabaseUrl,
-  );
+  static String get supabaseUrl {
+    const fromEnv = String.fromEnvironment('SUPABASE_URL');
+    return fromEnv.isNotEmpty ? fromEnv : Env.supabaseUrl;
+  }
 
   /// Supabase anon (public) key — uses --dart-define override, else falls back to Env.
-  static const String supabaseAnonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: Env.supabaseAnonKey,
-  );
+  static String get supabaseAnonKey {
+    const fromEnv = String.fromEnvironment('SUPABASE_ANON_KEY');
+    return fromEnv.isNotEmpty ? fromEnv : Env.supabaseAnonKey;
+  }
 }

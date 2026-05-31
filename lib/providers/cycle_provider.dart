@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/prediction_result.dart';
 import '../services/app_notification_service.dart';
 import '../services/database_service.dart';
 import '../services/health_service.dart';
+import '../services/menstrual_intelligence_service.dart';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:io';
+import 'dart:async';
 
 class CycleProvider extends ChangeNotifier {
   final SharedPreferences _prefs; // Store reference to preferences
@@ -20,6 +24,7 @@ class CycleProvider extends ChangeNotifier {
   int _weight = 60; // kg
   int _height = 165; // cm
   bool _bodyMetricsCompleted = false;
+  bool _isIrregular = false;
 
   // Multi-Cycle History (stores start dates of past cycles)
   List<DateTime> _cycleHistory = [];
@@ -29,6 +34,8 @@ class CycleProvider extends ChangeNotifier {
   int _waterGlasses = 0;
   double _sleepHours = 0.0;
   String _currentMood = 'Good';
+  double? _todayBbt; // Basal Body Temperature in °C
+  String? _todayCervicalMucus; // 'Dry' | 'Sticky' | 'Creamy' | 'EggWhite' | 'Watery'
 
   // Partner Tracking
   bool _isTrackingForSomeoneElse = false;
@@ -45,6 +52,11 @@ class CycleProvider extends ChangeNotifier {
   // Wellness History (for charts)
   Map<String, Map<String, dynamic>> _wellnessHistory = {};
 
+  // Intelligence Engine
+  final MenstrualIntelligenceService _intelligenceService =
+      MenstrualIntelligenceService();
+  PredictionResult _latestPrediction = const PredictionResult();
+
   // Predictions
   DateTime? _nextPeriodDate;
   DateTime? _ovulationDate;
@@ -52,6 +64,13 @@ class CycleProvider extends ChangeNotifier {
   // Health Connect Integration
   bool _healthConnected = false;
   int? _heartRate;
+  bool _isSyncing = false;
+  String? _lastSyncStatus;
+  Timer? _syncTimer;
+
+  // Getters for sync state
+  bool get isSyncing => _isSyncing;
+  String? get lastSyncStatus => _lastSyncStatus;
 
   // Partner Sync
   String? _partnerLinkId;
@@ -63,6 +82,22 @@ class CycleProvider extends ChangeNotifier {
   // Constructor - Automatically loads data on startup
   CycleProvider(this._prefs) {
     _loadFromPrefs();
+    _setupAutoSync();
+  }
+
+  @override
+  void dispose() {
+    _syncTimer?.cancel();
+    super.dispose();
+  }
+
+  void _setupAutoSync() {
+    // Sync every 30 minutes if connected
+    _syncTimer = Timer.periodic(const Duration(minutes: 30), (timer) {
+      if (_healthConnected) {
+        _autoSyncHealth();
+      }
+    });
   }
 
   // --- PERSISTENCE LOGIC ---
@@ -85,7 +120,8 @@ class CycleProvider extends ChangeNotifier {
 
     _isTrackingForSomeoneElse = _prefs.getBool('tracking_for_others') ?? false;
     _trackedPersonName = _prefs.getString('tracked_person_name') ?? '';
-    _trackedPersonRelation = _prefs.getString('tracked_person_relation') ?? 'Partner';
+    _trackedPersonRelation =
+        _prefs.getString('tracked_person_relation') ?? 'Partner';
 
     // Load cycle history
     final historyListJson = _prefs.getString('cycle_history');
@@ -117,6 +153,8 @@ class CycleProvider extends ChangeNotifier {
 
     // Load partner link status
     _loadPartnerLink();
+
+    _isIrregular = _prefs.getBool('is_irregular') ?? false;
   }
 
   Future<void> _fetchCloudHistory() async {
@@ -154,6 +192,10 @@ class CycleProvider extends ChangeNotifier {
           _periodDuration = profile['period_duration'];
           updated = true;
         }
+        if (profile['is_irregular'] != null) {
+          _isIrregular = profile['is_irregular'] == true;
+          updated = true;
+        }
         if (profile['tracking_for_others'] != null) {
           _isTrackingForSomeoneElse = profile['tracking_for_others'] == true;
           updated = true;
@@ -168,6 +210,21 @@ class CycleProvider extends ChangeNotifier {
         }
         if (updated) {
           await _saveToPrefs();
+        }
+
+        // Auto-recover hasCompletedOnboarding if cloud data proves
+        // the user already provided body metrics + period date.
+        // This flag gets wiped on logout, but cloud data persists.
+        final hasRealMetrics = _weight != 60 || _height != 165;
+        final hasPeriodData = _lastPeriodDate != null;
+        if (hasRealMetrics && hasPeriodData) {
+          final onboardingDone =
+              _prefs.getBool('hasCompletedOnboarding') ?? false;
+          if (!onboardingDone) {
+            await _prefs.setBool('hasCompletedOnboarding', true);
+            _bodyMetricsCompleted = true;
+            await _saveToPrefs();
+          }
         }
       }
 
@@ -239,15 +296,17 @@ class CycleProvider extends ChangeNotifier {
         uid: userId,
         email: email ?? '',
         name: _userName,
+        gender: _userGender,
         cycleLength: _cycleLength,
         periodDuration: _periodDuration,
         age: _age,
         weight: _weight,
         height: _height,
+        isIrregular: _isIrregular,
+        trackingForOthers: _isTrackingForSomeoneElse,
+        trackedPersonName: _trackedPersonName,
+        trackedPersonRelation: _trackedPersonRelation,
       );
-      // We can also save the new non-standard fields to our users table if we update DatabaseService
-      // but for now relying on local _saveToPrefs for partner fields, or pass them if DatabaseService supports it.
-      // (Assuming `saveUserProfile` doesn't support them yet, wait, we should update saveUserProfile too)
     } catch (e) {
       debugPrint('Cloud sync error (profile): $e');
     }
@@ -276,6 +335,7 @@ class CycleProvider extends ChangeNotifier {
     _isTrackingForSomeoneElse = isTrackingForSomeoneElse;
     _trackedPersonName = trackedPersonName;
     _trackedPersonRelation = trackedPersonRelation;
+    // _isIrregular is handled separately via setIsIrregular but could be added here
 
     await _saveToPrefs();
     notifyListeners();
@@ -301,6 +361,7 @@ class CycleProvider extends ChangeNotifier {
     await _prefs.setBool('tracking_for_others', _isTrackingForSomeoneElse);
     await _prefs.setString('tracked_person_name', _trackedPersonName);
     await _prefs.setString('tracked_person_relation', _trackedPersonRelation);
+    await _prefs.setBool('is_irregular', _isIrregular);
     await _prefs.setString('wellness_history', jsonEncode(_wellnessHistory));
     // Persist cycle history
     await _prefs.setString('cycle_history',
@@ -317,21 +378,34 @@ class CycleProvider extends ChangeNotifier {
   int get weight => _weight;
   int get height => _height;
   bool get bodyMetricsCompleted => _bodyMetricsCompleted;
+  bool get isIrregular => _isIrregular;
 
   // Partner Tracking Getters
   bool get isTrackingForSomeoneElse => _isTrackingForSomeoneElse;
   String get trackedPersonName => _trackedPersonName;
   String get trackedPersonRelation => _trackedPersonRelation;
-  
+
+  // --- ACTIONS ---
+
+  void setIsIrregular(bool value) {
+    _isIrregular = value;
+    _saveToPrefs();
+    notifyListeners();
+    syncProfileToCloud();
+  }
+
+
   // Dynamic name getter for UI (e.g. "Your Cycle" vs "Sarah's Cycle")
-  String get cycleOwnerName => _isTrackingForSomeoneElse && _trackedPersonName.isNotEmpty 
-      ? "$_trackedPersonName's" 
-      : "Your";
+  String get cycleOwnerName =>
+      _isTrackingForSomeoneElse && _trackedPersonName.isNotEmpty
+          ? "$_trackedPersonName's"
+          : "Your";
 
   // Dynamic symptom prompt getter
-  String get symptomPromptName => _isTrackingForSomeoneElse && _trackedPersonName.isNotEmpty 
-      ? "Log $_trackedPersonName's symptoms" 
-      : "Log your symptoms";
+  String get symptomPromptName =>
+      _isTrackingForSomeoneElse && _trackedPersonName.isNotEmpty
+          ? "Log $_trackedPersonName's symptoms"
+          : "Log your symptoms";
 
   // Getters - Daily Metrics
   int get dailySteps => _dailySteps;
@@ -343,22 +417,40 @@ class CycleProvider extends ChangeNotifier {
   bool get isHealthConnected => _healthConnected;
   int? get heartRate => _heartRate;
 
+  // Getters - BBT & Cervical Mucus
+  double? get todayBbt => _todayBbt;
+  String? get todayCervicalMucus => _todayCervicalMucus;
+
+  /// Ovulation confidence from FAM markers (BBT + Cervical Mucus).
+  OvulationConfidence get ovulationConfidence =>
+      _latestPrediction.ovulationConfidence;
+
+  /// BBT-confirmed ovulation date (null if no thermal shift detected).
+  DateTime? get bbtConfirmedOvulation =>
+      _latestPrediction.bbtConfirmedOvulation;
+
+  /// Cervical mucus peak day (null if no confirmed peak).
+  DateTime? get cmPeakDay => _latestPrediction.cmPeakDay;
+
   /// Connect to Health Connect / Apple HealthKit.
-  Future<bool> connectHealth() async {
+  /// Requests permissions directly without checking availability first.
+  Future<String?> connectHealth() async {
     final service = HealthService();
-    final available = await service.isAvailable();
-    if (!available) return false;
+    try {
+      final granted = await service.requestPermissions();
+      if (!granted) return service.lastError ?? 'Permission denied';
 
-    final granted = await service.requestPermissions();
-    if (!granted) return false;
+      _healthConnected = true;
+      await _prefs.setBool('health_connected', true);
+      notifyListeners();
 
-    _healthConnected = true;
-    await _prefs.setBool('health_connected', true);
-    notifyListeners();
-
-    // Immediately sync after connecting
-    await syncFromHealth();
-    return true;
+      // Immediately sync after connecting
+      await syncFromHealth();
+      return null;
+    } catch (e) {
+      debugPrint('Health connect error: $e');
+      return e.toString();
+    }
   }
 
   /// Disconnect from Health Connect.
@@ -372,23 +464,99 @@ class CycleProvider extends ChangeNotifier {
   /// Sync health data from the platform into this provider.
   Future<void> syncFromHealth() async {
     if (!_healthConnected) return;
-    final service = HealthService();
-
-    await service.syncAll(this);
-
-    // Also fetch heart rate (stored locally, not in provider setters)
-    final hr = await service.fetchLatestHeartRate();
-    if (hr != null) {
-      _heartRate = hr;
-    }
-
+    _isSyncing = true;
     notifyListeners();
+
+    try {
+      final service = HealthService();
+      await service.syncAll(this);
+
+      // Also fetch heart rate (stored locally, not in provider setters)
+      final hr = await service.fetchLatestHeartRate();
+      if (hr != null) {
+        _heartRate = hr;
+      }
+      
+      _lastSyncStatus = "Last synced: ${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}";
+    } catch (e) {
+      _lastSyncStatus = "Sync failed: $e";
+      debugPrint('Sync from health error: $e');
+    } finally {
+      _isSyncing = false;
+      notifyListeners();
+    }
   }
 
-  /// Auto-sync on app startup (called from _loadFromPrefs).
+  /// Import menstrual dates from the health platform into cycle history.
+  /// Groups dates into period clusters and updates the last period date.
+  void importMenstrualDates(List<DateTime> dates) {
+    if (dates.isEmpty) return;
+
+    bool updated = false;
+    for (final date in dates) {
+      final normalized = DateTime(date.year, date.month, date.day);
+      // Check if this date is already in our history (within 2 days tolerance)
+      final isDuplicate = _cycleHistory.any(
+        (existing) => existing.difference(normalized).inDays.abs() <= 2,
+      );
+      if (!isDuplicate) {
+        _addToCycleHistory(normalized);
+        updated = true;
+      }
+    }
+
+    if (updated) {
+      // Update last period date to the most recent cluster start
+      if (_cycleHistory.isNotEmpty) {
+        final latest = _cycleHistory.last;
+        if (_lastPeriodDate == null || latest.isAfter(_lastPeriodDate!)) {
+          _lastPeriodDate = latest;
+        }
+      }
+      _calculatePredictions();
+      _saveToPrefs();
+      notifyListeners();
+      debugPrint('Imported menstrual dates from health platform');
+    }
+  }
+
+  /// Write the current period data back to the health platform.
+  Future<void> writePeriodToHealth() async {
+    if (!_healthConnected || _lastPeriodDate == null) return;
+    try {
+      final service = HealthService();
+      await service.writePeriodData(
+        startDate: _lastPeriodDate!,
+        durationDays: _periodDuration,
+      );
+    } catch (e) {
+      debugPrint('Write period to health error: $e');
+    }
+  }
+
+  Future<bool> _hasInternet() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } on SocketException catch (_) {
+      return false;
+    }
+  }
+
+  /// Auto-sync on app startup (called from constructor/timer).
   Future<void> _autoSyncHealth() async {
+    if (!_healthConnected || _isSyncing) return;
+
+    final hasInternet = await _hasInternet();
+    if (!hasInternet) {
+      _lastSyncStatus = "No internet. Sync paused.";
+      notifyListeners();
+      return;
+    }
+
     try {
       await syncFromHealth();
+      await writePeriodToHealth();
     } catch (e) {
       debugPrint('Auto health sync error: $e');
     }
@@ -402,7 +570,8 @@ class CycleProvider extends ChangeNotifier {
   String? get linkedPartnerName => _linkedPartnerName;
   String? get linkedPartnerUid => _linkedPartnerUid;
   String? get activeInviteCode => _activeInviteCode;
-  bool get isPartnerLinked => _partnerLinkId != null && _partnerLinkRole != null;
+  bool get isPartnerLinked =>
+      _partnerLinkId != null && _partnerLinkRole != null;
 
   /// Load partner link from Supabase on startup.
   Future<void> _loadPartnerLink() async {
@@ -536,6 +705,8 @@ class CycleProvider extends ChangeNotifier {
       'steps': _dailySteps,
       'mood': _currentMood,
       'symptoms': List<String>.from(_todaySymptoms),
+      if (_todayBbt != null) 'bbt': _todayBbt,
+      if (_todayCervicalMucus != null) 'cervicalMucus': _todayCervicalMucus,
     };
 
     _wellnessHistory[key] = snapshot;
@@ -567,10 +738,10 @@ class CycleProvider extends ChangeNotifier {
   List<String> get currentPredictions {
     final phaseSymptoms = symptomsByPhase[currentPhase];
     if (phaseSymptoms == null || phaseSymptoms.isEmpty) return [];
-    
+
     final sorted = phaseSymptoms.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-      
+
     final predictions = <String>[];
     for (var entry in sorted.take(2)) {
       // Only predict if it has happened at least twice in this phase historically
@@ -586,25 +757,47 @@ class CycleProvider extends ChangeNotifier {
   /// Returns the list of past cycle start dates.
   List<DateTime> get cycleHistory => List.unmodifiable(_cycleHistory);
 
-  /// Adaptive cycle length computed from historical data.
-  /// Falls back to user-set cycle length if fewer than 2 cycles tracked.
-  int get adaptiveCycleLength {
-    if (_cycleHistory.length < 2) return _cycleLength;
-    final gaps = <int>[];
-    for (int i = 1; i < _cycleHistory.length; i++) {
-      gaps.add(_cycleHistory[i].difference(_cycleHistory[i - 1]).inDays);
-    }
-    // Filter out outliers (< 18 or > 45 days)
-    final valid = gaps.where((g) => g >= 18 && g <= 45).toList();
-    if (valid.isEmpty) return _cycleLength;
-    return (valid.reduce((a, b) => a + b) / valid.length).round();
-  }
+  /// The latest prediction result from the intelligence service.
+  PredictionResult get latestPrediction => _latestPrediction;
+
+  /// Adaptive cycle length computed via the intelligence engine.
+  /// Uses exponential-decay weighted average — no outlier filtering.
+  int get adaptiveCycleLength =>
+      _latestPrediction.effectiveCycleLengthRounded;
 
   /// The effective cycle length used for all calculations.
   int get effectiveCycleLength => adaptiveCycleLength;
 
-  /// Dynamic ovulation day based on luteal phase (consistently ~14 days).
-  int get _ovulationDay => effectiveCycleLength - 14;
+  /// Dynamic ovulation day based on adaptive luteal phase.
+  int get _ovulationDay => _latestPrediction.ovulationDay;
+
+  /// Confidence score (0.0–1.0) for the current prediction.
+  double get predictionConfidence => _latestPrediction.confidenceScore;
+
+  /// Human-readable confidence label.
+  String get confidenceLabel => _latestPrediction.confidenceLabel;
+
+  /// Overall cycle regularity classification.
+  CycleClassification get cycleClassification =>
+      _latestPrediction.cycleClassification;
+
+  /// Human-readable factors that influenced the prediction.
+  List<String> get adjustmentFactors => _latestPrediction.adjustmentFactors;
+
+  /// Lower bound of prediction window (for variable-confidence cycles).
+  DateTime? get variableWindowStart => _latestPrediction.windowStart;
+
+  /// Upper bound of prediction window.
+  DateTime? get variableWindowEnd => _latestPrediction.windowEnd;
+
+  /// Whether the prediction should be shown as a range.
+  bool get isVariableWindow => _latestPrediction.isVariableWindow;
+
+  /// Standard deviation of cycle gaps.
+  double get cycleStdDev => _latestPrediction.standardDeviation;
+
+  /// Personalized luteal phase length.
+  int get lutealPhaseLength => _latestPrediction.lutealPhaseLength;
 
   // Calculated Properties
   int get currentCycleDay {
@@ -661,7 +854,8 @@ class CycleProvider extends ChangeNotifier {
       if (dismissedDate != null) {
         final now = DateTime.now();
         final today = DateTime(now.year, now.month, now.day);
-        final dismissed = DateTime(dismissedDate.year, dismissedDate.month, dismissedDate.day);
+        final dismissed = DateTime(
+            dismissedDate.year, dismissedDate.month, dismissedDate.day);
         if (today.isAtSameMomentAs(dismissed)) return false;
       }
     }
@@ -679,8 +873,8 @@ class CycleProvider extends ChangeNotifier {
 
   /// User says "Not yet" — dismiss for today.
   void dismissPeriodConfirmation() {
-    _prefs.setString('period_confirm_dismissed',
-        DateTime.now().toIso8601String());
+    _prefs.setString(
+        'period_confirm_dismissed', DateTime.now().toIso8601String());
     notifyListeners();
   }
 
@@ -710,13 +904,13 @@ class CycleProvider extends ChangeNotifier {
 
   // ─── CYCLE REGULARITY & STATISTICS ───────────────────
 
-  /// Cycle lengths computed from history.
+  /// Cycle lengths computed from history (no outlier filtering).
   List<int> get _historicalCycleLengths {
     if (_cycleHistory.length < 2) return [];
     final lengths = <int>[];
     for (int i = 1; i < _cycleHistory.length; i++) {
       final gap = _cycleHistory[i].difference(_cycleHistory[i - 1]).inDays;
-      if (gap >= 18 && gap <= 45) lengths.add(gap);
+      if (gap > 0) lengths.add(gap);
     }
     return lengths;
   }
@@ -735,16 +929,23 @@ class CycleProvider extends ChangeNotifier {
 
   int get cycleLengthVariation => longestCycle - shortestCycle;
 
-  /// A cycle is considered irregular if variation > 7 days.
-  bool get isCycleIrregular => cycleLengthVariation > 7;
+  /// Irregularity now driven by the intelligence service classification.
+  bool get isCycleIrregular =>
+      cycleClassification == CycleClassification.irregular ||
+      cycleClassification == CycleClassification.highlyIrregular;
 
   /// Human-readable irregularity warning.
   String? get irregularityWarning {
     if (_cycleHistory.length < 3) return null;
     if (!isCycleIrregular) return null;
-    return 'Your cycles vary by $cycleLengthVariation days '
-        '($shortestCycle–$longestCycle days). '
-        'This variation is above average. Consider discussing with your doctor.';
+    final classLabel = cycleClassification == CycleClassification.highlyIrregular
+        ? 'highly irregular'
+        : 'irregular';
+    return 'Your cycles are $classLabel '
+        '(σ=${cycleStdDev.toStringAsFixed(1)} days, '
+        '$shortestCycle–$longestCycle day range). '
+        'Predictions are shown as a window. '
+        'Consider discussing with your doctor.';
   }
 
   int get totalCyclesTracked => _cycleHistory.length;
@@ -791,17 +992,22 @@ class CycleProvider extends ChangeNotifier {
         : (daysUntilFertileWindow > 0
             ? 'Fertile window in $daysUntilFertileWindow days.'
             : '');
-    final irregularInfo =
-        isCycleIrregular ? 'Cycle is irregular (variation: $cycleLengthVariation days).' : 'Cycle is regular.';
+    final classLabel = cycleClassification.name;
+    final confLabel = confidenceLabel;
     final historyInfo = _cycleHistory.length >= 2
-        ? 'Tracking ${_cycleHistory.length} cycles. Average length: $adaptiveCycleLength days ($shortestCycle–$longestCycle range).'
+        ? 'Tracking ${_cycleHistory.length} cycles. '
+            'Weighted avg: $adaptiveCycleLength days '
+            '($shortestCycle–$longestCycle range, σ=${cycleStdDev.toStringAsFixed(1)}). '
+            'Classification: $classLabel. '
+            'Prediction confidence: $confLabel.'
         : 'Limited cycle history available.';
 
     return """
     User Profile: $_userName (Age: $_age, Gender: $_userGender).
     Current Cycle Status: Day $currentCycleDay of $effectiveCycleLength, $currentPhase phase. $daysUntilNextPeriod days until next period.
-    $fertileInfo $irregularInfo
+    $fertileInfo
     $historyInfo
+    Luteal phase: $lutealPhaseLength days${lutealPhaseLength != 14 ? ' (personalized)' : ' (default)'}.
     Body Metrics: BMI ${bmi.toStringAsFixed(1)} (Weight: ${_weight}kg, Height: ${_height}cm).
     Today's Progress: $_dailySteps steps, $_waterGlasses glasses of water, $_sleepHours hrs sleep.
     Recent Symptoms: ${_todaySymptoms.isEmpty ? "No symptoms reported today" : _todaySymptoms.join(", ")}.
@@ -954,13 +1160,35 @@ class CycleProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void updateLastPeriodDate(DateTime date) {
-    _lastPeriodDate = date;
-    _addToCycleHistory(date);
+  /// Updates the existing last period date (from settings) to avoid duplicate cycles near the same time
+  void updateLastPeriodDate(DateTime newDate) {
+    if (_lastPeriodDate == null) {
+      setLastPeriodDate(newDate);
+      return;
+    }
+    
+    final oldDate = _lastPeriodDate!;
+    _lastPeriodDate = newDate;
+    
+    final normalizedNew = DateTime(newDate.year, newDate.month, newDate.day);
+    final normalizedOld = DateTime(oldDate.year, oldDate.month, oldDate.day);
+    
+    // Remove the exact old date from history
+    _cycleHistory.removeWhere((d) => d.isAtSameMomentAs(normalizedOld));
+    // Remove any nearby dates to prevent duplicate artifacts
+    _cycleHistory.removeWhere((d) => (d.difference(normalizedNew).inDays).abs() < 15);
+    
+    _cycleHistory.add(normalizedNew);
+    _cycleHistory.sort();
+    // Keep max 12 cycles
+    if (_cycleHistory.length > 12) {
+      _cycleHistory = _cycleHistory.sublist(_cycleHistory.length - 12);
+    }
+    
     _calculatePredictions();
     _saveToPrefs();
     _updateReminders();
-    _syncPeriodStartToCloud(date);
+    _replacePeriodStartInCloud(oldDate, newDate);
     notifyListeners();
   }
 
@@ -969,8 +1197,8 @@ class CycleProvider extends ChangeNotifier {
   void _addToCycleHistory(DateTime date) {
     final normalized = DateTime(date.year, date.month, date.day);
     // Avoid duplicate entries (within 15 days of an existing entry)
-    final isDuplicate = _cycleHistory.any(
-        (d) => (d.difference(normalized).inDays).abs() < 15);
+    final isDuplicate =
+        _cycleHistory.any((d) => (d.difference(normalized).inDays).abs() < 15);
     if (!isDuplicate) {
       _cycleHistory.add(normalized);
       _cycleHistory.sort();
@@ -984,6 +1212,27 @@ class CycleProvider extends ChangeNotifier {
   /// Manually log a new period start (can be called from UI).
   void logNewPeriod(DateTime startDate) {
     setLastPeriodDate(startDate);
+  }
+
+  Future<void> _replacePeriodStartInCloud(DateTime oldDate, DateTime newDate) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    try {
+      // First, delete the old cycle
+      await Supabase.instance.client
+          .from('cycles')
+          .delete()
+          .eq('user_id', userId)
+          .eq('start_date', oldDate.toIso8601String().split('T')[0]);
+          
+      // Then insert the new one
+      await DatabaseService().upsertCycle(
+        userId: userId,
+        startDate: newDate,
+      );
+    } catch (e) {
+      debugPrint('Cloud sync error (replace cycle): $e');
+    }
   }
 
   Future<void> _syncPeriodStartToCloud(DateTime date) async {
@@ -1095,6 +1344,25 @@ class CycleProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Log today's Basal Body Temperature (in °C, range 35.0–38.5).
+  void updateBbt(double temp) {
+    _todayBbt = temp.clamp(35.0, 38.5);
+    _saveDailySnapshot();
+    _calculatePredictions(); // BBT data can trigger ovulation confirmation
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  /// Log today's cervical mucus observation.
+  /// Accepted values: 'Dry', 'Sticky', 'Creamy', 'EggWhite', 'Watery'.
+  void updateCervicalMucus(String type) {
+    _todayCervicalMucus = type;
+    _saveDailySnapshot();
+    _calculatePredictions(); // CM data can trigger ovulation confirmation
+    _saveToPrefs();
+    notifyListeners();
+  }
+
   void incrementWater() {
     if (_waterGlasses < 12) {
       _waterGlasses++;
@@ -1171,27 +1439,32 @@ class CycleProvider extends ChangeNotifier {
   // ─── PREDICTION CALCULATIONS ────────────────────────
 
   void _calculatePredictions() {
-    if (_lastPeriodDate == null) return;
-    final lastStart = DateTime(
-        _lastPeriodDate!.year, _lastPeriodDate!.month, _lastPeriodDate!.day);
-    _nextPeriodDate = lastStart.add(Duration(days: effectiveCycleLength));
-    // Ovulation: cycleLength - 14 days after last period start
-    _ovulationDate = lastStart.add(Duration(days: _ovulationDay));
+    // Run the intelligence engine
+    _latestPrediction = _intelligenceService.predict(
+      cycleHistory: _cycleHistory,
+      wellnessHistory: _wellnessHistory,
+      userSetCycleLength: _cycleLength,
+      periodDuration: _periodDuration,
+      lastPeriodDate: _lastPeriodDate,
+    );
+
+    _nextPeriodDate = _latestPrediction.predictedNextPeriod;
+    _ovulationDate = _latestPrediction.predictedOvulation;
   }
 
   // Trigger Notification Scheduling
   void _updateReminders() {
     if (_nextPeriodDate == null) return;
-    
+
     final appNs = AppNotificationService();
-    
+
     // Schedule Period Reminder
     appNs.schedulePeriodReminder(
       _nextPeriodDate!,
       isTrackingForSomeoneElse: _isTrackingForSomeoneElse,
       trackedPersonName: _trackedPersonName,
     );
-    
+
     // Schedule Fertile Window Reminder
     if (fertileWindowStart != null) {
       appNs.scheduleFertileWindowReminder(
@@ -1200,7 +1473,7 @@ class CycleProvider extends ChangeNotifier {
         trackedPersonName: _trackedPersonName,
       );
     }
-    
+
     // Reschedule Daily Reminder (to ensure strings are updated)
     appNs.scheduleDailyReminder(
       isTrackingForSomeoneElse: _isTrackingForSomeoneElse,
@@ -1210,18 +1483,18 @@ class CycleProvider extends ChangeNotifier {
 
   // Helper Methods for UI (Calendar Screen)
   bool isOvulationDay(DateTime date) {
-  if (_lastPeriodDate == null) return false;
-  final targetDate = DateTime(date.year, date.month, date.day);
-  final lastStart = DateTime(
-      _lastPeriodDate!.year, _lastPeriodDate!.month, _lastPeriodDate!.day);
+    if (_lastPeriodDate == null) return false;
+    final targetDate = DateTime(date.year, date.month, date.day);
+    final lastStart = DateTime(
+        _lastPeriodDate!.year, _lastPeriodDate!.month, _lastPeriodDate!.day);
 
-  final daysSinceStart = targetDate.difference(lastStart).inDays;
-  if (daysSinceStart < 0) return false; // Before tracking started
-  final dayInCycle = (daysSinceStart % effectiveCycleLength) + 1;
-  // Ovulation day is typically 14 days before the end of the cycle
-  final ovDay = effectiveCycleLength - 14;
-  return dayInCycle == ovDay;
-}
+    final daysSinceStart = targetDate.difference(lastStart).inDays;
+    if (daysSinceStart < 0) return false; // Before tracking started
+    final dayInCycle = (daysSinceStart % effectiveCycleLength) + 1;
+    // Ovulation day is typically 14 days before the end of the cycle
+    final ovDay = effectiveCycleLength - 14;
+    return dayInCycle == ovDay;
+  }
 
   String getPhaseForDate(DateTime date) {
     if (_lastPeriodDate == null) return 'Unknown';
@@ -1242,45 +1515,45 @@ class CycleProvider extends ChangeNotifier {
   }
 
   /// Clinical fertile window: 5 days before ovulation + ovulation day.
-/// Now works for future predicted cycles using modular arithmetic.
-bool isFertileDay(DateTime date) {
-  if (_lastPeriodDate == null) return false;
-  final targetDate = DateTime(date.year, date.month, date.day);
-  final lastStart = DateTime(
-      _lastPeriodDate!.year, _lastPeriodDate!.month, _lastPeriodDate!.day);
+  /// Now works for future predicted cycles using modular arithmetic.
+  bool isFertileDay(DateTime date) {
+    if (_lastPeriodDate == null) return false;
+    final targetDate = DateTime(date.year, date.month, date.day);
+    final lastStart = DateTime(
+        _lastPeriodDate!.year, _lastPeriodDate!.month, _lastPeriodDate!.day);
 
-  final daysSinceStart = targetDate.difference(lastStart).inDays;
-  if (daysSinceStart < 0) return false;
-  final dayInCycle = (daysSinceStart % effectiveCycleLength) + 1;
-  final ovDay = effectiveCycleLength - 14;
-  // Clinical fertile window: 5 days before ovulation through ovulation day
-  return dayInCycle >= (ovDay - 5) && dayInCycle <= ovDay;
-}
+    final daysSinceStart = targetDate.difference(lastStart).inDays;
+    if (daysSinceStart < 0) return false;
+    final dayInCycle = (daysSinceStart % effectiveCycleLength) + 1;
+    final ovDay = effectiveCycleLength - 14;
+    // Clinical fertile window: 5 days before ovulation through ovulation day
+    return dayInCycle >= (ovDay - 5) && dayInCycle <= ovDay;
+  }
 
-/// Whether this date is a predicted (future) date vs confirmed history.
-bool isPredictedDay(DateTime date) {
-  final targetDate = DateTime(date.year, date.month, date.day);
-  final today = DateTime.now();
-  final todayNorm = DateTime(today.year, today.month, today.day);
-  return targetDate.isAfter(todayNorm);
-}
+  /// Whether this date is a predicted (future) date vs confirmed history.
+  bool isPredictedDay(DateTime date) {
+    final targetDate = DateTime(date.year, date.month, date.day);
+    final today = DateTime.now();
+    final todayNorm = DateTime(today.year, today.month, today.day);
+    return targetDate.isAfter(todayNorm);
+  }
 
-/// Returns which phase day this is within the cycle for background coloring.
-/// Returns: 'menstrual', 'follicular', 'ovulatory', 'luteal', or 'none'.
-String getPhaseTypeForDate(DateTime date) {
-  if (_lastPeriodDate == null) return 'none';
-  final targetDate = DateTime(date.year, date.month, date.day);
-  final lastStart = DateTime(
-      _lastPeriodDate!.year, _lastPeriodDate!.month, _lastPeriodDate!.day);
+  /// Returns which phase day this is within the cycle for background coloring.
+  /// Returns: 'menstrual', 'follicular', 'ovulatory', 'luteal', or 'none'.
+  String getPhaseTypeForDate(DateTime date) {
+    if (_lastPeriodDate == null) return 'none';
+    final targetDate = DateTime(date.year, date.month, date.day);
+    final lastStart = DateTime(
+        _lastPeriodDate!.year, _lastPeriodDate!.month, _lastPeriodDate!.day);
 
-  final daysSinceStart = targetDate.difference(lastStart).inDays;
-  if (daysSinceStart < 0) return 'none';
-  final dayInCycle = (daysSinceStart % effectiveCycleLength) + 1;
-  final ovDay = effectiveCycleLength - 14;
+    final daysSinceStart = targetDate.difference(lastStart).inDays;
+    if (daysSinceStart < 0) return 'none';
+    final dayInCycle = (daysSinceStart % effectiveCycleLength) + 1;
+    final ovDay = effectiveCycleLength - 14;
 
-  if (dayInCycle >= 1 && dayInCycle <= _periodDuration) return 'menstrual';
-  if (dayInCycle <= ovDay - 5) return 'follicular';
-  if (dayInCycle <= ovDay) return 'ovulatory';
-  return 'luteal';
-}
+    if (dayInCycle >= 1 && dayInCycle <= _periodDuration) return 'menstrual';
+    if (dayInCycle <= ovDay - 5) return 'follicular';
+    if (dayInCycle <= ovDay) return 'ovulatory';
+    return 'luteal';
+  }
 }

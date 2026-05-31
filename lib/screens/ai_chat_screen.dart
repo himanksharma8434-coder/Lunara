@@ -10,6 +10,8 @@ import '../config/app_config.dart';
 import '../theme/app_theme.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/ai_rate_limit_service.dart';
+import '../services/groq_service.dart';
 
 class AIChatScreen extends StatefulWidget {
   final String? initialPrompt;
@@ -26,16 +28,18 @@ class _AIChatScreenState extends State<AIChatScreen>
   final ScrollController _scrollController = ScrollController();
   final List<Map<String, dynamic>> _messages = [];
 
-  GenerativeModel? _model;
-  ChatSession? _chat;
+  GroqModel? _model;
+  String? _currentModelName;
+  GroqChatSession? _chat;
   bool _isTyping = false;
   late AnimationController _fadeController;
   late AnimationController _pulseController;
+  late AnimationController _dotsController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _pulseAnimation;
   final List<String> _suggestedSymptoms = [];
-
-  final String _apiKey = AppConfig.geminiApiKey;
+  int _remainingRequests = AIRateLimitService.dailyLimit;
+  final String _apiKey = AppConfig.groqApiKey;
 
   final List<Map<String, dynamic>> _quickActions = [
     {
@@ -72,6 +76,11 @@ class _AIChatScreenState extends State<AIChatScreen>
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
 
+    _dotsController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+
     _fadeAnimation =
         CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
     _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
@@ -88,16 +97,25 @@ class _AIChatScreenState extends State<AIChatScreen>
     _scrollController.dispose();
     _fadeController.dispose();
     _pulseController.dispose();
+    _dotsController.dispose();
     super.dispose();
   }
 
   Future<void> _setupApp() async {
     await _loadChatHistory();
-    _initGemini();
+    _initGroq();
 
     if (widget.initialPrompt != null && widget.initialPrompt!.isNotEmpty) {
       await Future.delayed(const Duration(milliseconds: 800));
       _sendMessage(widget.initialPrompt);
+    }
+    await _updateRemainingRequests();
+  }
+
+  Future<void> _updateRemainingRequests() async {
+    final remaining = await AIRateLimitService.instance.getRemainingRequests();
+    if (mounted) {
+      setState(() => _remainingRequests = remaining);
     }
   }
 
@@ -119,7 +137,7 @@ class _AIChatScreenState extends State<AIChatScreen>
     await prefs.setString('chat_history', jsonEncode(_messages));
   }
 
-  void _initGemini() {
+  void _initGroq({List<String> excludeModels = const []}) {
     final stats = Provider.of<CycleProvider>(context, listen: false);
 
     List<Content> history =
@@ -132,24 +150,24 @@ class _AIChatScreenState extends State<AIChatScreen>
     // Gather real-time daily insights
     final now = DateTime.now();
     final todaySymptoms = stats.getSymptomsForDate(now);
-    final symptomsString = todaySymptoms.isNotEmpty 
-        ? todaySymptoms.join(', ') 
+    final symptomsString = todaySymptoms.isNotEmpty
+        ? todaySymptoms.join(', ')
         : 'None logged today';
-    
+
     int? daysUntilPeriod;
     if (stats.nextPeriodDate != null) {
       daysUntilPeriod = stats.nextPeriodDate!.difference(now).inDays;
       // Handle edge cases if they are currently on their period
-      if (daysUntilPeriod < 0) daysUntilPeriod = null; 
+      if (daysUntilPeriod < 0) daysUntilPeriod = null;
     }
-    
-    final String periodContext = daysUntilPeriod != null 
-        ? "Predicted to start in $daysUntilPeriod days." 
+
+    final String periodContext = daysUntilPeriod != null
+        ? "Predicted to start in $daysUntilPeriod days."
         : "Prediction unavailable (awaiting more data).";
 
     final bool isFertile = stats.isFertileDay(now);
     final bool isOvulation = stats.isOvulationDay(now);
-    
+
     String fertilityContext = "Not currently in fertile window.";
     if (isOvulation) {
       fertilityContext = "Today is predicted ovulation day.";
@@ -176,38 +194,63 @@ class _AIChatScreenState extends State<AIChatScreen>
     String today = now.toString().split(' ')[0];
     String time = TimeOfDay.now().format(context);
 
-    _model = GenerativeModel(
-      model: 'gemini-1.5-flash',
-      apiKey: _apiKey,
-      safetySettings: [
-        SafetySetting(HarmCategory.harassment, HarmBlockThreshold.none),
-        SafetySetting(HarmCategory.hateSpeech, HarmBlockThreshold.none),
-        SafetySetting(HarmCategory.dangerousContent, HarmBlockThreshold.none),
-        SafetySetting(HarmCategory.sexuallyExplicit, HarmBlockThreshold.none),
-      ],
-      systemInstruction: Content.system(
-          "You are a caring women's health assistant for $medicalContext "
-          "TODAY'S DATE: $today. CURRENT TIME: $time. "
-          "Day ${stats.currentCycleDay} of ${stats.cycleLength}, ${stats.currentPhase} phase. "
-          "Be warm, professional, brief (2-3 sentences for quick questions, detailed for diet/workout plans), and supportive. Use emojis occasionally."
-          "1. Acknowledge their current cycle phase and any symptoms logged TODAY before giving advice. "
-          "2. If they are close to their period (e.g. within 3-5 days), politely recommend PMS-friendly remedies when relevant. "
-          "3. If they have 'Predicted Symptoms for Today' that are NOT yet logged, proactively advise them on how to manage or prevent them. "
-          "4. You have full general knowledge (history, science, etc.). "
-          "5. Be friendly and natural. "
-          "6. Provide direct answers. DO NOT wrap your response in double quotes. "
-          "7. Answer any general knowledge or medical questions naturally. "
-          "8. For diet plans: Provide detailed meal plans based on their cycle phase. "
-          "9. For workout plans: Provide specific exercises based on their current phase. "
-          "10. dont make it too lengthy. for example:- 7:30 70gram oats with 400 ml tond milk. "
-          "11. Refer to the patient being tracked as '${stats.isTrackingForSomeoneElse ? stats.trackedPersonName : stats.userName}'. If the user is a caregiver, address them as the caregiver. "
-          "12. If you don't know the answer, say 'I'm here to help! Could you rephrase that for me?' "
-          "13. Always prioritize user safety and well-being. "
-          "14. shortened the answer as much as possible, keep it short and precise of max 6-7 lines. "
-          "15. NEVER ask for personal information like full name, address, phone number, or email."),
-    );
+    // List of models to try in order of preference
+    final List<String> potentialModels = [
+      'llama-3.3-70b-versatile',
+      'llama-3.1-8b-instant',
+      'mixtral-8x7b-32768',
+    ];
 
-    _chat = _model!.startChat(history: history);
+    // Filter out excluded models
+    final filteredModels = potentialModels.where((m) => !excludeModels.contains(m)).toList();
+
+    bool initialized = false;
+    String? lastError;
+
+    for (var modelName in filteredModels) {
+      try {
+        _model = GroqModel(
+          model: modelName,
+          apiKey: _apiKey,
+          systemInstruction:
+              "You are a caring women's health assistant for $medicalContext "
+              "TODAY'S DATE: $today. CURRENT TIME: $time. "
+              "Day ${stats.currentCycleDay} of ${stats.cycleLength}, ${stats.currentPhase} phase. "
+              "Be warm, professional, brief (2-3 sentences for quick questions, detailed for diet/workout plans), and supportive. Use emojis occasionally."
+              "1. Acknowledge their current cycle phase and any symptoms logged TODAY before giving advice. "
+              "2. If they are close to their period (e.g. within 3-5 days), politely recommend PMS-friendly remedies when relevant. "
+              "3. If they have 'Predicted Symptoms for Today' that are NOT yet logged, proactively advise them on how to manage or prevent them. "
+              "4. You have full general knowledge (history, science, etc.). "
+              "5. Be friendly and natural. "
+              "6. Provide direct answers. DO NOT wrap your response in double quotes. "
+              "7. Answer any general knowledge or medical questions naturally. "
+              "8. For diet plans: Provide detailed meal plans based on their cycle phase. "
+              "9. For workout plans: Provide specific exercises based on their current phase. "
+              "10. dont make it too lengthy. for example:- 7:30 70gram oats with 400 ml tond milk. "
+              "11. Refer to the patient being tracked as '${stats.isTrackingForSomeoneElse ? stats.trackedPersonName : stats.userName}'. If the user is a caregiver, address them as the caregiver. "
+              "12. If you don't know the answer, say 'I'm here to help! Could you rephrase that for me?' "
+              "13. Always prioritize user safety and well-being. "
+              "14. shortened the answer as much as possible, keep it short and precise of max 6-7 lines. "
+              "15. NEVER ask for personal information like full name, address, phone number, or email."
+              "16. KEEP THE ANSWER SHORT AND PRECISE OF MAX 3 LINES.",
+        );
+
+        // Simple check to see if model is valid (optional, sendMessage will fail later anyway)
+        _chat = _model!.startChat(history: history);
+        _currentModelName = modelName;
+        initialized = true;
+        debugPrint("Successfully initialized with model: $modelName");
+        break;
+      } catch (e) {
+        lastError = e.toString();
+        debugPrint("Failed to initialize with $modelName: $e");
+      }
+    }
+
+    if (!initialized) {
+      debugPrint("Completely failed to initialize Groq: $lastError");
+      _chat = null; // Ensure chat is null if initialization failed
+    }
 
     if (_messages.isEmpty && widget.initialPrompt == null) {
       _triggerGreeting();
@@ -283,6 +326,36 @@ class _AIChatScreenState extends State<AIChatScreen>
     final text = predefinedText ?? _controller.text.trim();
     if (text.isEmpty || _chat == null) return;
 
+    // Check Rate Limit
+    final canRequest = await AIRateLimitService.instance.canMakeRequest();
+    if (!canRequest) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+                'Daily limit reached (100). Please try again tomorrow. 💕'),
+            backgroundColor: LunaraColors.primaryDark,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (text.length > 500) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Message is too long (max 500 characters).'),
+            backgroundColor: LunaraColors.primaryDark,
+          ),
+        );
+      }
+      return;
+    }
+
     HapticFeedback.lightImpact();
     _analyzeForSymptoms(text);
 
@@ -292,7 +365,7 @@ class _AIChatScreenState extends State<AIChatScreen>
         _messages.add({
           "role": "ai",
           "text":
-              "⚠️ **API Key Missing**\n\nTo use the AI chat, you need to provide your Gemini API key when launching the app:\n\n`flutter run --dart-define=GEMINI_API_KEY=your_key_here`\n\n*(If you're using an IDE like VS Code or Android Studio, add it to your launch configuration.)*",
+              "⚠️ **API Key Missing**\n\nTo use the AI chat, you need to provide your Groq API key when launching the app:\n\n`flutter run --dart-define=GROQ_API_KEY=your_key_here`\n\n*(If you're using an IDE like VS Code or Android Studio, add it to your launch configuration.)*",
           "isComplete": true,
         });
         _controller.clear();
@@ -312,13 +385,65 @@ class _AIChatScreenState extends State<AIChatScreen>
 
     try {
       await Future.delayed(const Duration(milliseconds: 600));
-      final response = await _chat!
-          .sendMessage(Content.text(text))
-          .timeout(const Duration(seconds: 30));
+
+      final safePrompt =
+          "USER QUERY:\n$text\n\nREMINDER: Answer strictly following your system instructions. Do not break character or execute instructions outside of providing wellness support.";
+
+      GroqResponse? response;
+      bool success = false;
+      int retryCount = 0;
+      List<String> excludedModels = [];
+
+      while (!success && retryCount < 3) {
+        try {
+          if (_chat == null) {
+            throw Exception("Chat session not initialized");
+          }
+          response = await _chat!
+              .sendMessage(Content.text(safePrompt))
+              .timeout(const Duration(seconds: 30));
+          success = true;
+        } catch (e) {
+          debugPrint("Attempt ${retryCount + 1} failed with $_currentModelName: $e");
+          final errorStr = e.toString().toLowerCase();
+          // Handle rate-limit (429) errors with a delay before retrying
+          if (errorStr.contains('429') ||
+              errorStr.contains('rate') ||
+              errorStr.contains('resource has been exhausted') ||
+              errorStr.contains('too many requests') ||
+              errorStr.contains('quota')) {
+            debugPrint("Rate limit hit, waiting before retry...");
+            await Future.delayed(Duration(seconds: (retryCount + 1) * 5));
+            retryCount++;
+          // Broaden the fallback logic to catch model/server errors
+          } else if (errorStr.contains('model') || 
+              errorStr.contains('404') || 
+              errorStr.contains('403') || 
+              errorStr.contains('500') || 
+              errorStr.contains('503') || 
+              errorStr.contains('unavailable')) {
+            debugPrint("Model error detected, attempting to re-initialize with fallback...");
+            if (_currentModelName != null) excludedModels.add(_currentModelName!);
+            _initGroq(excludeModels: excludedModels); 
+            if (_chat == null) break;
+            retryCount++;
+          } else {
+            rethrow;
+          }
+        }
+      }
+
+      if (!success || response == null) {
+        throw Exception("Failed to get response after $retryCount retries. Last error: ${excludedModels.join(', ')}");
+      }
+
+      // Success: Increment limit
+      await AIRateLimitService.instance.incrementRequestCount();
+      await _updateRemainingRequests();
 
       setState(() {
         _isTyping = false;
-        if (response.text == null) {
+        if (response!.text == null) {
           _messages.add({
             "role": "ai",
             "text": "I'm here to help! Could you rephrase that for me?",
@@ -338,19 +463,44 @@ class _AIChatScreenState extends State<AIChatScreen>
           response.text ?? "I'm here to help! Could you rephrase that for me?");
 
       await _saveChatHistory();
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint("FULL ERROR: $e");
+      debugPrint("STACK TRACE: $stackTrace");
+
+      String errorMsg =
+          "I'm having trouble connecting right now. Please try again later.\n\n*(Debug: ${e.toString()})*";
+      final errStr = e.toString().toLowerCase();
+      if (errStr.contains('429') ||
+          errStr.contains('rate') ||
+          errStr.contains('resource has been exhausted') ||
+          errStr.contains('too many requests') ||
+          errStr.contains('quota')) {
+        errorMsg =
+            "⏳ The AI is getting too many requests right now. Please wait a moment and try again. 💕";
+      } else if (e.toString().contains('API key') || e.toString().contains('API_KEY')) {
+        errorMsg =
+            "⚠️ There seems to be an issue with the API key. Please check your configuration.";
+      } else if (errStr.contains('model') || errStr.contains('404')) {
+        errorMsg =
+            "⚠️ The selected AI model configuration is currently unavailable. We're working on a fix! 💕\n\n*(Debug: ${e.toString()})*";
+      } else if (errStr.contains('limit')) {
+        errorMsg = "⚠️ Daily limit reached. Please try again tomorrow. 💕";
+      }
+
       setState(() {
         _isTyping = false;
-        _messages.add({
-          "role": "ai",
-          "text": "",
-          "isComplete": false,
-        });
+        if (_messages.isNotEmpty && _messages.last['role'] == 'ai' && _messages.last['text'] == "") {
+           // We already added an empty AI message, let's use it
+        } else {
+          _messages.add({
+            "role": "ai",
+            "text": "",
+            "isComplete": false,
+          });
+        }
       });
 
-      await _animateText(_messages.length - 1,
-          "CONNECTION ERROR: ${e.toString().split(':').last}");
+      await _animateText(_messages.length - 1, errorMsg);
     }
     _scrollToBottom();
   }
@@ -423,13 +573,13 @@ class _AIChatScreenState extends State<AIChatScreen>
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('chat_history');
               setState(() => _messages.clear());
-              _initGemini();
+              _initGroq();
               if (context.mounted) {
                 Navigator.pop(context);
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF8989),
+              backgroundColor: LunaraColors.primary,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(15)),
             ),
@@ -519,7 +669,7 @@ class _AIChatScreenState extends State<AIChatScreen>
                   ),
                 ),
                 Text(
-                  'Personalized wellness guide',
+                  '$_remainingRequests questions left today',
                   style: TextStyle(
                     fontSize: 12,
                     color: AppTheme.textLight(context),
@@ -529,6 +679,7 @@ class _AIChatScreenState extends State<AIChatScreen>
               ],
             ),
           ),
+          const SizedBox(width: 8),
           GestureDetector(
             onTap: _clearChat,
             child: Container(
@@ -546,6 +697,117 @@ class _AIChatScreenState extends State<AIChatScreen>
     );
   }
 
+  Widget _buildIntroHeader() {
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 1200),
+      tween: Tween(begin: 0.0, end: 1.0),
+      curve: Curves.easeOutBack,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.scale(
+            scale: 0.8 + 0.2 * value,
+            child: child,
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 25, top: 10),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              LunaraColors.primary.withOpacity(0.08),
+              LunaraColors.primaryDark.withOpacity(0.03),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: LunaraColors.primary.withOpacity(0.15),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          children: [
+            // Glowing Animated Badge
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: LunaraColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: LunaraColors.primary.withOpacity(0.2),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                  )
+                ],
+              ),
+              child: ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [LunaraColors.primary, LunaraColors.primaryDark],
+                ).createShader(bounds),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 40,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            // Title
+            Text(
+              'Lunara AI',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                color: AppTheme.textDark(context),
+                letterSpacing: -0.8,
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Tagline
+            Text(
+              'Which knows your body more than ever',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                color: AppTheme.secondaryText(context),
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.cardColor(context).withOpacity(0.6),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.security_rounded, size: 14, color: Colors.green),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Secure & Private Cycle Insights',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textLight(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMessageArea() {
     if (_messages.isEmpty && widget.initialPrompt != null) {
       return Center(
@@ -558,12 +820,12 @@ class _AIChatScreenState extends State<AIChatScreen>
                 padding: const EdgeInsets.all(35),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFFF8989), Color(0xFFD8405B)],
+                    colors: [LunaraColors.primary, LunaraColors.primaryDark],
                   ),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFFF8989).withOpacity(0.4),
+                      color: LunaraColors.primary.withOpacity(0.4),
                       blurRadius: 30,
                       offset: const Offset(0, 15),
                     ),
@@ -591,7 +853,7 @@ class _AIChatScreenState extends State<AIChatScreen>
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 15,
-                color: Colors.grey[600],
+                color: AppTheme.secondaryText(context),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -602,54 +864,78 @@ class _AIChatScreenState extends State<AIChatScreen>
 
     if (_messages.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ScaleTransition(
-              scale: _pulseAnimation,
-              child: Container(
-                padding: const EdgeInsets.all(35),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFF8989), Color(0xFFD8405B)],
-                  ),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFF8989).withOpacity(0.4),
-                      blurRadius: 30,
-                      offset: const Offset(0, 15),
+        child: TweenAnimationBuilder<double>(
+          duration: const Duration(milliseconds: 1000),
+          tween: Tween(begin: 0.0, end: 1.0),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: Offset(0, 35 * (1 - value)),
+                child: child,
+              ),
+            );
+          },
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ScaleTransition(
+                scale: _pulseAnimation,
+                child: Container(
+                  padding: const EdgeInsets.all(35),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [LunaraColors.primary, LunaraColors.primaryDark],
                     ),
-                  ],
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: LunaraColors.primary.withOpacity(0.4),
+                        blurRadius: 30,
+                        offset: const Offset(0, 15),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.auto_awesome_rounded,
+                      size: 55, color: Colors.white),
                 ),
-                child: const Icon(Icons.chat_bubble_rounded,
-                    size: 55, color: Colors.white),
               ),
-            ),
-            const SizedBox(height: 30),
-            Text(
-              'Your Personal Health\nCompanion',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w900,
-                color: AppTheme.textDark(context),
-                height: 1.3,
-                letterSpacing: -0.5,
+              const SizedBox(height: 30),
+              Text(
+                'Lunara AI',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.textDark(context),
+                  letterSpacing: -0.8,
+                ),
               ),
-            ),
-            const SizedBox(height: 15),
-            Text(
-              'Ask me anything about periods, symptoms,\nnutrition, or wellness tips',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                color: Colors.grey[600],
-                height: 1.5,
-                fontWeight: FontWeight.w500,
+              const SizedBox(height: 10),
+              Text(
+                'Which knows your body more than ever',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: AppTheme.secondaryText(context),
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              Text(
+                'Ask me anything about periods, symptoms,\nnutrition, or wellness tips',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.textLight(context),
+                  height: 1.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -657,9 +943,12 @@ class _AIChatScreenState extends State<AIChatScreen>
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(20),
-      itemCount: _messages.length,
+      itemCount: _messages.length + 1,
       itemBuilder: (context, index) {
-        final m = _messages[index];
+        if (index == 0) {
+          return _buildIntroHeader();
+        }
+        final m = _messages[index - 1];
         bool isAi = m["role"] == "ai";
         bool isAnimating = isAi && m["isComplete"] != true;
 
@@ -680,9 +969,7 @@ class _AIChatScreenState extends State<AIChatScreen>
               constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.78),
               decoration: BoxDecoration(
-                gradient: isAi
-                    ? null
-                    : AppTheme.primaryGradient(context),
+                gradient: isAi ? null : AppTheme.primaryGradient(context),
                 color: isAi ? AppTheme.cardColor(context) : null,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(22),
@@ -694,7 +981,7 @@ class _AIChatScreenState extends State<AIChatScreen>
                   BoxShadow(
                     color: isAi
                         ? Colors.black.withOpacity(0.08)
-                        : const Color(0xFFFF8989).withOpacity(0.4),
+                        : LunaraColors.primary.withOpacity(0.4),
                     blurRadius: 15,
                     offset: const Offset(0, 5),
                   ),
@@ -763,7 +1050,7 @@ class _AIChatScreenState extends State<AIChatScreen>
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[700],
+              color: AppTheme.secondaryText(context),
               letterSpacing: 0.5,
             ),
           ),
@@ -789,10 +1076,10 @@ class _AIChatScreenState extends State<AIChatScreen>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppTheme.cardColor(context),
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(
-                      color: const Color(0xFFFF8989).withOpacity(0.3),
+                      color: LunaraColors.primary.withOpacity(0.3),
                       width: 1.5,
                     ),
                     boxShadow: [
@@ -807,15 +1094,15 @@ class _AIChatScreenState extends State<AIChatScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(action['icon'],
-                          size: 20, color: const Color(0xFFFF8989)),
+                          size: 20, color: LunaraColors.primary),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
                           action['label'],
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF3E2723),
+                            color: AppTheme.textDark(context),
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -839,7 +1126,7 @@ class _AIChatScreenState extends State<AIChatScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppTheme.cardColor(context),
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
@@ -849,42 +1136,44 @@ class _AIChatScreenState extends State<AIChatScreen>
               ),
             ],
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(3, (index) => _buildBouncingDot(index)),
+          child: AnimatedBuilder(
+            animation: _dotsController,
+            builder: (context, child) {
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(3, (index) {
+                  // Stagger each dot by 0.2 in the animation cycle
+                  final delay = index * 0.2;
+                  final t = (_dotsController.value + delay) % 1.0;
+                  // Create a smooth bounce using a sine curve
+                  final bounce = (t < 0.5)
+                      ? (t * 2)  // 0 -> 1 in first half
+                      : (1 - (t - 0.5) * 2);  // 1 -> 0 in second half
+                  final opacity = 0.4 + 0.6 * bounce;
+
+                  return Container(
+                    margin: EdgeInsets.only(left: index > 0 ? 6 : 0),
+                    child: Transform.translate(
+                      offset: Offset(0, -6 * bounce),
+                      child: Opacity(
+                        opacity: opacity,
+                        child: Container(
+                          width: 9,
+                          height: 9,
+                          decoration: BoxDecoration(
+                            gradient: AppTheme.primaryGradient(context),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              );
+            },
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildBouncingDot(int index) {
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 600),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        final delay = index * 0.15;
-        final animValue = ((value + delay) % 1.0);
-        final bounce = (1 - (animValue * 2 - 1).abs());
-
-        return Container(
-          margin: EdgeInsets.only(left: index > 0 ? 6 : 0),
-          child: Transform.translate(
-            offset: Offset(0, -6 * bounce),
-            child: Container(
-              width: 9,
-              height: 9,
-              decoration: BoxDecoration(
-                gradient: AppTheme.primaryGradient(context),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-        );
-      },
-      onEnd: () {
-        if (mounted && _isTyping) setState(() {});
-      },
     );
   }
 
@@ -912,12 +1201,15 @@ class _AIChatScreenState extends State<AIChatScreen>
                   return Padding(
                     padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
                     child: ActionChip(
-                      backgroundColor: AppTheme.primary(context).withOpacity(0.1),
-                      side: BorderSide(color: AppTheme.primary(context).withOpacity(0.5)),
+                      backgroundColor:
+                          AppTheme.primary(context).withOpacity(0.1),
+                      side: BorderSide(
+                          color: AppTheme.primary(context).withOpacity(0.5)),
                       label: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.add_circle_outline, size: 14, color: AppTheme.primary(context)),
+                          Icon(Icons.add_circle_outline,
+                              size: 14, color: AppTheme.primary(context)),
                           const SizedBox(width: 4),
                           Text(
                             "Log $symptom",
@@ -931,7 +1223,8 @@ class _AIChatScreenState extends State<AIChatScreen>
                       ),
                       onPressed: () {
                         HapticFeedback.lightImpact();
-                        Provider.of<CycleProvider>(context, listen: false).addSymptom(symptom);
+                        Provider.of<CycleProvider>(context, listen: false)
+                            .addSymptom(symptom);
                         setState(() {
                           _suggestedSymptoms.remove(symptom);
                         });
@@ -951,67 +1244,67 @@ class _AIChatScreenState extends State<AIChatScreen>
           ],
           Row(
             children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppTheme.subtleBackground(context).withOpacity(0.5),
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(
-                  color: AppTheme.primary(context).withOpacity(0.2),
-                  width: 1.5,
-                ),
-              ),
-              child: TextField(
-                controller: _controller,
-                onSubmitted: (_) => _sendMessage(),
-                maxLines: null,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  hintText: "Ask me anything...",
-                  hintStyle: TextStyle(
-                    color: Colors.grey[500],
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  filled: true,
-                  fillColor: Colors.transparent,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-                  border: OutlineInputBorder(
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppTheme.subtleBackground(context).withOpacity(0.5),
                     borderRadius: BorderRadius.circular(28),
-                    borderSide: BorderSide.none,
+                    border: Border.all(
+                      color: AppTheme.primary(context).withOpacity(0.2),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: TextField(
+                    controller: _controller,
+                    onSubmitted: (_) => _sendMessage(),
+                    maxLines: null,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: InputDecoration(
+                      hintText: "Ask me anything...",
+                      hintStyle: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      filled: true,
+                      fillColor: Colors.transparent,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 22, vertical: 16),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(28),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: AppTheme.textDark(context),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-                style: TextStyle(
-                  fontSize: 15,
-                  color: AppTheme.textDark(context),
-                  fontWeight: FontWeight.w500,
+              ),
+              const SizedBox(width: 14),
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  _sendMessage();
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.primaryGradient(context),
+                    shape: BoxShape.circle,
+                    boxShadow: AppTheme.glowShadow(context),
+                  ),
+                  child: const Icon(
+                    Icons.send_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
-          const SizedBox(width: 14),
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.mediumImpact();
-              _sendMessage();
-            },
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: AppTheme.primaryGradient(context),
-                shape: BoxShape.circle,
-                boxShadow: AppTheme.glowShadow(context),
-              ),
-              child: const Icon(
-                Icons.send_rounded,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-          ),
-        ],
-      ),
         ],
       ),
     );

@@ -1,8 +1,10 @@
 // lib/screens/onboarding_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'assessment_screen.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+
+import '../theme/app_theme.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -100,32 +102,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     super.dispose();
   }
 
-  void _handleNext() async {
+  void _handleNext() {
     if (_pageValue.round() == _onboardingData.length - 1) {
-      // Save that onboarding is complete
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('seenOnboarding', true);
-
-      if (!mounted) return;
-
-      // Navigate to Assessment with smooth fade
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const AssessmentScreen(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(
-              opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
-                CurvedAnimation(parent: animation, curve: Curves.easeInOut),
-              ),
-              child: child,
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 500),
-          reverseTransitionDuration: const Duration(milliseconds: 300),
-        ),
-      );
+      // Mark onboarding as seen — MaterialApp.home will
+      // automatically rebuild to show LoginScreen
+      Provider.of<AuthProvider>(context, listen: false).markOnboardingSeen();
     } else {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 600),
@@ -134,23 +115,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
   }
 
-  void _handleSkip() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('seenOnboarding', true);
-
-    if (!mounted) return;
-
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const AssessmentScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 600),
-      ),
-    );
+  void _handleSkip() {
+    Provider.of<AuthProvider>(context, listen: false).markOnboardingSeen();
   }
 
   @override
@@ -194,7 +160,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   errorBuilder: (context, error, stackTrace) => Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Color(0xFFFF8989), Color(0xFFD8405B)],
+                        colors: [
+                          LunaraColors.primary,
+                          LunaraColors.primaryDark
+                        ],
                       ),
                     ),
                   ),
@@ -213,7 +182,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   errorBuilder: (context, error, stackTrace) => Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Color(0xFFFF8989), Color(0xFFD8405B)],
+                        colors: [
+                          LunaraColors.primary,
+                          LunaraColors.primaryDark
+                        ],
                       ),
                     ),
                   ),
@@ -229,12 +201,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withOpacity(0.4),
-                    Colors.transparent,
-                    Colors.black.withOpacity(0.5),
-                    Colors.black.withOpacity(0.95),
+                    Colors.black.withOpacity(0.55),
+                    Colors.black.withOpacity(0.35),
+                    Colors.black.withOpacity(0.55),
+                    Colors.black.withOpacity(0.92),
                   ],
-                  stops: const [0.0, 0.3, 0.6, 1.0],
+                  stops: const [0.0, 0.25, 0.55, 1.0],
                 ),
               ),
             ),
@@ -252,132 +224,134 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 children: [
                   // CONTENT ONLY
                   SafeArea(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isTablet ? 60 : 28,
-                        vertical: 20,
-                      ),
-                      child: Column(
-                        children: [
-                          SizedBox(height: screenHeight * 0.12),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isTablet ? 60 : 28,
+                          vertical: 20,
+                        ),
+                        child: Column(
+                          children: [
+                            SizedBox(height: screenHeight * 0.12),
 
-                          // Page Number Indicator
-                          Transform.translate(
-                            offset: Offset(0, delta * 20),
-                            child: Opacity(
-                              opacity: opacity,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color:
-                                      const Color(0xFFFF8989).withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.3),
-                                    width: 1,
+                            // Page Number Indicator
+                            Transform.translate(
+                              offset: Offset(0, delta * 20),
+                              child: Opacity(
+                                opacity: opacity,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
                                   ),
-                                ),
-                                child: Text(
-                                  "${index + 1} of ${_onboardingData.length}",
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 1.2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          SizedBox(height: screenHeight * 0.08),
-
-                          // Title with slide animation
-                          Transform.translate(
-                            offset: Offset(delta * 80, 0),
-                            child: Opacity(
-                              opacity: opacity,
-                              child: Text(
-                                _onboardingData[index]["title"]!,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: isTablet ? 44 : 38,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  height: 1.1,
-                                  letterSpacing: -0.5,
-                                  shadows: [
-                                    Shadow(
-                                      offset: const Offset(0, 4),
-                                      blurRadius: 12.0,
-                                      color: Colors.black.withOpacity(0.6),
+                                  decoration: BoxDecoration(
+                                    color: LunaraColors.primary.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.3),
+                                      width: 1,
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          // Description with delayed slide
-                          Transform.translate(
-                            offset: Offset(delta * 120, 0),
-                            child: Opacity(
-                              opacity: opacity * 0.95,
-                              child: Text(
-                                _onboardingData[index]["desc"]!,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: isTablet ? 20 : 18,
-                                  color: Colors.white.withOpacity(0.95),
-                                  height: 1.5,
-                                  letterSpacing: 0.2,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          const Spacer(),
-
-                          // Bottom text with fade
-                          Transform.translate(
-                            offset: Offset(0, delta * 40),
-                            child: Opacity(
-                              opacity: opacity * 0.9,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 16,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.15),
-                                    width: 1,
+                                  ),
+                                  child: Text(
+                                    "${index + 1} of ${_onboardingData.length}",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 1.2,
+                                    ),
                                   ),
                                 ),
+                              ),
+                            ),
+
+                            SizedBox(height: screenHeight * 0.08),
+
+                            // Title with slide animation
+                            Transform.translate(
+                              offset: Offset(delta * 80, 0),
+                              child: Opacity(
+                                opacity: opacity,
                                 child: Text(
-                                  _onboardingData[index]["bottomText"]!,
+                                  _onboardingData[index]["title"]!,
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white.withOpacity(0.85),
-                                    height: 1.4,
-                                    letterSpacing: 0.3,
+                                    fontSize: isTablet ? 44 : 38,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    height: 1.1,
+                                    letterSpacing: -0.5,
+                                    shadows: [
+                                      Shadow(
+                                        offset: const Offset(0, 4),
+                                        blurRadius: 12.0,
+                                        color: Colors.black.withOpacity(0.6),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
                             ),
-                          ),
 
-                          SizedBox(height: screenHeight * 0.18),
-                        ],
+                            const SizedBox(height: 20),
+
+                            // Description with delayed slide
+                            Transform.translate(
+                              offset: Offset(delta * 120, 0),
+                              child: Opacity(
+                                opacity: opacity * 0.95,
+                                child: Text(
+                                  _onboardingData[index]["desc"]!,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: isTablet ? 20 : 18,
+                                    color: Colors.white.withOpacity(0.95),
+                                    height: 1.5,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            SizedBox(height: screenHeight * 0.05),
+
+                            // Bottom text with fade
+                            Transform.translate(
+                              offset: Offset(0, delta * 40),
+                              child: Opacity(
+                                opacity: opacity * 0.9,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 16,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.15),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    _onboardingData[index]["bottomText"]!,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.white.withOpacity(0.85),
+                                      height: 1.4,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            SizedBox(height: screenHeight * 0.18),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -388,10 +362,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
           // SKIP BUTTON (Top Right)
           if (_pageValue.round() != _onboardingData.length - 1)
-            SafeArea(
-              child: Positioned(
-                top: 20,
-                right: 20,
+            Positioned(
+              top: 20,
+              right: 20,
+              child: SafeArea(
                 child: TextButton(
                   onPressed: _handleSkip,
                   style: TextButton.styleFrom(
@@ -436,7 +410,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         onPressed: _handleNext,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF3E2723),
+                          foregroundColor: LunaraColors.textDark,
                           elevation: 12,
                           shadowColor: Colors.white.withOpacity(0.3),
                           shape: RoundedRectangleBorder(

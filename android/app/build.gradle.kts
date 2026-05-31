@@ -6,25 +6,25 @@ plugins {
 
 android {
     namespace = "com.example.lunaraai"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
         // Kotlin requires '=' and parentheses
         isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
     }
 
     defaultConfig {
         applicationId = "com.example.lunaraai"
         // Fixed syntax for Kotlin DSL
         minSdk = 26
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         

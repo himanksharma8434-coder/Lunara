@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import '../providers/cycle_provider.dart';
 import 'package:intl/intl.dart';
 
+import '../theme/app_theme.dart';
+
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
 
@@ -62,8 +64,8 @@ class _CalendarScreenState extends State<CalendarScreen>
           center: const Alignment(0, -0.5),
           radius: 1.5,
           colors: [
-            const Color(0xFFFF8989).withOpacity(0.06),
-            const Color(0xFFFDFBF7),
+            LunaraColors.primary.withOpacity(0.06),
+            LunaraColors.background,
           ],
         ),
       ),
@@ -126,7 +128,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                               child: const Icon(
                                 Icons.insights_rounded,
                                 size: 22,
-                                color: Color(0xFF3E2723),
+                                color: LunaraColors.textDark,
                               ),
                             ),
                           ),
@@ -155,7 +157,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                               child: const Icon(
                                 Icons.today_rounded,
                                 size: 22,
-                                color: Color(0xFF3E2723),
+                                color: LunaraColors.textDark,
                               ),
                             ),
                           ),
@@ -346,13 +348,16 @@ class _CalendarScreenState extends State<CalendarScreen>
       backgroundColor = const Color(0xFF118AB2).withOpacity(0.15);
       textColor = const Color(0xFF118AB2);
     } else if (isOvulation) {
-      backgroundColor = const Color(0xFFBA68C8).withOpacity(isPredicted ? 0.12 : 0.2);
+      backgroundColor =
+          const Color(0xFFBA68C8).withOpacity(isPredicted ? 0.12 : 0.2);
       textColor = const Color(0xFFBA68C8);
     } else if (isPeriod) {
-      backgroundColor = const Color(0xFFE57373).withOpacity(isPredicted ? 0.12 : 0.2);
+      backgroundColor =
+          const Color(0xFFE57373).withOpacity(isPredicted ? 0.12 : 0.2);
       textColor = const Color(0xFFE57373);
     } else if (isFertile) {
-      backgroundColor = const Color(0xFFFFD54F).withOpacity(isPredicted ? 0.12 : 0.2);
+      backgroundColor =
+          const Color(0xFFFFD54F).withOpacity(isPredicted ? 0.12 : 0.2);
       textColor = const Color(0xFFD4A000);
     }
 
@@ -383,7 +388,9 @@ class _CalendarScreenState extends State<CalendarScreen>
                 shape: BoxShape.circle,
                 border: hasBorder
                     ? Border.all(color: const Color(0xFF118AB2), width: 2)
-                    : isPredicted && (isPeriod || isFertile || isOvulation) && !isSelected
+                    : isPredicted &&
+                            (isPeriod || isFertile || isOvulation) &&
+                            !isSelected
                         ? Border.all(
                             color: isPeriod
                                 ? const Color(0xFFE57373).withOpacity(0.4)
@@ -445,7 +452,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                         width: 6,
                         height: 6,
                         decoration: const BoxDecoration(
-                          color: Color(0xFFFF8989),
+                          color: LunaraColors.primary,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -614,7 +621,9 @@ class _CalendarScreenState extends State<CalendarScreen>
                   Row(
                     children: [
                       Icon(Icons.medical_services_rounded,
-                          size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          size: 16,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant),
                       const SizedBox(width: 6),
                       Text(
                         'Symptoms',
@@ -635,11 +644,10 @@ class _CalendarScreenState extends State<CalendarScreen>
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFF8989).withOpacity(0.1),
+                                color: LunaraColors.primary.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
-                                  color:
-                                      const Color(0xFFFF8989).withOpacity(0.3),
+                                  color: LunaraColors.primary.withOpacity(0.3),
                                 ),
                               ),
                               child: Text(
@@ -647,7 +655,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFFD8405B),
+                                  color: LunaraColors.primaryDark,
                                 ),
                               ),
                             ))
@@ -666,7 +674,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                 child: _buildQuickActionButton(
                   'Log Symptom',
                   Icons.add_circle_outline_rounded,
-                  const Color(0xFFFF8989),
+                  LunaraColors.primary,
                   () {
                     HapticFeedback.mediumImpact();
                     _showSymptomDialog(_selectedDate, provider);
@@ -730,12 +738,12 @@ class _CalendarScreenState extends State<CalendarScreen>
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFFFF8989).withOpacity(0.1),
+          color: LunaraColors.primary.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(
           icon,
-          color: const Color(0xFFFF8989),
+          color: LunaraColors.primary,
           size: 24,
         ),
       ),
@@ -814,12 +822,12 @@ class _CalendarScreenState extends State<CalendarScreen>
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? const Color(0xFFFF8989).withOpacity(0.2)
+                          ? LunaraColors.primary.withOpacity(0.2)
                           : Colors.grey[200],
                       borderRadius: BorderRadius.circular(15),
                       border: Border.all(
                         color: isSelected
-                            ? const Color(0xFFFF8989)
+                            ? LunaraColors.primary
                             : Colors.transparent,
                         width: 2,
                       ),
@@ -830,7 +838,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: isSelected
-                            ? const Color(0xFFD8405B)
+                            ? LunaraColors.primaryDark
                             : Colors.grey[700],
                       ),
                     ),
@@ -856,7 +864,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                 Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF8989)),
+                  backgroundColor: LunaraColors.primary),
               child: const Text('Save'),
             ),
           ],
@@ -939,7 +947,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                     child: Row(
                       children: [
                         const Icon(Icons.circle,
-                            size: 6, color: Color(0xFFFF8989)),
+                            size: 6, color: LunaraColors.primary),
                         const SizedBox(width: 8),
                         Text(s),
                       ],
@@ -1022,7 +1030,7 @@ class _CalendarScreenState extends State<CalendarScreen>
             value,
             style: const TextStyle(
               fontWeight: FontWeight.bold,
-              color: Color(0xFFFF8989),
+              color: LunaraColors.primary,
             ),
           ),
         ],

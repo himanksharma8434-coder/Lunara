@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/cycle_provider.dart';
 import 'period_start_setup_screen.dart';
 import 'main_screen.dart';
+
+import '../theme/app_theme.dart';
 
 class PeriodSymptomsScreen extends StatefulWidget {
   final bool isRequiredDailyLog;
@@ -31,7 +34,7 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
           'Yeast infections are more common than you think, and they can be so uncomfortable — but you\'re not alone. Lunara is here to help you feel supported and confident while you take care of your body.',
       'tips':
           'Wear breathable cotton underwear, avoid douching, and consider probiotics. Consult your doctor for antifungal treatment.',
-      'color': const Color(0xFF81C784),
+      'color': LunaraColors.fertileGreen,
     },
     {
       'name': '🦠 Bacterial Vaginosis (BV)',
@@ -40,7 +43,7 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
           "BV can feel confusing or uncomfortable, but it's much more common than you may think. Lunara is a safe, judgment-free space where you're understood and supported.",
       'tips':
           'Avoid scented products, maintain good hygiene, and see your doctor for antibiotics if needed.',
-      'color': const Color(0xFF64B5F6),
+      'color': LunaraColors.ovulationBlue,
     },
     {
       'name': '🫧 Polycystic Ovary Syndrome (PCOS)',
@@ -67,7 +70,7 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
           'Fibroids can bring discomfort and uncertainty, but so many women experience them too. Lunara is here to offer comfort, clarity, and steady support.',
       'tips':
           'Monitor your symptoms, maintain a healthy weight, eat iron-rich foods, and discuss treatment options with your doctor.',
-      'color': const Color(0xFFFFB74D),
+      'color': LunaraColors.warning,
     },
     {
       'name': '💧 Urinary Tract Infections (UTIs)',
@@ -121,10 +124,21 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
     HapticFeedback.mediumImpact();
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final cycleProvider = Provider.of<CycleProvider>(context, listen: false);
 
-    if (authProvider.hasCompletedOnboarding) {
-      // Daily log on period - complete and go to main screen
+    final alreadyHasData = cycleProvider.bodyMetricsCompleted ||
+        (cycleProvider.lastPeriodDate != null &&
+            cycleProvider.weight != 60 &&
+            cycleProvider.height != 165);
+
+    if (authProvider.hasCompletedOnboarding || alreadyHasData) {
+      // Returning user — skip setup screens, go straight to main
       await authProvider.completeAssessment();
+
+      // Auto-fix the flag if it was lost (e.g., after logout + re-login)
+      if (!authProvider.hasCompletedOnboarding) {
+        await authProvider.completeOnboarding();
+      }
 
       Navigator.pushAndRemoveUntil(
         // ignore: use_build_context_synchronously
@@ -133,7 +147,7 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
         (route) => false,
       );
     } else {
-      // First time onboarding assessment - go to period setup
+      // Brand new user — collect period setup + body metrics
       await authProvider.completeAssessment();
 
       Navigator.pushAndRemoveUntil(
@@ -167,8 +181,8 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              const Color(0xFFFCE4EC).withOpacity(0.6),
-              const Color(0xFFF8BBD0).withOpacity(0.6),
+              LunaraColors.primaryLight.withOpacity(0.6),
+              LunaraColors.backgroundPink.withOpacity(0.6),
               const Color(0xFFE1BEE7).withOpacity(0.6),
             ],
           ),
@@ -208,7 +222,7 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                             child: const Icon(
                               Icons.arrow_back_ios_new,
                               size: 18,
-                              color: Color(0xFF3E2723),
+                              color: LunaraColors.textDark,
                             ),
                           ),
                         ),
@@ -217,7 +231,7 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
-                            color: Color(0xFF3E2723),
+                            color: LunaraColors.textDark,
                             letterSpacing: 0.3,
                           ),
                         ),
@@ -227,14 +241,14 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [
-                                Color(0xFFFF8989),
+                                LunaraColors.primary,
                                 Color(0xFFFFB4A9),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(25),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFFF8989).withOpacity(0.3),
+                                color: LunaraColors.primary.withOpacity(0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
@@ -264,14 +278,14 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [
-                                Color(0xFFFF8989),
-                                Color(0xFFD8405B),
+                                LunaraColors.primary,
+                                LunaraColors.primaryDark,
                               ],
                             ),
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFFF8989).withOpacity(0.4),
+                                color: LunaraColors.primary.withOpacity(0.4),
                                 blurRadius: 25,
                                 offset: const Offset(0, 10),
                               ),
@@ -292,7 +306,7 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFF3E2723),
+                            color: LunaraColors.textDark,
                             height: 1.2,
                             letterSpacing: -0.5,
                           ),
@@ -317,10 +331,10 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFF8989).withOpacity(0.15),
+                              color: LunaraColors.primary.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: const Color(0xFFFF8989).withOpacity(0.3),
+                                color: LunaraColors.primary.withOpacity(0.3),
                               ),
                             ),
                             child: Text(
@@ -328,7 +342,7 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFFD8405B),
+                                color: LunaraColors.primaryDark,
                               ),
                             ),
                           ),
@@ -434,7 +448,7 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                                               fontSize: 17,
                                               fontWeight: FontWeight.bold,
                                               color: Color.lerp(
-                                                const Color(0xFF3E2723),
+                                                LunaraColors.textDark,
                                                 symptom['color'],
                                                 value,
                                               ),
@@ -652,10 +666,10 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                       child: ElevatedButton(
                         onPressed: _handleComplete,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFF8989),
+                          backgroundColor: LunaraColors.primary,
                           foregroundColor: Colors.white,
                           elevation: 8,
-                          shadowColor: const Color(0xFFFF8989).withOpacity(0.4),
+                          shadowColor: LunaraColors.primary.withOpacity(0.4),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),

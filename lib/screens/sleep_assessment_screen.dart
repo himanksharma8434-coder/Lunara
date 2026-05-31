@@ -145,7 +145,7 @@ class _SleepAssessmentScreenState extends State<SleepAssessmentScreen>
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: AppTheme.cardColor(context),
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
@@ -155,19 +155,19 @@ class _SleepAssessmentScreenState extends State<SleepAssessmentScreen>
                                   ),
                                 ],
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.arrow_back_ios_new,
                                 size: 18,
-                                color: Color(0xFF3E2723),
+                                color: AppTheme.textDark(context),
                               ),
                             ),
                           ),
-                          const Text(
+                          Text(
                             "Assessment",
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 18,
-                              color: Color(0xFF3E2723),
+                              color: AppTheme.textDark(context),
                               letterSpacing: 0.3,
                             ),
                           ),
@@ -228,7 +228,6 @@ class _SleepAssessmentScreenState extends State<SleepAssessmentScreen>
                               style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.w900,
-                                color: Color(0xFF3E2723),
                                 letterSpacing: -0.5,
                               ),
                             ),
@@ -340,7 +339,7 @@ class _SleepAssessmentScreenState extends State<SleepAssessmentScreen>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 30, vertical: 30),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppTheme.cardColor(context),
                             borderRadius: BorderRadius.circular(30),
                             boxShadow: [
                               BoxShadow(
@@ -385,7 +384,7 @@ class _SleepAssessmentScreenState extends State<SleepAssessmentScreen>
                                                 color: isSelected
                                                     ? _levels[realIndex]
                                                         ['color']
-                                                    : const Color(0xFF3E2723),
+                                                    : AppTheme.textDark(context),
                                               ),
                                             ),
                                           ],

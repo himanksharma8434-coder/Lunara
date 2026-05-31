@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/cycle_provider.dart';
-import 'onboarding_screen.dart';
+import '../main.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -73,7 +73,7 @@ class _SignupScreenState extends State<SignupScreen>
             center: const Alignment(0, -0.5),
             radius: 1.5,
             colors: [
-              const Color(0xFFFF8989).withOpacity(0.08),
+              LunaraColors.primary.withOpacity(0.08),
               AppTheme.background(context),
             ],
           ),
@@ -99,7 +99,7 @@ class _SignupScreenState extends State<SignupScreen>
                             child: Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: AppTheme.cardColor(context),
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
@@ -109,8 +109,8 @@ class _SignupScreenState extends State<SignupScreen>
                                   ),
                                 ],
                               ),
-                              child: const Icon(Icons.arrow_back_rounded,
-                                  color: Color(0xFF3E2723)),
+                              child: Icon(Icons.arrow_back_rounded,
+                                  color: AppTheme.textDark(context)),
                             ),
                           ),
 
@@ -125,14 +125,14 @@ class _SignupScreenState extends State<SignupScreen>
                                   decoration: BoxDecoration(
                                     gradient: const LinearGradient(
                                       colors: [
-                                        Color(0xFFFF8989),
-                                        Color(0xFFD8405B)
+                                        LunaraColors.primary,
+                                        LunaraColors.primaryDark
                                       ],
                                     ),
                                     shape: BoxShape.circle,
                                     boxShadow: [
                                       BoxShadow(
-                                        color: const Color(0xFFFF8989)
+                                        color: LunaraColors.primary
                                             .withOpacity(0.4),
                                         blurRadius: 25,
                                         offset: const Offset(0, 10),
@@ -151,7 +151,6 @@ class _SignupScreenState extends State<SignupScreen>
                                   style: TextStyle(
                                     fontSize: 32,
                                     fontWeight: FontWeight.w900,
-                                    color: Color(0xFF3E2723),
                                     letterSpacing: -0.5,
                                   ),
                                 ),
@@ -225,7 +224,7 @@ class _SignupScreenState extends State<SignupScreen>
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppTheme.cardColor(context),
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
@@ -246,7 +245,7 @@ class _SignupScreenState extends State<SignupScreen>
                                       style: const TextStyle(
                                         fontSize: 28,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFFFF8989),
+                                        color: LunaraColors.primary,
                                       ),
                                     ),
                                     Row(
@@ -271,11 +270,11 @@ class _SignupScreenState extends State<SignupScreen>
                                 const SizedBox(height: 15),
                                 SliderTheme(
                                   data: SliderThemeData(
-                                    activeTrackColor: const Color(0xFFFF8989),
+                                    activeTrackColor: LunaraColors.primary,
                                     inactiveTrackColor: Colors.grey[200],
-                                    thumbColor: const Color(0xFFFF8989),
-                                    overlayColor: const Color(0xFFFF8989)
-                                        .withOpacity(0.2),
+                                    thumbColor: LunaraColors.primary,
+                                    overlayColor:
+                                        LunaraColors.primary.withOpacity(0.2),
                                     trackHeight: 6,
                                   ),
                                   child: Slider(
@@ -305,7 +304,7 @@ class _SignupScreenState extends State<SignupScreen>
                                 child: _buildGenderCard(
                                   'Female',
                                   Icons.female_rounded,
-                                  const Color(0xFFFF8989),
+                                  LunaraColors.primary,
                                 ),
                               ),
                               const SizedBox(width: 15),
@@ -334,10 +333,10 @@ class _SignupScreenState extends State<SignupScreen>
                       child: ElevatedButton(
                         onPressed: _signUp,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFF8989),
+                          backgroundColor: LunaraColors.primary,
                           foregroundColor: Colors.white,
                           elevation: 8,
-                          shadowColor: const Color(0xFFFF8989).withOpacity(0.4),
+                          shadowColor: LunaraColors.primary.withOpacity(0.4),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),
@@ -374,10 +373,10 @@ class _SignupScreenState extends State<SignupScreen>
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.bold,
-        color: Color(0xFF3E2723),
+        color: AppTheme.textDark(context),
       ),
     );
   }
@@ -391,7 +390,7 @@ class _SignupScreenState extends State<SignupScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.cardColor(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -407,13 +406,13 @@ class _SignupScreenState extends State<SignupScreen>
         decoration: InputDecoration(
           hintText: hint,
           border: InputBorder.none,
-          prefixIcon: Icon(icon, color: const Color(0xFFFF8989)),
+          prefixIcon: Icon(icon, color: LunaraColors.primary),
           hintStyle: TextStyle(color: Colors.grey[400]),
         ),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF3E2723),
+          color: AppTheme.textDark(context),
         ),
       ),
     );
@@ -428,7 +427,7 @@ class _SignupScreenState extends State<SignupScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.cardColor(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -444,7 +443,8 @@ class _SignupScreenState extends State<SignupScreen>
         decoration: InputDecoration(
           hintText: hint,
           border: InputBorder.none,
-          prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFFFF8989)),
+          prefixIcon:
+              const Icon(Icons.lock_outline, color: LunaraColors.primary),
           suffixIcon: IconButton(
             icon: Icon(
               isVisible
@@ -456,10 +456,10 @@ class _SignupScreenState extends State<SignupScreen>
           ),
           hintStyle: TextStyle(color: Colors.grey[400]),
         ),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF3E2723),
+          color: AppTheme.textDark(context),
         ),
       ),
     );
@@ -482,7 +482,7 @@ class _SignupScreenState extends State<SignupScreen>
                   colors: [color, color.withOpacity(0.7)],
                 )
               : null,
-          color: isSelected ? null : Colors.white,
+          color: isSelected ? null : AppTheme.cardColor(context),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected ? Colors.transparent : Colors.grey.shade300,
@@ -511,7 +511,7 @@ class _SignupScreenState extends State<SignupScreen>
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: isSelected ? Colors.white : const Color(0xFF3E2723),
+                color: isSelected ? Colors.white : AppTheme.textDark(context),
               ),
             ),
           ],
@@ -529,12 +529,12 @@ class _SignupScreenState extends State<SignupScreen>
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFFFF8989).withOpacity(0.1),
+          color: LunaraColors.primary.withOpacity(0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(
           icon,
-          color: const Color(0xFFFF8989),
+          color: LunaraColors.primary,
           size: 20,
         ),
       ),
@@ -550,16 +550,19 @@ class _SignupScreenState extends State<SignupScreen>
     final confirmPassword = _confirmPasswordController.text.trim();
 
     // Validation
-    if (name.isEmpty) {
-      _showError('Please enter your name');
+    if (name.isEmpty || name.length > 50) {
+      _showError('Please enter a valid name (1-50 characters)');
       return;
     }
-    if (email.isEmpty || !email.contains('@')) {
-      _showError('Please enter a valid email');
+
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (email.isEmpty || email.length > 255 || !emailRegex.hasMatch(email)) {
+      _showError('Please enter a valid email address');
       return;
     }
-    if (password.length < 6) {
-      _showError('Password must be at least 6 characters');
+
+    if (password.length < 8 || password.length > 128) {
+      _showError('Password must be between 8 and 128 characters');
       return;
     }
     if (password != confirmPassword) {
@@ -574,7 +577,7 @@ class _SignupScreenState extends State<SignupScreen>
       context: context,
       barrierDismissible: false,
       builder: (context) => const Center(
-        child: CircularProgressIndicator(color: Color(0xFFFF8989)),
+        child: CircularProgressIndicator(color: LunaraColors.primary),
       ),
     );
 
@@ -620,12 +623,12 @@ class _SignupScreenState extends State<SignupScreen>
           );
         }
 
-        // Navigate to onboarding
+        // Navigate to main app (InitialRouter handles assessment)
         if (mounted) {
-          Navigator.pushReplacement(
+          Navigator.pushAndRemoveUntil(
             context,
             PageRouteBuilder(
-              pageBuilder: (context, anim, secAnim) => const OnboardingScreen(),
+              pageBuilder: (context, anim, secAnim) => const InitialRouter(),
               transitionsBuilder: (context, anim, secAnim, child) {
                 return FadeTransition(
                   opacity: anim,
@@ -637,6 +640,7 @@ class _SignupScreenState extends State<SignupScreen>
               },
               transitionDuration: const Duration(milliseconds: 600),
             ),
+            (route) => false,
           );
         }
       } else {

@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
 
+import '../theme/app_theme.dart';
+
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
 
@@ -46,7 +48,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFDFBF7), // Your beige background
+      backgroundColor: LunaraColors.background, // Your beige background
       body: Stack(
         children: [
           // Background Image
@@ -60,8 +62,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      const Color(0xFFFF8989),
-                      const Color(0xFFD8405B),
+                      LunaraColors.primary,
+                      LunaraColors.primaryDark,
                     ],
                   ),
                 ),
@@ -98,7 +100,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     end: Alignment.bottomCenter,
                     colors: [
                       Color(0xCCFDFBF7), // Semi-transparent beige
-                      Color(0xFFFDFBF7), // Solid beige
+                      LunaraColors.background, // Solid beige
                     ],
                   ),
                 ),
@@ -108,152 +110,159 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
           // Animated Content
           SafeArea(
-            child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 30.0, vertical: 20.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Top Logo/Brand (Optional)
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: Container(
-                        margin: const EdgeInsets.only(top: 20),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: const Text(
-                          "🌙 Lunara",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Bottom Content
-                  SlideTransition(
-                    position: _slideAnimation,
-                    child: FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Title
-                          const Text(
-                            "Welcome to",
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w400,
-                              color: Color(0xFF3E2723), // Dark brown
-                              height: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          ShaderMask(
-                            shaderCallback: (bounds) => const LinearGradient(
-                              colors: [Color(0xFFFF8989), Color(0xFFD8405B)],
-                            ).createShader(bounds),
-                            child: const Text(
-                              "Lunara",
-                              style: TextStyle(
-                                fontSize: 52,
-                                fontWeight: FontWeight.bold,
-                                color:
-                                    Colors.white, // Will be masked by gradient
-                                height: 1.0,
-                                letterSpacing: -1,
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 30.0, vertical: 20.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Top Logo/Brand (Optional)
+                        FadeTransition(
+                          opacity: _fadeAnimation,
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: Container(
+                              margin: const EdgeInsets.only(top: 20),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(20),
+                                child: Image.asset(
+                                  'assets/images/lunara_logo.png',
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 15),
+                        ),
 
-                          // Subtitle
-                          const Text(
-                            "Your daily companion for cycle tracking,\nwellness, and self-care.",
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Color(0xFF3E2723),
-                              height: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: 40),
-
-                          // Get Started Button
-                          SizedBox(
-                            width: double.infinity,
-                            height: 60,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const LoginScreen(),
+                        // Bottom Content
+                        SlideTransition(
+                          position: _slideAnimation,
+                          child: FadeTransition(
+                            opacity: _fadeAnimation,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Title
+                                const Text(
+                                  "Welcome to",
+                                  style: TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w400,
+                                    color: LunaraColors.textDark, // Dark brown
+                                    height: 1.2,
                                   ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    const Color(0xFFFF8989), // Your pink
-                                foregroundColor: Colors.white,
-                                elevation: 8,
-                                shadowColor:
-                                    const Color(0xFFFF8989).withOpacity(0.4),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
                                 ),
-                              ),
-                              child: const Text(
-                                "Get Started",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
+                                const SizedBox(height: 5),
+                                ShaderMask(
+                                  shaderCallback: (bounds) =>
+                                      const LinearGradient(
+                                    colors: [
+                                      LunaraColors.primary,
+                                      LunaraColors.primaryDark
+                                    ],
+                                  ).createShader(bounds),
+                                  child: const Text(
+                                    "Lunara",
+                                    style: TextStyle(
+                                      fontSize: 52,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors
+                                          .white, // Will be masked by gradient
+                                      height: 1.0,
+                                      letterSpacing: -1,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(height: 15),
+
+                                // Subtitle
+                                const Text(
+                                  "Your daily companion for cycle tracking,\nwellness, and self-care.",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: LunaraColors.textDark,
+                                    height: 1.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 40),
+
+                                // Get Started Button
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 60,
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const LoginScreen(),
+                                        ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor:
+                                          LunaraColors.primary, // Your pink
+                                      foregroundColor: Colors.white,
+                                      elevation: 8,
+                                      shadowColor:
+                                          LunaraColors.primary.withOpacity(0.4),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(30),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      "Get Started",
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 15),
+
+                                // Already have account
+                                Center(
+                                  child: TextButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) =>
+                                                const LoginScreen()),
+                                      );
+                                    },
+                                    child: const Text(
+                                      "Already have an account? Sign In",
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: LunaraColors.textDark,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 30),
+                              ],
                             ),
                           ),
-
-                          const SizedBox(height: 15),
-
-                          // Already have account
-                          Center(
-                            child: TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) =>
-                                          const LoginScreen()),
-                                );
-                              },
-                              child: const Text(
-                                "Already have an account? Sign In",
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF3E2723),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 30),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],

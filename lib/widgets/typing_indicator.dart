@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 class TypingIndicator extends StatefulWidget {
   final Color dotColor;
-  const TypingIndicator({super.key, this.dotColor = const Color(0xFFD8405B)});
+  const TypingIndicator({super.key, this.dotColor = LunaraColors.primaryDark});
 
   @override
   State<TypingIndicator> createState() => _TypingIndicatorState();

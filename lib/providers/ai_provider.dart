@@ -1,14 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'cycle_provider.dart';
+import '../services/ai_rate_limit_service.dart';
+import '../services/groq_service.dart';
 
 class AIProvider with ChangeNotifier {
-  final GenerativeModel _model;
+  final GroqModel _model;
   List<Map<String, String>> messages = [];
   bool isLoading = false;
 
-  AIProvider({required String apiKey})
-      : _model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: apiKey);
+  AIProvider({required String apiKey}) : _model = _initializeModel(apiKey);
+
+  static GroqModel _initializeModel(String apiKey) {
+    final List<String> potentialModels = [
+      'llama-3.3-70b-versatile',
+      'llama-3.1-8b-instant',
+      'mixtral-8x7b-32768',
+    ];
+
+    for (var modelName in potentialModels) {
+      try {
+        return GroqModel(model: modelName, apiKey: apiKey);
+      } catch (e) {
+        debugPrint("AIProvider: Failed with $modelName: $e");
+      }
+    }
+    // Fallback
+    return GroqModel(model: 'llama-3.3-70b-versatile', apiKey: apiKey);
+  }
 
   Future<void> askLunara(String userPrompt, CycleProvider cycle) async {
     messages.add({"role": "user", "content": userPrompt});
@@ -16,11 +35,27 @@ class AIProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      // Check Rate Limit
+      final canRequest = await AIRateLimitService.instance.canMakeRequest();
+      if (!canRequest) {
+        messages.add({
+          "role": "ai",
+          "content": "Daily limit reached (100). Please try again tomorrow. 💕"
+        });
+        isLoading = false;
+        notifyListeners();
+        return;
+      }
+
       // We wrap the user's question with their health data
       final content = [
         Content.text("${cycle.aiUserContext} \n Question: $userPrompt")
       ];
       final response = await _model.generateContent(content);
+
+      if (response.text != null) {
+        await AIRateLimitService.instance.incrementRequestCount();
+      }
 
       messages.add({
         "role": "ai",

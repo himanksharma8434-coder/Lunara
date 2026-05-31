@@ -1,0 +1,12 @@
+{
+  "tasks": {
+    "start": "deno run --allow-net --allow-env index.ts"
+  },
+  "imports": {
+    "@supabase/functions-js": "jsr:@supabase/functions-js@2.99.1"
+  },
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window", "deno.ns"]
+  }
+}

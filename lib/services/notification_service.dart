@@ -13,6 +13,40 @@ class NotificationService {
 
   bool _isInitialized = false;
 
+  // The curated list of female body health facts and guidance
+  static const List<String> _guidanceFacts = [
+    "Hydration is key! Drinking enough water helps reduce bloating during your luteal phase.",
+    "Did you know? Basal Body Temperature (BBT) dips slightly just before ovulation, then spikes after.",
+    "Gentle exercises like yoga can help ease menstrual cramps by improving pelvic blood flow.",
+    "Changes in cervical mucus are normal and mirror your estrogen levels throughout your cycle.",
+    "Prioritizing sleep during your period helps your body recover from the energy dip.",
+    "Cravings ahead of your period are linked to serotonin drops—dark chocolate can help!",
+    "Your skin might flourish during ovulation due to high estrogen and peaking testosterone.",
+    "Tracking your daily symptoms helps identify patterns that make your body unique.",
+    "Feeling tired? Iron-rich foods like spinach and lentils are great during menstruation.",
+    "The follicular phase is often the best time for high-energy workouts and starting new projects.",
+    "Hormonal shifts can cause slight changes to your immune system throughout the month.",
+    "Stress directly affects the hypothalamus, which controls your menstrual cycle—take time to breathe.",
+    "Magnesium is excellent for reducing both physical cramps and emotional PMS symptoms.",
+    "Your basal body temperature stays elevated during the entire luteal phase.",
+    "Did you know? The length of the luteal phase (post-ovulation) is almost always exactly 14 days.",
+    "Some women experience 'mittelschmerz'—a slight twinge of pain on one side exactly at ovulation.",
+    "Ovulation is the only time an egg can be fertilized, and it only survives 12-24 hours.",
+    "Your sense of smell might actually become sharper right before and during ovulation!",
+    "It's completely normal for your period to fluctuate by a few days depending on stress and diet.",
+    "Don't ignore severe pain. If cramps are debilitating, it's worth talking to a healthcare provider.",
+    "Seed cycling (flax, pumpkin, sesame, sunflower) is a natural way some women support their hormones.",
+    "During your period, your metabolic rate naturally drops a bit before resetting.",
+    "Progesterone (dominant in your luteal phase) has a natural calming, sleep-promoting effect.",
+    "Breasts may feel tender right before your period due to swelling milk glands from progesterone.",
+    "Regularly logging symptoms not only helps you—it provides vital data for your doctor if needed."
+  ];
+
+  String _getRandomFact() {
+    final list = _guidanceFacts.toList()..shuffle();
+    return list.first;
+  }
+
   Future<void> init() async {
     if (_isInitialized) return;
 
@@ -30,7 +64,8 @@ class NotificationService {
       requestSoundPermission: true,
     );
 
-    const InitializationSettings initializationSettings = InitializationSettings(
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
       android: initializationSettingsAndroid,
       iOS: initializationSettingsIOS,
     );
@@ -76,7 +111,8 @@ class NotificationService {
       android: AndroidNotificationDetails(
         'lunara_cycle_alerts',
         'Cycle Alerts',
-        channelDescription: 'Notifications for period and fertility predictions',
+        channelDescription:
+            'Notifications for period and fertility predictions',
         importance: Importance.max,
         priority: Priority.high,
         icon: '@mipmap/ic_launcher',
@@ -131,7 +167,7 @@ class NotificationService {
     final now = DateTime.now();
     var scheduledDate =
         DateTime(now.year, now.month, now.day, time.hour, time.minute);
-    
+
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
@@ -147,11 +183,36 @@ class NotificationService {
         scheduledDate: tzScheduledDate,
         notificationDetails: _getNotificationDetails(),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        matchDateTimeComponents: DateTimeComponents.time, // Make it repeating daily
+        matchDateTimeComponents:
+            DateTimeComponents.time, // Make it repeating daily
       );
-      debugPrint('Scheduled daily reminder $id for ${time.hour}:${time.minute}');
+      debugPrint(
+          'Scheduled daily reminder $id for ${time.hour}:${time.minute}');
     } catch (e) {
       debugPrint('Error scheduling daily reminder: $e');
     }
+  }
+
+  // Schedule the 2 daily health guidance facts
+  Future<void> scheduleDailyGuidance() async {
+    if (!_isInitialized) await init();
+
+    // ID 100 for Morning Guidance
+    await scheduleDailyReminder(
+      id: 100,
+      title: 'Morning Body Insight 🌸',
+      body: _getRandomFact(),
+      time: const TimeOfDay(hour: 9, minute: 0),
+    );
+
+    // ID 101 for Evening Guidance
+    await scheduleDailyReminder(
+      id: 101,
+      title: 'Evening Health Check 🌙',
+      body: _getRandomFact(),
+      time: const TimeOfDay(hour: 20, minute: 0),
+    );
+
+    debugPrint('Scheduled morning (9AM) and evening (8PM) health guidance.');
   }
 }

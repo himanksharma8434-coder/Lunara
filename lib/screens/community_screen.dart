@@ -2,7 +2,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/shimmer_loading.dart';
+import '../services/database_service.dart';
+import '../models/community_post_model.dart';
+import '../models/community_comment_model.dart';
+import '../providers/auth_provider.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -14,64 +21,7 @@ class CommunityScreen extends StatefulWidget {
 class _CommunityScreenState extends State<CommunityScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-
-  final List<Map<String, dynamic>> _posts = [
-    {
-      'author': 'Sarah M.',
-      'time': '2 hours ago',
-      'category': 'Women',
-      'content':
-          'Anyone else experiencing bad cramps during ovulation? This is my third cycle and it\'s getting intense. Any natural remedies that worked for you?',
-      'likes': 24,
-      'comments': 12,
-      'isLiked': false,
-      'avatar': '👩',
-    },
-    {
-      'author': 'Mike J.',
-      'time': '5 hours ago',
-      'category': 'Men',
-      'content':
-          'My partner has been dealing with endometriosis. What are the best ways I can support her during tough days? Any advice from those who\'ve been through this?',
-      'likes': 42,
-      'comments': 18,
-      'isLiked': false,
-      'avatar': '👨',
-    },
-    {
-      'author': 'Emma K.',
-      'time': '1 day ago',
-      'category': 'Women',
-      'content':
-          'Started tracking my cycle 6 months ago and finally understanding my body better! The mood patterns are so real. To anyone just starting - it gets easier! 💪',
-      'likes': 67,
-      'comments': 23,
-      'isLiked': true,
-      'avatar': '👩',
-    },
-    {
-      'author': 'David R.',
-      'time': '1 day ago',
-      'category': 'Men',
-      'content':
-          'Learning about PMS has really helped me understand what my girlfriend goes through. Communication is key guys! Ask questions and be patient.',
-      'likes': 89,
-      'comments': 31,
-      'isLiked': true,
-      'avatar': '👨',
-    },
-    {
-      'author': 'Lisa P.',
-      'time': '2 days ago',
-      'category': 'Women',
-      'content':
-          'PSA: Heat pads are LIFE SAVERS during periods! Also, magnesium supplements have helped reduce my cramps significantly. Check with your doctor first though!',
-      'likes': 156,
-      'comments': 45,
-      'isLiked': false,
-      'avatar': '👩',
-    },
-  ];
+  final DatabaseService _dbService = DatabaseService();
 
   @override
   void initState() {
@@ -101,12 +51,15 @@ class _CommunityScreenState extends State<CommunityScreen>
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFFFF8989), Color(0xFFD8405B)],
+                        colors: [
+                          LunaraColors.primary,
+                          LunaraColors.primaryDark
+                        ],
                       ),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFFF8989).withOpacity(0.3),
+                          color: LunaraColors.primary.withOpacity(0.3),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -116,7 +69,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                         color: Colors.white, size: 24),
                   ),
                   const SizedBox(width: 15),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -125,14 +78,14 @@ class _CommunityScreenState extends State<CommunityScreen>
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF3E2723),
+                            color: AppTheme.textDark(context),
                           ),
                         ),
                         Text(
                           'Share, learn, and support',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey,
+                            color: AppTheme.textLight(context),
                           ),
                         ),
                       ],
@@ -147,6 +100,21 @@ class _CommunityScreenState extends State<CommunityScreen>
                     },
                     icon: const Icon(Icons.search_rounded),
                   ),
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: LunaraColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      onPressed: () {
+                        HapticFeedback.mediumImpact();
+                        _showCreatePostSheet();
+                      },
+                      icon: const Icon(Icons.add_rounded, color: Colors.white),
+                      tooltip: 'Create Post',
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -155,7 +123,7 @@ class _CommunityScreenState extends State<CommunityScreen>
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.cardColor(context),
                 borderRadius: BorderRadius.circular(15),
                 boxShadow: [
                   BoxShadow(
@@ -169,13 +137,13 @@ class _CommunityScreenState extends State<CommunityScreen>
                 controller: _tabController,
                 indicator: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFFF8989), Color(0xFFD8405B)],
+                    colors: [LunaraColors.primary, LunaraColors.primaryDark],
                   ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 indicatorSize: TabBarIndicatorSize.tab,
                 labelColor: Colors.white,
-                unselectedLabelColor: Colors.grey[600],
+                unselectedLabelColor: AppTheme.secondaryText(context),
                 labelStyle:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                 tabs: const [
@@ -200,235 +168,35 @@ class _CommunityScreenState extends State<CommunityScreen>
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          HapticFeedback.mediumImpact();
-          _showCreatePostSheet();
-        },
-        backgroundColor: const Color(0xFFFF8989),
-        icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: const Text(
-          'New Post',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
     );
   }
 
   Widget _buildPostsList(String category) {
-    final filteredPosts =
-        _posts.where((post) => post['category'] == category).toList();
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _dbService.streamCommunityPosts(category),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CommunityPostShimmer();
+        }
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      itemCount: filteredPosts.length,
-      itemBuilder: (context, index) {
-        final post = filteredPosts[index];
-        return _buildPostCard(post, index);
+        if (snapshot.hasError) {
+          return Center(child: Text('Error loading posts: ${snapshot.error}'));
+        }
+
+        final postsData = snapshot.data ?? [];
+        if (postsData.isEmpty) {
+          return const Center(child: Text('No posts yet in this category.'));
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          itemCount: postsData.length,
+          itemBuilder: (context, index) {
+            final postModel = CommunityPostModel.fromJson(postsData[index]);
+            return CommunityPostCard(post: postModel);
+          },
+        );
       },
-    );
-  }
-
-  Widget _buildPostCard(Map<String, dynamic> post, int index) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Author Info
-          Row(
-            children: [
-              Container(
-                width: 45,
-                height: 45,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: post['category'] == 'Women'
-                        ? [const Color(0xFFFF8989), const Color(0xFFFFB4A9)]
-                        : [const Color(0xFF118AB2), const Color(0xFF64B5F6)],
-                  ),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    post['avatar'],
-                    style: const TextStyle(fontSize: 24),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      post['author'],
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF3E2723),
-                      ),
-                    ),
-                    Text(
-                      post['time'],
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: post['category'] == 'Women'
-                      ? const Color(0xFFFF8989).withOpacity(0.15)
-                      : const Color(0xFF118AB2).withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  post['category'],
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: post['category'] == 'Women'
-                        ? const Color(0xFFD8405B)
-                        : const Color(0xFF118AB2),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 15),
-
-          // Content
-          Text(
-            post['content'],
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[800],
-              height: 1.5,
-            ),
-          ),
-
-          const SizedBox(height: 15),
-
-          // Actions
-          Row(
-            children: [
-              // Like Button
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  setState(() {
-                    post['isLiked'] = !post['isLiked'];
-                    post['likes'] += post['isLiked'] ? 1 : -1;
-                  });
-                },
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: post['isLiked']
-                        ? const Color(0xFFFF8989).withOpacity(0.15)
-                        : Colors.grey[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        post['isLiked']
-                            ? Icons.favorite
-                            : Icons.favorite_border,
-                        size: 18,
-                        color: post['isLiked']
-                            ? const Color(0xFFFF8989)
-                            : Colors.grey[600],
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${post['likes']}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: post['isLiked']
-                              ? const Color(0xFFD8405B)
-                              : Colors.grey[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(width: 10),
-
-              // Comment Button
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  _showCommentsSheet(post);
-                },
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.chat_bubble_outline,
-                          size: 18, color: Colors.grey[600]),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${post['comments']}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const Spacer(),
-
-              // Share Button
-              IconButton(
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Share feature coming soon')),
-                  );
-                },
-                icon: Icon(Icons.share_outlined,
-                    size: 20, color: Colors.grey[600]),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
@@ -458,7 +226,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: AppTheme.divider(context),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -473,16 +241,16 @@ class _CommunityScreenState extends State<CommunityScreen>
                       onPressed: () => Navigator.pop(context),
                       child: const Text('Cancel'),
                     ),
-                    const Text(
+                    Text(
                       'Create Post',
                       style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF3E2723),
+                        color: AppTheme.textDark(context),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
                       ),
                     ),
                     TextButton(
-                      onPressed: () {
+                      onPressed: () async {
                         if (contentController.text.trim().isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -492,25 +260,41 @@ class _CommunityScreenState extends State<CommunityScreen>
                         }
 
                         HapticFeedback.mediumImpact();
-                        setState(() {
-                          _posts.insert(0, {
-                            'author': 'You',
-                            'time': 'Just now',
-                            'category': selectedCategory,
-                            'content': contentController.text,
-                            'likes': 0,
-                            'comments': 0,
-                            'isLiked': false,
-                            'avatar': selectedCategory == 'Women' ? '👩' : '👨',
-                          });
-                        });
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Post created successfully!'),
-                            backgroundColor: Color(0xFF06D6A0),
-                          ),
-                        );
+                        
+                        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                        final userId = authProvider.userId;
+                        final userName = authProvider.userName;
+                        if (userId.isNotEmpty) {
+                          try {
+                            await _dbService.createCommunityPost(
+                              authorId: userId,
+                              authorName: userName.isNotEmpty ? userName : 'Anonymous',
+                              authorAvatar: selectedCategory == 'Women' ? '👩' : '👨',
+                              category: selectedCategory,
+                              content: contentController.text.trim(),
+                            );
+                         
+                            setState(() {}); // Refresh list
+
+                            if (!context.mounted) return;
+
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Post created successfully!'),
+                                backgroundColor: Color(0xFF06D6A0),
+                              ),
+                            );
+                          } catch (e) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to create post: $e'),
+                                backgroundColor: Colors.red[400],
+                              ),
+                            );
+                          }
+                        }
                       },
                       child: const Text(
                         'Post',
@@ -530,12 +314,11 @@ class _CommunityScreenState extends State<CommunityScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Category Selection
-                      const Text(
+                       const Text(
                         'Post Category',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF3E2723),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -554,13 +337,13 @@ class _CommunityScreenState extends State<CommunityScreen>
                                   gradient: selectedCategory == 'Women'
                                       ? const LinearGradient(
                                           colors: [
-                                            Color(0xFFFF8989),
-                                            Color(0xFFD8405B)
+                                            LunaraColors.primary,
+                                            LunaraColors.primaryDark
                                           ],
                                         )
                                       : null,
                                   color: selectedCategory != 'Women'
-                                      ? Colors.white
+                                      ? AppTheme.cardColor(context)
                                       : null,
                                   borderRadius: BorderRadius.circular(15),
                                   border: Border.all(
@@ -576,7 +359,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                                       Icons.female_rounded,
                                       color: selectedCategory == 'Women'
                                           ? Colors.white
-                                          : Colors.grey[600],
+                                          : AppTheme.secondaryText(context),
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
@@ -585,7 +368,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                                         fontWeight: FontWeight.bold,
                                         color: selectedCategory == 'Women'
                                             ? Colors.white
-                                            : Colors.grey[700],
+                                            : AppTheme.secondaryText(context),
                                       ),
                                     ),
                                   ],
@@ -608,12 +391,12 @@ class _CommunityScreenState extends State<CommunityScreen>
                                       ? const LinearGradient(
                                           colors: [
                                             Color(0xFF118AB2),
-                                            Color(0xFF64B5F6)
+                                            LunaraColors.ovulationBlue
                                           ],
                                         )
                                       : null,
                                   color: selectedCategory != 'Men'
-                                      ? Colors.white
+                                      ? AppTheme.cardColor(context)
                                       : null,
                                   borderRadius: BorderRadius.circular(15),
                                   border: Border.all(
@@ -629,7 +412,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                                       Icons.male_rounded,
                                       color: selectedCategory == 'Men'
                                           ? Colors.white
-                                          : Colors.grey[600],
+                                          : AppTheme.secondaryText(context),
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
@@ -638,7 +421,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                                         fontWeight: FontWeight.bold,
                                         color: selectedCategory == 'Men'
                                             ? Colors.white
-                                            : Colors.grey[700],
+                                            : AppTheme.secondaryText(context),
                                       ),
                                     ),
                                   ],
@@ -657,14 +440,13 @@ class _CommunityScreenState extends State<CommunityScreen>
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF3E2723),
                         ),
                       ),
                       const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppTheme.cardColor(context),
                           borderRadius: BorderRadius.circular(15),
                         ),
                         child: TextField(
@@ -689,132 +471,491 @@ class _CommunityScreenState extends State<CommunityScreen>
       ),
     );
   }
+}
 
-  void _showCommentsSheet(Map<String, dynamic> post) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        decoration: BoxDecoration(
-          color: AppTheme.background(context),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-        ),
-        child: Column(
-          children: [
-            // Handle
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
+class CommunityPostCard extends StatefulWidget {
+  final CommunityPostModel post;
+
+  const CommunityPostCard({super.key, required this.post});
+
+  @override
+  State<CommunityPostCard> createState() => _CommunityPostCardState();
+}
+
+class _CommunityPostCardState extends State<CommunityPostCard> {
+  final DatabaseService _dbService = DatabaseService();
+  bool? _isLikedLocal;
+  int? _likesCountLocal;
+
+  @override
+  void didUpdateWidget(CommunityPostCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.post.id != widget.post.id) {
+      _isLikedLocal = null;
+      _likesCountLocal = null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUserId = authProvider.userId;
+
+    return FutureBuilder<bool>(
+      future: _isLikedLocal != null
+          ? Future.value(_isLikedLocal)
+          : _dbService.hasUserLikedPost(widget.post.id!, currentUserId),
+      builder: (context, snapshot) {
+        final isLiked = _isLikedLocal ?? snapshot.data ?? false;
+        final likesCount = _likesCountLocal ?? widget.post.likesCount;
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 15),
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppTheme.cardColor(context),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
               ),
-            ),
-
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: Row(
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Text(
-                    '${post['comments']} Comments',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF3E2723),
+                  Container(
+                    width: 45,
+                    height: 45,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: widget.post.category == 'Women'
+                            ? [LunaraColors.primary, const Color(0xFFFFB4A9)]
+                            : [const Color(0xFF118AB2), LunaraColors.ovulationBlue],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        widget.post.authorAvatar ?? (widget.post.category == 'Women' ? '👩' : '👨'),
+                        style: const TextStyle(fontSize: 24),
+                      ),
                     ),
                   ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.post.authorName,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textDark(context),
+                          ),
+                        ),
+                        Text(
+                          timeago.format(widget.post.createdAt),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.secondaryText(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: widget.post.category == 'Women'
+                          ? LunaraColors.primary.withOpacity(0.15)
+                          : const Color(0xFF118AB2).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      widget.post.category,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: widget.post.category == 'Women'
+                            ? LunaraColors.primaryDark
+                            : const Color(0xFF118AB2),
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
-
-            const Divider(height: 1),
-
-            // Comments List
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.chat_bubble_outline,
-                        size: 60, color: Colors.grey[300]),
-                    const SizedBox(height: 15),
-                    Text(
-                      'No comments yet',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Be the first to comment',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                    ),
-                  ],
+              const SizedBox(height: 15),
+              Text(
+                widget.post.content,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.textLight(context),
+                  height: 1.5,
                 ),
               ),
-            ),
-
-            // Comment Input
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -3),
-                  ),
-                ],
-              ),
-              child: Row(
+              const SizedBox(height: 15),
+              Row(
                 children: [
-                  Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Write a comment...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
+                  GestureDetector(
+                    onTap: () async {
+                      if (currentUserId.isEmpty) return;
+                      HapticFeedback.lightImpact();
+                      final oldIsLiked = isLiked;
+                      final oldLikesCount = likesCount;
+                      setState(() {
+                        _isLikedLocal = !oldIsLiked;
+                        _likesCountLocal = oldLikesCount + (oldIsLiked ? -1 : 1);
+                      });
+                      try {
+                        await _dbService.toggleLikePost(widget.post.id!, currentUserId, oldIsLiked);
+                      } catch (e) {
+                        setState(() {
+                          _isLikedLocal = oldIsLiked;
+                          _likesCountLocal = oldLikesCount;
+                        });
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isLiked
+                            ? LunaraColors.primary.withOpacity(0.15)
+                            : AppTheme.isDark(context) ? const Color(0xFF2A2A2A) : Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isLiked ? Icons.favorite : Icons.favorite_border,
+                            size: 18,
+                            color: isLiked ? LunaraColors.primary : AppTheme.secondaryText(context),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '$likesCount',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isLiked ? LunaraColors.primaryDark : AppTheme.secondaryText(context),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFFFF8989), Color(0xFFD8405B)],
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      _showCommentsSheet(context, widget.post);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.isDark(context) ? const Color(0xFF2A2A2A) : Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      shape: BoxShape.circle,
+                      child: Row(
+                        children: [
+                          Icon(Icons.chat_bubble_outline, size: 18, color: AppTheme.secondaryText(context)),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${widget.post.commentCount}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.secondaryText(context),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: IconButton(
-                      onPressed: () {
-                        HapticFeedback.mediumImpact();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Comment feature coming soon')),
-                        );
-                      },
-                      icon: const Icon(Icons.send_rounded, color: Colors.white),
-                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                    },
+                    icon: Icon(Icons.share_outlined, size: 20, color: AppTheme.secondaryText(context)),
                   ),
                 ],
               ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showCommentsSheet(BuildContext context, CommunityPostModel post) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _CommentsSheetContent(post: post),
+    );
+  }
+}
+
+// A stateful widget for the comments sheet to handle real-time fetching and posting
+class _CommentsSheetContent extends StatefulWidget {
+  final CommunityPostModel post;
+
+  const _CommentsSheetContent({required this.post});
+
+  @override
+  State<_CommentsSheetContent> createState() => _CommentsSheetContentState();
+}
+
+class _CommentsSheetContentState extends State<_CommentsSheetContent> {
+  final DatabaseService _dbService = DatabaseService();
+  final TextEditingController _commentController = TextEditingController();
+
+  Future<void> _submitComment() async {
+    final text = _commentController.text.trim();
+    if (text.isEmpty) return;
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userId = authProvider.userId;
+    final userName = authProvider.userName;
+
+    if (userId.isNotEmpty) {
+      await _dbService.addComment(
+        postId: widget.post.id!, // Assuming id is always non-null when interacting with comments
+        authorId: userId,
+        authorName: userName.isNotEmpty ? userName : 'Anonymous',
+        authorAvatar: widget.post.category == 'Women' ? '👩' : '👨', // Simplify for now, better to pull from user profile
+        content: text,
+      );
+      _commentController.clear();
+      setState(() {}); // Refresh comments list
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      decoration: BoxDecoration(
+        color: AppTheme.background(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      child: Column(
+        children: [
+          // Handle
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
             ),
-          ],
-        ),
+          ),
+
+          // Header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            child: Row(
+              children: [
+                Text(
+                  '${widget.post.commentCount} Comments',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark(context),
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1),
+
+          // Comments List
+          Expanded(
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: _dbService.getComments(widget.post.id!),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                final commentsData = snapshot.data ?? [];
+                
+                if (commentsData.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.chat_bubble_outline,
+                            size: 60, color: Colors.grey[300]),
+                        const SizedBox(height: 15),
+                        Text(
+                          'No comments yet',
+                          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Be the first to comment',
+                          style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  itemCount: commentsData.length,
+                  itemBuilder: (context, index) {
+                    final commentData = commentsData[index];
+                    final comment = CommunityCommentModel.fromJson(commentData);
+                    
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 15),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 35,
+                            height: 35,
+                            decoration: BoxDecoration(
+                              color: AppTheme.isDark(context)
+                                ? const Color(0xFF2A2A2A)
+                                : Colors.grey[200],
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                comment.authorAvatar ?? '👤',
+                                style: const TextStyle(fontSize: 18),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppTheme.cardColor(context),
+                                borderRadius: BorderRadius.circular(15),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.02),
+                                    blurRadius: 5,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        comment.authorName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      Text(
+                                        timeago.format(comment.createdAt),
+                                        style: TextStyle(
+                                          color: AppTheme.secondaryText(context),
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Text(
+                                    comment.content,
+                                    style: TextStyle(
+                                      color: AppTheme.textLight(context),
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+
+          // Comment Input
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -3),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _commentController,
+                    decoration: InputDecoration(
+                      hintText: 'Write a comment...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: AppTheme.inputFillColor(context),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        LunaraColors.primary,
+                        LunaraColors.primaryDark
+                      ],
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    onPressed: _submitComment,
+                    icon: const Icon(Icons.send_rounded, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

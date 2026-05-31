@@ -62,7 +62,7 @@ class _PeriodStartSetupScreenState extends State<PeriodStartSetupScreen>
             center: const Alignment(0, -0.5),
             radius: 1.5,
             colors: [
-              const Color(0xFFFF8989).withOpacity(0.08),
+              LunaraColors.primary.withOpacity(0.08),
               AppTheme.background(context),
             ],
           ),
@@ -83,12 +83,15 @@ class _PeriodStartSetupScreenState extends State<PeriodStartSetupScreen>
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [Color(0xFFFF8989), Color(0xFFD8405B)],
+                              colors: [
+                                LunaraColors.primary,
+                                LunaraColors.primaryDark
+                              ],
                             ),
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFFF8989).withOpacity(0.4),
+                                color: LunaraColors.primary.withOpacity(0.4),
                                 blurRadius: 25,
                                 offset: const Offset(0, 10),
                               ),
@@ -106,7 +109,7 @@ class _PeriodStartSetupScreenState extends State<PeriodStartSetupScreen>
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFF3E2723),
+                            color: LunaraColors.textDark,
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -179,10 +182,10 @@ class _PeriodStartSetupScreenState extends State<PeriodStartSetupScreen>
                       child: ElevatedButton(
                         onPressed: _saveAndContinue,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFF8989),
+                          backgroundColor: LunaraColors.primary,
                           foregroundColor: Colors.white,
                           elevation: 8,
-                          shadowColor: const Color(0xFFFF8989).withOpacity(0.4),
+                          shadowColor: LunaraColors.primary.withOpacity(0.4),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),
@@ -220,7 +223,7 @@ class _PeriodStartSetupScreenState extends State<PeriodStartSetupScreen>
       style: const TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.bold,
-        color: Color(0xFF3E2723),
+        color: LunaraColors.textDark,
       ),
     );
   }
@@ -238,10 +241,10 @@ class _PeriodStartSetupScreenState extends State<PeriodStartSetupScreen>
             return Theme(
               data: Theme.of(context).copyWith(
                 colorScheme: const ColorScheme.light(
-                  primary: Color(0xFFFF8989),
+                  primary: LunaraColors.primary,
                   onPrimary: Colors.white,
                   surface: Colors.white,
-                  onSurface: Color(0xFF3E2723),
+                  onSurface: LunaraColors.textDark,
                 ),
               ),
               child: child!,
@@ -261,7 +264,7 @@ class _PeriodStartSetupScreenState extends State<PeriodStartSetupScreen>
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: const Color(0xFFFF8989).withOpacity(0.3),
+            color: LunaraColors.primary.withOpacity(0.3),
             width: 2,
           ),
           boxShadow: [
@@ -277,12 +280,12 @@ class _PeriodStartSetupScreenState extends State<PeriodStartSetupScreen>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFF8989).withOpacity(0.15),
+                color: LunaraColors.primary.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
                 Icons.calendar_today_rounded,
-                color: Color(0xFFFF8989),
+                color: LunaraColors.primary,
                 size: 24,
               ),
             ),
@@ -305,7 +308,7 @@ class _PeriodStartSetupScreenState extends State<PeriodStartSetupScreen>
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF3E2723),
+                      color: LunaraColors.textDark,
                     ),
                   ),
                 ],
@@ -314,7 +317,7 @@ class _PeriodStartSetupScreenState extends State<PeriodStartSetupScreen>
             const Icon(
               Icons.arrow_forward_ios_rounded,
               size: 18,
-              color: Color(0xFFFF8989),
+              color: LunaraColors.primary,
             ),
           ],
         ),
@@ -346,7 +349,7 @@ class _PeriodStartSetupScreenState extends State<PeriodStartSetupScreen>
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFFFF8989),
+                  color: LunaraColors.primary,
                 ),
               ),
               Row(
@@ -369,10 +372,10 @@ class _PeriodStartSetupScreenState extends State<PeriodStartSetupScreen>
           const SizedBox(height: 15),
           SliderTheme(
             data: SliderThemeData(
-              activeTrackColor: const Color(0xFFFF8989),
+              activeTrackColor: LunaraColors.primary,
               inactiveTrackColor: Colors.grey[200],
-              thumbColor: const Color(0xFFFF8989),
-              overlayColor: const Color(0xFFFF8989).withOpacity(0.2),
+              thumbColor: LunaraColors.primary,
+              overlayColor: LunaraColors.primary.withOpacity(0.2),
               trackHeight: 6,
             ),
             child: Slider(
@@ -469,12 +472,12 @@ class _PeriodStartSetupScreenState extends State<PeriodStartSetupScreen>
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFFFF8989).withOpacity(0.1),
+          color: LunaraColors.primary.withOpacity(0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(
           icon,
-          color: const Color(0xFFFF8989),
+          color: LunaraColors.primary,
           size: 20,
         ),
       ),

@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.lunaraai">
 <uses-permission android:name="android.permission.INTERNET" />
 <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
@@ -7,6 +8,10 @@
 <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
+<!-- Location for Nearby Doctors -->
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
 <!-- Health Connect Permissions -->
 <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION"/>
 <uses-permission android:name="android.permission.health.READ_STEPS"/>
@@ -14,12 +19,24 @@
 <uses-permission android:name="android.permission.health.READ_HEART_RATE"/>
 <uses-permission android:name="android.permission.health.READ_WEIGHT"/>
 <uses-permission android:name="android.permission.health.READ_HEIGHT"/>
+<uses-permission android:name="android.permission.health.READ_MENSTRUATION"/>
+<uses-permission android:name="android.permission.health.WRITE_MENSTRUATION"/>
     <application
         android:label="Lunara"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false">
+        
+        <meta-data
+            android:name="androidx.health.connect.client.package_name"
+            android:value="com.google.android.apps.healthdata" />
+
+        <meta-data
+            android:name="androidx.health.permissions.rationale_activity"
+            android:value="com.example.lunaraai.MainActivity" />
+
         <activity
-            android:name=".MainActivity"
+            android:name="com.example.lunaraai.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""
@@ -35,6 +52,14 @@
             android:scheme="https" 
             android:host="lunara-446e.firebaseapp.com" />
             </intent-filter>
+            <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data 
+            android:scheme="io.supabase.lunara"
+            android:host="login-callback" />
+            </intent-filter>
             
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
@@ -45,12 +70,17 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- Health Connect rationale intent filter -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
         </activity>
         <!-- Health Connect privacy policy activity alias -->
         <activity-alias
             android:name="ViewPermissionUsageActivity"
             android:exported="true"
-            android:targetActivity=".MainActivity"
+            android:targetActivity="com.example.lunaraai.MainActivity"
             android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
@@ -62,6 +92,17 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Receivers for flutter_local_notifications (restores scheduled alerts on boot) -->
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
@@ -77,6 +118,16 @@
         <package android:name="com.google.android.apps.healthdata" />
         <intent>
             <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+        </intent>
+        <!-- url_launcher: Google Maps directions -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <!-- url_launcher: phone calls -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tel" />
         </intent>
     </queries>
 </manifest>

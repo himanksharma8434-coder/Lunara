@@ -1,22 +1,24 @@
 /// Represents a community post in the social feed.
 class CommunityPostModel {
   final int? id;
+  final String authorId;
   final String authorName;
   final String? authorAvatar;
-  final String category; // 'General', 'Tips', 'Support', 'Question'
+  final String category; // 'Women', 'Men'
   final String content;
-  final int likes;
+  final int likesCount;
   final int commentCount;
   final bool isLikedByUser;
   final DateTime createdAt;
 
   CommunityPostModel({
     this.id,
+    required this.authorId,
     required this.authorName,
     this.authorAvatar,
     required this.category,
     required this.content,
-    this.likes = 0,
+    this.likesCount = 0,
     this.commentCount = 0,
     this.isLikedByUser = false,
     DateTime? createdAt,
@@ -25,15 +27,16 @@ class CommunityPostModel {
   factory CommunityPostModel.fromJson(Map<String, dynamic> json) {
     return CommunityPostModel(
       id: json['id'],
-      authorName: json['authorName'] ?? 'Anonymous',
-      authorAvatar: json['authorAvatar'],
-      category: json['category'] ?? 'General',
+      authorId: json['author_id'] ?? '',
+      authorName: json['author_name'] ?? 'Anonymous',
+      authorAvatar: json['author_avatar'],
+      category: json['category'] ?? 'Women',
       content: json['content'] ?? '',
-      likes: json['likes'] ?? 0,
-      commentCount: json['commentCount'] ?? 0,
-      isLikedByUser: json['isLikedByUser'] ?? false,
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'])
+      likesCount: json['likes_count'] ?? 0,
+      commentCount: json['comments_count'] ?? 0,
+      isLikedByUser: json['isLikedByUser'] ?? false, // Handled separately or via RPC
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
           : DateTime.now(),
     );
   }
@@ -41,35 +44,38 @@ class CommunityPostModel {
   Map<String, dynamic> toJson() {
     return {
       if (id != null) 'id': id,
-      'authorName': authorName,
-      'authorAvatar': authorAvatar,
+      'author_id': authorId,
+      'author_name': authorName,
+      'author_avatar': authorAvatar,
       'category': category,
       'content': content,
-      'likes': likes,
-      'commentCount': commentCount,
-      'isLikedByUser': isLikedByUser,
-      'createdAt': createdAt.toIso8601String(),
+      'likes_count': likesCount,
+      'comments_count': commentCount,
+      // isLikedByUser is typically not saved directly to the posts table
+      'created_at': createdAt.toIso8601String(),
     };
   }
 
   CommunityPostModel copyWith({
     int? id,
+    String? authorId,
     String? authorName,
     String? authorAvatar,
     String? category,
     String? content,
-    int? likes,
+    int? likesCount,
     int? commentCount,
     bool? isLikedByUser,
     DateTime? createdAt,
   }) {
     return CommunityPostModel(
       id: id ?? this.id,
+      authorId: authorId ?? this.authorId,
       authorName: authorName ?? this.authorName,
       authorAvatar: authorAvatar ?? this.authorAvatar,
       category: category ?? this.category,
       content: content ?? this.content,
-      likes: likes ?? this.likes,
+      likesCount: likesCount ?? this.likesCount,
       commentCount: commentCount ?? this.commentCount,
       isLikedByUser: isLikedByUser ?? this.isLikedByUser,
       createdAt: createdAt ?? this.createdAt,

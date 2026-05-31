@@ -8,9 +8,7 @@ class ThemeProvider extends ChangeNotifier {
 
   ThemeProvider(SharedPreferences prefs) : _prefs = prefs {
     final stored = _prefs.getString(_key);
-    _themeMode = stored == 'dark'
-        ? ThemeMode.dark
-        : ThemeMode.light;
+    _themeMode = stored == 'dark' ? ThemeMode.dark : ThemeMode.light;
   }
 
   ThemeMode get themeMode => _themeMode;

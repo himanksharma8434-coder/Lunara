@@ -1,12 +1,14 @@
 class UserModel {
   final String uid;
-  final String email;
+  final String? email;
+  final String? phone;
   final String name;
   final int cycleLength;
 
   UserModel({
     required this.uid,
-    required this.email,
+    this.email,
+    this.phone,
     this.name = '',
     this.cycleLength = 28,
   });
@@ -15,7 +17,8 @@ class UserModel {
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,
-      'email': email,
+      'email': email ?? '',
+      'phone': phone ?? '',
       'name': name,
       'cycle_length': cycleLength,
       'created_at': DateTime.now().toIso8601String(),
@@ -26,7 +29,8 @@ class UserModel {
   factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
       uid: map['uid'] ?? '',
-      email: map['email'] ?? '',
+      email: map['email'],
+      phone: map['phone'],
       name: map['name'] ?? '',
       cycleLength: map['cycle_length'] ?? 28,
     );

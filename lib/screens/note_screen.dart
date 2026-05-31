@@ -30,15 +30,19 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
     'great': {
       'emoji': '😊',
       'label': 'Great',
-      'color': const Color(0xFF81C784)
+      'color': LunaraColors.fertileGreen
     },
-    'good': {'emoji': '🙂', 'label': 'Good', 'color': const Color(0xFF64B5F6)},
+    'good': {
+      'emoji': '🙂',
+      'label': 'Good',
+      'color': LunaraColors.ovulationBlue
+    },
     'neutral': {
       'emoji': '😐',
       'label': 'Okay',
       'color': const Color(0xFFFFD54F)
     },
-    'low': {'emoji': '😔', 'label': 'Low', 'color': const Color(0xFFFFB74D)},
+    'low': {'emoji': '😔', 'label': 'Low', 'color': LunaraColors.warning},
     'sad': {'emoji': '😢', 'label': 'Sad', 'color': const Color(0xFFE57373)},
   };
 
@@ -61,17 +65,17 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
     {
       'name': 'Symptoms',
       'icon': Icons.medical_services_rounded,
-      'color': const Color(0xFFFF8989)
+      'color': LunaraColors.primary
     },
     {
       'name': 'Mood Swings',
       'icon': Icons.mood_rounded,
-      'color': const Color(0xFFFFB74D)
+      'color': LunaraColors.warning
     },
     {
       'name': 'Diet',
       'icon': Icons.restaurant_rounded,
-      'color': const Color(0xFF81C784)
+      'color': LunaraColors.fertileGreen
     },
     {
       'name': 'Stress',
@@ -81,7 +85,7 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
     {
       'name': 'Social',
       'icon': Icons.people_rounded,
-      'color': const Color(0xFF64B5F6)
+      'color': LunaraColors.ovulationBlue
     },
   ];
 
@@ -152,7 +156,7 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                           child: Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppTheme.cardColor(context),
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
@@ -162,10 +166,10 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.arrow_back_ios_new,
                               size: 18,
-                              color: Color(0xFF3E2723),
+                              color: AppTheme.textDark(context),
                             ),
                           ),
                         ),
@@ -174,12 +178,12 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
+                              Text(
                                 'Daily Journal',
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF3E2723),
+                                  color: AppTheme.textDark(context),
                                 ),
                               ),
                               Text(
@@ -187,7 +191,7 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                                     .format(DateTime.now()),
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Colors.grey[600],
+                                  color: AppTheme.secondaryText(context),
                                 ),
                               ),
                             ],
@@ -252,7 +256,7 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppTheme.cardColor(context),
                               borderRadius: BorderRadius.circular(25),
                               boxShadow: [
                                 BoxShadow(
@@ -280,12 +284,12 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                                       ),
                                     ),
                                     const SizedBox(width: 12),
-                                    const Text(
+                                    Text(
                                       'How are you feeling?',
                                       style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFF3E2723),
+                                        color: AppTheme.textDark(context),
                                       ),
                                     ),
                                   ],
@@ -320,7 +324,7 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                                               : null,
                                           color: isSelected
                                               ? null
-                                              : Colors.grey[100],
+                                              : AppTheme.subtleBackground(context),
                                           borderRadius:
                                               BorderRadius.circular(20),
                                           boxShadow: isSelected
@@ -351,7 +355,7 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                                                 fontWeight: FontWeight.bold,
                                                 color: isSelected
                                                     ? Colors.white
-                                                    : Colors.grey[700],
+                                                    : AppTheme.secondaryText(context),
                                               ),
                                             ),
                                           ],
@@ -370,7 +374,7 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppTheme.cardColor(context),
                               borderRadius: BorderRadius.circular(25),
                               boxShadow: [
                                 BoxShadow(
@@ -394,10 +398,10 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                                   color: currentMood['color'],
                                 ),
                               ),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF3E2723),
+                                color: AppTheme.textDark(context),
                               ),
                             ),
                           ),
@@ -408,7 +412,7 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppTheme.cardColor(context),
                               borderRadius: BorderRadius.circular(25),
                               boxShadow: [
                                 BoxShadow(
@@ -426,12 +430,12 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                                     Icon(Icons.label_rounded,
                                         color: currentMood['color'], size: 20),
                                     const SizedBox(width: 8),
-                                    const Text(
+                                    Text(
                                       'Tags',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFF3E2723),
+                                        color: AppTheme.textDark(context),
                                       ),
                                     ),
                                     const Spacer(),
@@ -482,7 +486,7 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                                         decoration: BoxDecoration(
                                           color: isSelected
                                               ? tag['color'].withOpacity(0.15)
-                                              : Colors.grey[100],
+                                              : AppTheme.subtleBackground(context),
                                           borderRadius:
                                               BorderRadius.circular(15),
                                           border: Border.all(
@@ -500,7 +504,7 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                                               size: 16,
                                               color: isSelected
                                                   ? tag['color']
-                                                  : Colors.grey[600],
+                                                  : AppTheme.secondaryText(context),
                                             ),
                                             const SizedBox(width: 6),
                                             Text(
@@ -510,7 +514,7 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                                                 fontWeight: FontWeight.w600,
                                                 color: isSelected
                                                     ? tag['color']
-                                                    : Colors.grey[700],
+                                                    : AppTheme.secondaryText(context),
                                               ),
                                             ),
                                           ],
@@ -529,7 +533,7 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppTheme.cardColor(context),
                               borderRadius: BorderRadius.circular(25),
                               boxShadow: [
                                 BoxShadow(
@@ -547,12 +551,12 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                                     Icon(Icons.edit_note_rounded,
                                         color: currentMood['color'], size: 20),
                                     const SizedBox(width: 8),
-                                    const Text(
+                                    Text(
                                       'Your Thoughts',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFF3E2723),
+                                        color: AppTheme.textDark(context),
                                       ),
                                     ),
                                   ],
@@ -574,10 +578,10 @@ class _NoteScreenState extends State<NoteScreen> with TickerProviderStateMixin {
                                       fontSize: 14,
                                     ),
                                   ),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 15,
                                     height: 1.6,
-                                    color: Color(0xFF3E2723),
+                                    color: AppTheme.textDark(context),
                                   ),
                                 ),
                               ],

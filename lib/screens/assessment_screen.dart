@@ -195,10 +195,12 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                             // Back Button
                             GestureDetector(
                               onTap: () => Navigator.pop(context),
-                                child: Container(
+                              child: Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest,
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
@@ -467,8 +469,9 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                 child: OutlinedButton(
                                   onPressed: () async {
                                     HapticFeedback.lightImpact();
-                                    final authProvider = Provider.of<AuthProvider>(
-                                        context, listen: false);
+                                    final authProvider =
+                                        Provider.of<AuthProvider>(context,
+                                            listen: false);
                                     await authProvider.deferAssessment();
                                     if (!context.mounted) return;
                                     Navigator.pushReplacement(

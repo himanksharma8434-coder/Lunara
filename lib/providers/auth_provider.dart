@@ -17,7 +17,14 @@ class AuthProvider with ChangeNotifier {
   DateTime? _lastAssessmentDate;
   bool _hasCompletedOnboarding = false;
   bool _assessmentDeferred = false;
+  bool _isPasswordRecovery = false;
+  bool _needsNamePrompt = false;
   StreamSubscription<AuthState>? _authSubscription;
+
+  /// Tracks whether the user has explicitly authenticated in this app session
+  /// (via login, signup, or Google sign-in). Background token refreshes from
+  /// ghost sessions restored by Android Auto Backup will NOT set this flag.
+  bool _userDidExplicitLogin = false;
 
   AuthProvider(this._prefs) {
     _loadUserData();
@@ -25,30 +32,63 @@ class AuthProvider with ChangeNotifier {
   }
 
   void _initializeAuthListener() {
-    // Check initial session
-    final session = _supabase.auth.currentSession;
-    _isLoggedIn = session != null;
-    _isLoading = false;
-    notifyListeners();
-
-    // Listen for future auth state changes
     _authSubscription = _supabase.auth.onAuthStateChange.listen((data) {
       final AuthChangeEvent event = data.event;
-      debugPrint('AuthProvider: Auth event: $event');
+      final session = data.session;
+      debugPrint(
+          'AuthProvider: Auth event: $event, session: ${session != null ? "exists" : "null"}, explicitLogin: $_userDidExplicitLogin');
 
       bool oldIsLoggedIn = _isLoggedIn;
 
-      if (event == AuthChangeEvent.signedIn ||
-          event == AuthChangeEvent.tokenRefreshed ||
-          event == AuthChangeEvent.initialSession ||
-          event == AuthChangeEvent.userUpdated) {
+      if (event == AuthChangeEvent.passwordRecovery) {
+        _isPasswordRecovery = true;
         _isLoggedIn = true;
-        if (!oldIsLoggedIn) {
-           _loadUserData(); // Reload if we just signed in
+        _userDidExplicitLogin = true;
+      } else if (event == AuthChangeEvent.initialSession) {
+        // initialSession fires once when the SDK boots.
+        // If a valid session exists, this is a returning user.
+        if (session != null) {
+          _isLoggedIn = true;
+          _userDidExplicitLogin = true; // Trust the persisted session
+          _prefs.setBool('seenOnboarding', true);
+          if (!oldIsLoggedIn) {
+            _loadUserData();
+          }
+        } else {
+          _isLoggedIn = false;
+        }
+      } else if (event == AuthChangeEvent.signedIn) {
+        // signedIn fires for explicit logins AND sometimes for background
+        // token restores. Only trust it if the user explicitly logged in.
+        if (_userDidExplicitLogin) {
+          _isLoggedIn = true;
+          if (!oldIsLoggedIn) {
+            _loadUserData();
+          }
+        } else {
+          debugPrint(
+              'AuthProvider: IGNORING signedIn event — no explicit login yet');
+        }
+      } else if (event == AuthChangeEvent.tokenRefreshed) {
+        // tokenRefreshed fires when Supabase refreshes an existing token
+        // in the background. NEVER let this promote a user from
+        // logged-out to logged-in — that's the ghost session bug.
+        if (_isLoggedIn) {
+          // Already logged in, just keep the state as-is.
+          debugPrint('AuthProvider: tokenRefreshed while logged in — OK');
+        } else {
+          debugPrint(
+              'AuthProvider: IGNORING tokenRefreshed — user is not logged in');
+        }
+      } else if (event == AuthChangeEvent.userUpdated) {
+        if (_userDidExplicitLogin) {
+          _isLoggedIn = true;
         }
       } else if (event == AuthChangeEvent.signedOut ||
           event == AuthChangeEvent.userDeleted) {
         _isLoggedIn = false;
+        _isPasswordRecovery = false;
+        _userDidExplicitLogin = false;
       }
 
       _isLoading = false;
@@ -71,7 +111,10 @@ class AuthProvider with ChangeNotifier {
   String get userName => _userName;
   DateTime? get lastAssessmentDate => _lastAssessmentDate;
   bool get hasCompletedOnboarding => _hasCompletedOnboarding;
+  bool get hasSeenOnboarding => _prefs.getBool('seenOnboarding') ?? false;
   bool get hasDeferredAssessment => _assessmentDeferred;
+  bool get isPasswordRecovery => _isPasswordRecovery;
+  bool get needsNamePrompt => _needsNamePrompt;
 
   // ─── LOAD LOCAL DATA ──────────────────────────────
 
@@ -85,7 +128,38 @@ class AuthProvider with ChangeNotifier {
       _lastAssessmentDate = DateTime.parse(lastAssessmentString);
     }
 
+    // Also try to fetch name from DB if logged in and name is empty
+    if (_userName.isEmpty && _supabase.auth.currentUser != null) {
+      await _fetchNameFromDatabase();
+    }
+
     notifyListeners();
+  }
+
+  /// Fetch the user's name from the database.
+  Future<void> _fetchNameFromDatabase() async {
+    try {
+      final uid = _supabase.auth.currentUser?.id;
+      if (uid == null) return;
+
+      final profile = await _db.getUserProfile(uid);
+      if (profile != null &&
+          profile['name'] != null &&
+          (profile['name'] as String).isNotEmpty) {
+        _userName = profile['name'];
+        await _prefs.setString('userName', _userName);
+      } else {
+        // Try metadata as fallback
+        final metadata = _supabase.auth.currentUser?.userMetadata;
+        final metaName = metadata?['name'] ?? metadata?['full_name'] ?? '';
+        if (metaName.isNotEmpty) {
+          _userName = metaName;
+          await _prefs.setString('userName', _userName);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching name from database: $e');
+    }
   }
 
   // ─── SIGN UP ──────────────────────────────────────
@@ -98,6 +172,7 @@ class AuthProvider with ChangeNotifier {
     required String name,
   }) async {
     _setLoading(true);
+    _userDidExplicitLogin = true;
     try {
       final response = await _supabase.auth.signUp(
         email: email,
@@ -146,6 +221,7 @@ class AuthProvider with ChangeNotifier {
   /// Log in with email and password.
   Future<String?> login(String email, String password) async {
     _setLoading(true);
+    _userDidExplicitLogin = true;
     try {
       final response = await _supabase.auth
           .signInWithPassword(
@@ -155,10 +231,15 @@ class AuthProvider with ChangeNotifier {
           .timeout(const Duration(seconds: 15));
 
       if (response.session != null) {
-        // Load user name from metadata or database
-        final metadata = response.user?.userMetadata;
-        _userName = metadata?['name'] ?? '';
-        await _prefs.setString('userName', _userName);
+        // Load user name from database first, then metadata
+        await _fetchNameFromDatabase();
+        if (_userName.isEmpty) {
+          final metadata = response.user?.userMetadata;
+          _userName = metadata?['name'] ?? '';
+          if (_userName.isNotEmpty) {
+            await _prefs.setString('userName', _userName);
+          }
+        }
 
         _setLoading(false);
         notifyListeners();
@@ -179,17 +260,100 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  // ─── PHONE AUTH (OTP) ─────────────────────────────
+
+  /// Send an OTP to the given phone number.
+  Future<String?> signInWithOTP(String phone) async {
+    _setLoading(true);
+    _userDidExplicitLogin = true;
+    try {
+      await _supabase.auth.signInWithOtp(
+        phone: phone,
+      ).timeout(const Duration(seconds: 15));
+      
+      _setLoading(false);
+      return null; // success
+    } on TimeoutException {
+      _setLoading(false);
+      return 'Connection timed out. Please check your internet or try again later.';
+    } on AuthException catch (e) {
+      _setLoading(false);
+      return e.message;
+    } catch (e) {
+      _setLoading(false);
+      return 'An unexpected error occurred: $e';
+    }
+  }
+
+  /// Verify the OTP sent to the phone.
+  Future<String?> verifyOTP(String phone, String otp) async {
+    _setLoading(true);
+    _userDidExplicitLogin = true;
+    try {
+      final response = await _supabase.auth.verifyOTP(
+        phone: phone,
+        token: otp,
+        type: OtpType.sms,
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.session != null) {
+        // Logged in!
+        await _fetchNameFromDatabase();
+        if (_userName.isEmpty) {
+          final metadata = response.user?.userMetadata;
+          _userName = metadata?['name'] ?? '';
+          if (_userName.isNotEmpty) {
+            await _prefs.setString('userName', _userName);
+          }
+        }
+
+        // Create/update profile in users table
+        try {
+          final userModel = UserModel(
+            uid: response.user!.id,
+            email: response.user?.email,
+            phone: response.user?.phone ?? phone,
+            name: _userName,
+          );
+          await _db.saveUser(userModel);
+        } catch (e) {
+           debugPrint('Could not save user profile: $e');
+        }
+
+        if (_userName.isEmpty) {
+          _needsNamePrompt = true;
+        }
+
+        _setLoading(false);
+        notifyListeners();
+        return null; // success
+      }
+      _setLoading(false);
+      return 'OTP Verification failed.';
+    } on TimeoutException {
+      _setLoading(false);
+      return 'Connection timed out. Please check your internet or try again later.';
+    } on AuthException catch (e) {
+      _setLoading(false);
+      return e.message;
+    } catch (e) {
+      _setLoading(false);
+      return 'An unexpected error occurred: $e';
+    }
+  }
+
   // ─── GOOGLE SIGN IN ───────────────────────────────
 
   /// Sign in with Google using native flow.
   /// Uses google_sign_in v7 + supabase.auth.signInWithIdToken()
   Future<String?> signInWithGoogle() async {
     _setLoading(true);
+    _userDidExplicitLogin = true;
     try {
       /// Web Client ID from Google Cloud Console.
       /// This is the Web client ID (NOT Android client ID).
       const webClientId =
-          '592495918096-5c03dgfsirnvblllhk3svhuovudpoadc.apps.googleusercontent.com';
+          '592495918096-13ov72hqkckc847lhl89328h5g4gdtkc.apps.googleusercontent.com';
 
       final googleSignIn = GoogleSignIn.instance;
 
@@ -218,24 +382,34 @@ class AuthProvider with ChangeNotifier {
 
       if (response.session != null) {
         // Get user info from Google
-        final name = googleUser.displayName ?? '';
+        final googleName = googleUser.displayName ?? '';
         final email = googleUser.email;
 
-        // Create profile in users table (best-effort — auth still works if table missing)
+        // Try to fetch existing name from the database first
+        await _fetchNameFromDatabase();
+
+        // If no name in DB, use Google's name
+        if (_userName.isEmpty && googleName.isNotEmpty) {
+          _userName = googleName;
+          await _prefs.setString('userName', _userName);
+        }
+
+        // Create/update profile in users table
         try {
           final userModel = UserModel(
             uid: response.user!.id,
             email: email,
-            name: name,
+            name: _userName,
           );
           await _db.saveUser(userModel);
         } catch (e) {
           debugPrint('Could not save user profile: $e');
         }
 
-        // Save locally
-        _userName = name;
-        await _prefs.setString('userName', name);
+        // If still no name after Google + DB, prompt the user
+        if (_userName.isEmpty) {
+          _needsNamePrompt = true;
+        }
 
         _setLoading(false);
         notifyListeners();
@@ -268,7 +442,10 @@ class AuthProvider with ChangeNotifier {
   Future<String?> resetPassword(String email) async {
     _setLoading(true);
     try {
-      await _supabase.auth.resetPasswordForEmail(email);
+      await _supabase.auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'io.supabase.lunara://login-callback/',
+      );
       _setLoading(false);
       return null; // success
     } on TimeoutException {
@@ -283,6 +460,59 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  /// Update the user's password (used after password recovery).
+  Future<String?> updatePassword(String newPassword) async {
+    _setLoading(true);
+    try {
+      await _supabase.auth.updateUser(
+        UserAttributes(password: newPassword),
+      );
+      _isPasswordRecovery = false;
+      _setLoading(false);
+      notifyListeners();
+      return null; // success
+    } on TimeoutException {
+      _setLoading(false);
+      return 'Connection timed out. Please check your internet or try again later.';
+    } on AuthException catch (e) {
+      _setLoading(false);
+      return e.message;
+    } catch (e) {
+      _setLoading(false);
+      return 'An unexpected error occurred: $e';
+    }
+  }
+
+  /// Clear the password recovery flag (e.g. after navigating away).
+  void clearPasswordRecovery() {
+    _isPasswordRecovery = false;
+    notifyListeners();
+  }
+
+  // ─── NAME PROMPT ──────────────────────────────────
+
+  /// Set the user's name (called from the name prompt dialog).
+  /// Saves to local prefs and to the database.
+  Future<void> setUserName(String name) async {
+    _userName = name;
+    _needsNamePrompt = false;
+    await _prefs.setString('userName', name);
+
+    // Save to database
+    final uid = _supabase.auth.currentUser?.id;
+    final email = _supabase.auth.currentUser?.email ?? '';
+    if (uid != null) {
+      try {
+        final userModel = UserModel(uid: uid, email: email, name: name);
+        await _db.saveUser(userModel);
+      } catch (e) {
+        debugPrint('Could not save user name to database: $e');
+      }
+    }
+
+    notifyListeners();
+  }
+
   // ─── LOGOUT ───────────────────────────────────────
 
   Future<void> logout() async {
@@ -291,6 +521,7 @@ class AuthProvider with ChangeNotifier {
     _userName = '';
     _lastAssessmentDate = null;
     _hasCompletedOnboarding = false;
+    _needsNamePrompt = false;
 
     await _prefs.clear();
     notifyListeners();
@@ -331,10 +562,50 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Mark onboarding slides as seen (pre-login, device-local).
+  /// If the user completes onboarding, we must guarantee they are taken
+  /// to the Login page. If there's a phantom session lingering, we forcefully
+  /// clear it locally so it doesn't try to log them back in automatically.
+  Future<void> markOnboardingSeen() async {
+    debugPrint('🔵 markOnboardingSeen: START');
+    await _prefs.setBool('seenOnboarding', true);
+
+    if (_supabase.auth.currentSession != null) {
+      debugPrint(
+          '🔵 markOnboardingSeen: Ghost session detected. Wiping it locally.');
+      try {
+        // SignOutScope.local guarantees the local token is destroyed without
+        // making a network request that could throw a "JWT expired" exception.
+        await _supabase.auth.signOut(scope: SignOutScope.local);
+      } catch (e) {
+        debugPrint('🔵 markOnboardingSeen: Error local signOut: $e');
+      }
+    }
+
+    _isLoggedIn = false;
+    notifyListeners();
+  }
+
   // ─── HELPERS ──────────────────────────────────────
 
   void _setLoading(bool value) {
     _isLoading = value;
+    notifyListeners();
+  }
+
+  /// FOR TESTING ONLY: Completely wipes app state so onboarding shows again
+  Future<void> testWipeAppState() async {
+    await _prefs.clear();
+    if (_supabase.auth.currentSession != null) {
+      try {
+        await _supabase.auth.signOut();
+      } catch (e) {
+        debugPrint('🔵 testWipeAppState: signOut error (ignoring): $e');
+      }
+    }
+    _isLoggedIn = false;
+    _hasCompletedOnboarding = false;
+    _assessmentDeferred = false;
     notifyListeners();
   }
 }

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
-import '../main.dart';
-import 'login_screen.dart';
+
+import '../theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -35,29 +33,8 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _controller.forward();
-    _navigateToNextScreen();
-  }
-
-  Future<void> _navigateToNextScreen() async {
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (!mounted) return;
-
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-    if (!authProvider.isLoggedIn) {
-      // Not logged in — go to Login
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
-    } else {
-      // Logged in — let InitialRouter decide the destination
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const InitialRouter()),
-      );
-    }
+    // No navigation here — MaterialApp.home handles routing
+    // once AuthProvider.isLoading becomes false.
   }
 
   @override
@@ -74,7 +51,11 @@ class _SplashScreenState extends State<SplashScreen>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFFCE4EC), Color(0xFFF8BBD0), Color(0xFFF3E5F5)],
+            colors: [
+              LunaraColors.primaryLight,
+              LunaraColors.backgroundPink,
+              Color(0xFFF3E5F5)
+            ],
           ),
         ),
         child: Center(
@@ -92,7 +73,7 @@ class _SplashScreenState extends State<SplashScreen>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFFF8989).withOpacity(0.3),
+                          color: LunaraColors.primary.withOpacity(0.3),
                           blurRadius: 30,
                           offset: const Offset(0, 10),
                         ),
@@ -101,7 +82,7 @@ class _SplashScreenState extends State<SplashScreen>
                     child: const Icon(
                       Icons.favorite_rounded,
                       size: 80,
-                      color: Color(0xFFFF8989),
+                      color: LunaraColors.primary,
                     ),
                   ),
                   const SizedBox(height: 30),
@@ -110,7 +91,7 @@ class _SplashScreenState extends State<SplashScreen>
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w900,
-                      color: Color(0xFF3E2723),
+                      color: LunaraColors.textDark,
                       letterSpacing: -0.5,
                     ),
                   ),

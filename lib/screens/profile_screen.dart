@@ -11,6 +11,7 @@ import '../services/app_notification_service.dart';
 import '../services/pdf_export_service.dart';
 import '../theme/app_theme.dart';
 import 'account_settings_screen.dart';
+import 'legal_screen.dart';
 import 'login_screen.dart';
 import 'partner_sync_screen.dart';
 
@@ -70,34 +71,6 @@ class ProfileScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: GestureDetector(
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              // Implement profile picture change
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppTheme.primary(context),
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
-                                    blurRadius: 8,
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.edit,
-                                size: 16,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -120,7 +93,7 @@ class ProfileScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFB74D).withOpacity(0.15),
+                        color: LunaraColors.warning.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Text(
@@ -128,7 +101,7 @@ class ProfileScreen extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFFFFB74D),
+                          color: LunaraColors.warning,
                         ),
                       ),
                     ),
@@ -292,17 +265,6 @@ class ProfileScreen extends StatelessWidget {
                       },
                     ),
 
-                    _buildSettingItem(
-                      context,
-                      Icons.notifications_outlined,
-                      'Notifications',
-                      'Manage notification preferences',
-                      () {
-                        HapticFeedback.lightImpact();
-                        // Navigate to notifications settings
-                      },
-                    ),
-
                     // ─── Connected Apps (Health) ──────────────
                     Container(
                       margin: const EdgeInsets.only(bottom: 10),
@@ -328,8 +290,10 @@ class ProfileScreen extends StatelessWidget {
                                   color: Colors.green.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Icon(
-                                  Icons.favorite_rounded,
+                                child: Icon(
+                                  cycleProvider.isHealthConnected
+                                      ? Icons.favorite_rounded
+                                      : Icons.favorite_border_rounded,
                                   color: Colors.green,
                                   size: 22,
                                 ),
@@ -340,7 +304,9 @@ class ProfileScreen extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Connected Apps',
+                                      cycleProvider.isHealthConnected
+                                          ? 'Connected to Google Fit ✓'
+                                          : 'Connect Google Fit',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w700,
@@ -350,8 +316,8 @@ class ProfileScreen extends StatelessWidget {
                                     const SizedBox(height: 2),
                                     Text(
                                       cycleProvider.isHealthConnected
-                                          ? 'Health Connect synced'
-                                          : 'Sync steps, sleep & more',
+                                          ? 'Google Fit / Apple Health synced'
+                                          : 'Sync steps, sleep, heart rate & period data',
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: AppTheme.textLight(context),
@@ -363,19 +329,18 @@ class ProfileScreen extends StatelessWidget {
                               ),
                               Switch(
                                 value: cycleProvider.isHealthConnected,
-                                activeColor: Colors.green,
-                                onChanged: (val) async {
+                                onChanged: (value) async {
                                   HapticFeedback.mediumImpact();
-                                  if (val) {
-                                    final success =
+                                  if (value) {
+                                    final error =
                                         await cycleProvider.connectHealth();
-                                    if (!success && context.mounted) {
+                                    if (error != null && context.mounted) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                              'Health Connect not available or permission denied'),
+                                        SnackBar(
+                                          content: Text(error),
                                           backgroundColor: Colors.orange,
+                                          duration: const Duration(seconds: 4),
                                         ),
                                       );
                                     }
@@ -415,45 +380,75 @@ class ProfileScreen extends StatelessWidget {
                                           ? '${cycleProvider.heartRate}'
                                           : '--',
                                       'BPM'),
+                                  _buildHealthStat(
+                                      context,
+                                      Icons.water_drop_outlined,
+                                      cycleProvider.isOnPeriod ? 'Yes' : 'No',
+                                      'Period'),
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              width: double.infinity,
-                              child: TextButton.icon(
-                                onPressed: () async {
-                                  HapticFeedback.lightImpact();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content:
-                                          const Text('Syncing health data...'),
-                                      backgroundColor:
-                                          AppTheme.primary(context),
-                                      duration: const Duration(seconds: 1),
-                                    ),
-                                  );
-                                  await cycleProvider.syncFromHealth();
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Sync complete! ✓'),
-                                        backgroundColor: Colors.green,
-                                        duration: Duration(seconds: 2),
+                            const SizedBox(height: 12),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      if (cycleProvider.isSyncing)
+                                        Container(
+                                          width: 12,
+                                          height: 12,
+                                          margin:
+                                              const EdgeInsets.only(right: 8),
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: AppTheme.primary(context),
+                                          ),
+                                        )
+                                      else
+                                        Icon(
+                                          cycleProvider.lastSyncStatus?.contains('No internet') == true
+                                              ? Icons.cloud_off_rounded
+                                              : Icons.cloud_done_rounded,
+                                          size: 14,
+                                          color: (cycleProvider.lastSyncStatus?.contains('No internet') == true)
+                                              ? Colors.orange
+                                              : Colors.green.withOpacity(0.7),
+                                        ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        cycleProvider.isSyncing
+                                            ? 'Syncing...'
+                                            : (cycleProvider.lastSyncStatus ??
+                                                'Background sync active'),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppTheme.textLight(context),
+                                          fontStyle: (cycleProvider.lastSyncStatus == null) ? FontStyle.italic : FontStyle.normal,
+                                        ),
                                       ),
-                                    );
-                                  }
-                                },
-                                icon: Icon(Icons.sync_rounded,
-                                    size: 18,
-                                    color: AppTheme.primary(context)),
-                                label: Text(
-                                  'Sync Now',
-                                  style: TextStyle(
-                                    color: AppTheme.primary(context),
-                                    fontWeight: FontWeight.w600,
+                                    ],
                                   ),
-                                ),
+                                  if (!cycleProvider.isSyncing)
+                                    GestureDetector(
+                                      onTap: () {
+                                        HapticFeedback.lightImpact();
+                                        cycleProvider.syncFromHealth();
+                                      },
+                                      child: Text(
+                                        'Sync now',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppTheme.primary(context),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                           ],
@@ -465,27 +460,15 @@ class ProfileScreen extends StatelessWidget {
                       context,
                       Icons.lock_outline,
                       'Privacy & Security',
-                      'Control your privacy settings',
-                      () async {
-                        HapticFeedback.lightImpact();
-                        final Uri url = Uri.parse('https://lunara.app/privacy');
-                        if (!await launchUrl(url)) {
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Could not open page')),
-                          );
-                        }
-                      },
-                    ),
-
-                    _buildSettingItem(
-                      context,
-                      Icons.language_rounded,
-                      'Language',
-                      'English (US)',
+                      'Privacy policy, terms & health data',
                       () {
                         HapticFeedback.lightImpact();
-                        // Navigate to language settings
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LegalScreen(),
+                          ),
+                        );
                       },
                     ),
 
@@ -497,10 +480,13 @@ class ProfileScreen extends StatelessWidget {
                       () async {
                         HapticFeedback.lightImpact();
                         final Uri url = Uri.parse('https://lunara.app/help');
-                        if (!await launchUrl(url)) {
+                        try {
+                          await launchUrl(url, mode: LaunchMode.externalApplication);
+                        } catch (_) {
                           if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Could not open page')),
+                            const SnackBar(
+                                content: Text('Could not open help page')),
                           );
                         }
                       },
@@ -574,8 +560,8 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatItem(
-      BuildContext context, String label, String value, IconData icon, Color color) {
+  Widget _buildStatItem(BuildContext context, String label, String value,
+      IconData icon, Color color) {
     return Column(
       children: [
         Container(
@@ -696,8 +682,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-
-
   Widget _buildNotificationToggle(BuildContext context, IconData icon,
       String title, String subtitle, bool value, Function(bool) onChanged) {
     return Container(
@@ -765,7 +749,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-
   void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -781,7 +764,7 @@ class ProfileScreen extends StatelessWidget {
             Text(
                 'Your personal wellness companion for period tracking and health management.'),
             SizedBox(height: 16),
-            Text('© 2024 Lunara. All rights reserved.'),
+            Text('© 2026 Lunara. All rights reserved.'),
           ],
         ),
         actions: [

@@ -2,6 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../providers/cycle_provider.dart';
 import '../theme/app_theme.dart';
 import 'period_feeling_screen.dart';
 
@@ -58,7 +60,7 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
             center: const Alignment(0, -0.5),
             radius: 1.2,
             colors: [
-              const Color(0xFFFF8989).withOpacity(0.08),
+              LunaraColors.primary.withOpacity(0.08),
               AppTheme.background(context),
             ],
           ),
@@ -98,7 +100,7 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                             child: const Icon(
                               Icons.arrow_back_ios_new,
                               size: 18,
-                              color: Color(0xFF3E2723),
+                              color: LunaraColors.textDark,
                             ),
                           ),
                         ),
@@ -107,7 +109,7 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
-                            color: Color(0xFF3E2723),
+                            color: LunaraColors.textDark,
                             letterSpacing: 0.3,
                           ),
                         ),
@@ -117,14 +119,14 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [
-                                Color(0xFFFF8989),
+                                LunaraColors.primary,
                                 Color(0xFFFFB4A9),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(25),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFFF8989).withOpacity(0.3),
+                                color: LunaraColors.primary.withOpacity(0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
@@ -153,14 +155,14 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [
-                                Color(0xFFFF8989),
-                                Color(0xFFD8405B),
+                                LunaraColors.primary,
+                                LunaraColors.primaryDark,
                               ],
                             ),
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFFF8989).withOpacity(0.4),
+                                color: LunaraColors.primary.withOpacity(0.4),
                                 blurRadius: 25,
                                 offset: const Offset(0, 10),
                               ),
@@ -179,7 +181,7 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFF3E2723),
+                            color: LunaraColors.textDark,
                             height: 1.2,
                             letterSpacing: -0.5,
                           ),
@@ -307,6 +309,8 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                             ? null
                             : () {
                                 HapticFeedback.mediumImpact();
+                                Provider.of<CycleProvider>(context, listen: false)
+                                    .setIsIrregular(_isRegular == false);
                                 Navigator.push(
                                   context,
                                   PageRouteBuilder(
@@ -333,10 +337,10 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _isRegular == null
                               ? Colors.grey.shade300
-                              : const Color(0xFFFF8989),
+                              : LunaraColors.primary,
                           foregroundColor: Colors.white,
                           elevation: _isRegular == null ? 0 : 8,
-                          shadowColor: const Color(0xFFFF8989).withOpacity(0.4),
+                          shadowColor: LunaraColors.primary.withOpacity(0.4),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),
@@ -467,7 +471,7 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color.lerp(const Color(0xFF3E2723), color, value),
+                    color: Color.lerp(LunaraColors.textDark, color, value),
                     letterSpacing: 0.3,
                   ),
                 ),

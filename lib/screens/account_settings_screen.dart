@@ -12,7 +12,7 @@ class AccountSettingsScreen extends StatefulWidget {
 
 class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
-  
+
   late TextEditingController _nameController;
   late TextEditingController _ageController;
   late TextEditingController _heightController;
@@ -31,19 +31,29 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     super.initState();
     final provider = Provider.of<CycleProvider>(context, listen: false);
     _nameController = TextEditingController(text: provider.userName);
-    _selectedGender = ['Female', 'Male', 'Other'].contains(provider.userGender) 
-        ? provider.userGender 
+    _selectedGender = ['Female', 'Male', 'Other'].contains(provider.userGender)
+        ? provider.userGender
         : 'Female';
-    _ageController = TextEditingController(text: provider.age > 0 ? provider.age.toString() : '');
+    _ageController = TextEditingController(
+        text: provider.age > 0 ? provider.age.toString() : '');
     _heightController = TextEditingController(text: provider.height.toString());
     _weightController = TextEditingController(text: provider.weight.toString());
-    _cycleLengthController = TextEditingController(text: provider.cycleLength.toString());
-    _periodDurationController = TextEditingController(text: provider.periodDuration.toString());
-    
+    _cycleLengthController =
+        TextEditingController(text: provider.cycleLength.toString());
+    _periodDurationController =
+        TextEditingController(text: provider.periodDuration.toString());
+
     _isTrackingForSomeoneElse = provider.isTrackingForSomeoneElse;
-    _trackedPersonNameController = TextEditingController(text: provider.trackedPersonName);
-    _trackedPersonRelation = ['Partner', 'Mother', 'Sister', 'Friend', 'Daughter', 'Other']
-            .contains(provider.trackedPersonRelation)
+    _trackedPersonNameController =
+        TextEditingController(text: provider.trackedPersonName);
+    _trackedPersonRelation = [
+      'Partner',
+      'Mother',
+      'Sister',
+      'Friend',
+      'Daughter',
+      'Other'
+    ].contains(provider.trackedPersonRelation)
         ? provider.trackedPersonRelation
         : 'Partner';
   }
@@ -62,11 +72,11 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
 
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() => _isSaving = true);
-    
+
     final provider = Provider.of<CycleProvider>(context, listen: false);
-    
+
     try {
       await provider.updateProfile(
         name: _nameController.text.trim(),
@@ -74,13 +84,15 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
         age: int.tryParse(_ageController.text) ?? provider.age,
         height: int.tryParse(_heightController.text) ?? provider.height,
         weight: int.tryParse(_weightController.text) ?? provider.weight,
-        cycleLength: int.tryParse(_cycleLengthController.text) ?? provider.cycleLength,
-        periodDuration: int.tryParse(_periodDurationController.text) ?? provider.periodDuration,
+        cycleLength:
+            int.tryParse(_cycleLengthController.text) ?? provider.cycleLength,
+        periodDuration: int.tryParse(_periodDurationController.text) ??
+            provider.periodDuration,
         isTrackingForSomeoneElse: _isTrackingForSomeoneElse,
         trackedPersonName: _trackedPersonNameController.text.trim(),
         trackedPersonRelation: _trackedPersonRelation,
       );
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -152,10 +164,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                   ],
                 ),
                 const SizedBox(height: 32),
-                
                 _buildTrackingForSomeoneElseSection(context),
                 const SizedBox(height: 32),
-
                 _buildSectionHeader(context, 'Body Metrics'),
                 const SizedBox(height: 16),
                 Row(
@@ -182,9 +192,6 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                   ],
                 ),
                 const SizedBox(height: 32),
-
-                _buildSectionHeader(context, 'Cycle Details'),
-                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
@@ -208,8 +215,11 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 32),
+                _buildSectionHeader(context, 'Critical Data'),
+                const SizedBox(height: 16),
+                _buildHighlightedDatePicker(context),
                 const SizedBox(height: 48),
-
                 SizedBox(
                   width: double.infinity,
                   height: 56,
@@ -299,7 +309,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       decoration: InputDecoration(
         labelText: 'Gender',
         labelStyle: TextStyle(color: AppTheme.textLight(context)),
-        prefixIcon: Icon(Icons.people_outline, color: AppTheme.primary(context)),
+        prefixIcon:
+            Icon(Icons.people_outline, color: AppTheme.primary(context)),
         filled: true,
         fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         border: OutlineInputBorder(
@@ -381,7 +392,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       decoration: InputDecoration(
         labelText: 'Relationship to you',
         labelStyle: TextStyle(color: AppTheme.textLight(context)),
-        prefixIcon: Icon(Icons.family_restroom_outlined, color: AppTheme.primary(context)),
+        prefixIcon: Icon(Icons.family_restroom_outlined,
+            color: AppTheme.primary(context)),
         filled: true,
         fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         border: OutlineInputBorder(
@@ -413,5 +425,115 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
         }
       },
     );
+  }
+
+  Widget _buildHighlightedDatePicker(BuildContext context) {
+    final provider = Provider.of<CycleProvider>(context);
+    final lastDate = provider.lastPeriodDate;
+    final dateStr = lastDate != null
+        ? "${lastDate.day} ${_getMonth(lastDate.month)} ${lastDate.year}"
+        : 'Not set';
+
+    return GestureDetector(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: lastDate ?? DateTime.now(),
+          firstDate: DateTime.now().subtract(const Duration(days: 90)),
+          lastDate: DateTime.now(),
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: ColorScheme.light(
+                  primary: AppTheme.primary(context),
+                  onPrimary: Colors.white,
+                  onSurface: AppTheme.textDark(context),
+                ),
+              ),
+              child: child!,
+            );
+          },
+        );
+        if (picked != null) {
+          provider.updateLastPeriodDate(picked);
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppTheme.primary(context),
+              AppTheme.primary(context).withOpacity(0.8),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primary(context).withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.calendar_month, color: Colors.white),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Last Period Date',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    dateStr,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.edit_calendar_rounded, color: Colors.white),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getMonth(int month) {
+    const months = [
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    return months[month];
   }
 }

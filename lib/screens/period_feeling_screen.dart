@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'period_symptoms_screen.dart';
 
+import '../theme/app_theme.dart';
+
 class PeriodFeelingScreen extends StatefulWidget {
   final bool isRequiredDailyLog;
 
@@ -48,7 +50,7 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
     },
     {
       'label': 'Relaxed',
-      'color': const Color(0xFF81C784),
+      'color': LunaraColors.fertileGreen,
       'icon': Icons.spa_rounded,
       'description':
           'Feeling calm and at peace. You\'re in tune with your body and mind.',
@@ -140,8 +142,13 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
             opacity: _fadeAnimation,
             child: SlideTransition(
               position: _slideAnimation,
-              child: Column(
-                children: [
+              child: CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Column(
+                      children: [
                   // Premium Header
                   Padding(
                     padding: const EdgeInsets.symmetric(
@@ -170,7 +177,7 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
                             child: const Icon(
                               Icons.arrow_back_ios_new,
                               size: 18,
-                              color: Color(0xFF3E2723),
+                              color: LunaraColors.textDark,
                             ),
                           ),
                         ),
@@ -179,7 +186,7 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
-                            color: Color(0xFF3E2723),
+                            color: LunaraColors.textDark,
                             letterSpacing: 0.3,
                           ),
                         ),
@@ -189,14 +196,14 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [
-                                Color(0xFFFF8989),
+                                LunaraColors.primary,
                                 Color(0xFFFFB4A9),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(25),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFFF8989).withOpacity(0.3),
+                                color: LunaraColors.primary.withOpacity(0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
@@ -226,14 +233,14 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [
-                              Color(0xFFFF8989),
-                              Color(0xFFD8405B),
+                              LunaraColors.primary,
+                              LunaraColors.primaryDark,
                             ],
                           ),
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFFF8989).withOpacity(0.4),
+                              color: LunaraColors.primary.withOpacity(0.4),
                               blurRadius: 25,
                               offset: const Offset(0, 10),
                             ),
@@ -254,7 +261,7 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFF3E2723),
+                            color: LunaraColors.textDark,
                             height: 1.2,
                             letterSpacing: -0.5,
                           ),
@@ -496,6 +503,9 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
                           ],
                         ),
                       ),
+                    ),
+                  ),
+                      ],
                     ),
                   ),
                 ],

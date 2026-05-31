@@ -121,7 +121,7 @@ class _ExpressionAnalysisScreenState extends State<ExpressionAnalysisScreen>
                           child: Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppTheme.cardColor(context),
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
@@ -131,21 +131,21 @@ class _ExpressionAnalysisScreenState extends State<ExpressionAnalysisScreen>
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.arrow_back_ios_new,
                               size: 18,
-                              color: Color(0xFF3E2723),
+                              color: AppTheme.textDark(context),
                             ),
                           ),
                         ),
 
                         // Title
-                        const Text(
+                        Text(
                           "Assessment",
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
-                            color: Color(0xFF3E2723),
+                            color: AppTheme.textDark(context),
                             letterSpacing: 0.3,
                           ),
                         ),
@@ -157,14 +157,14 @@ class _ExpressionAnalysisScreenState extends State<ExpressionAnalysisScreen>
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [
-                                Color(0xFFFF8989),
+                                LunaraColors.primary,
                                 Color(0xFFFFB4A9),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(25),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFFF8989).withOpacity(0.3),
+                                color: LunaraColors.primary.withOpacity(0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
@@ -192,12 +192,12 @@ class _ExpressionAnalysisScreenState extends State<ExpressionAnalysisScreen>
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFF8989).withOpacity(0.1),
+                            color: LunaraColors.primary.withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
                             Icons.edit_note_rounded,
-                            color: Color(0xFFFF8989),
+                            color: LunaraColors.primary,
                             size: 28,
                           ),
                         ),
@@ -236,18 +236,18 @@ class _ExpressionAnalysisScreenState extends State<ExpressionAnalysisScreen>
                         scale: _scaleAnimation,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppTheme.cardColor(context),
                             borderRadius: BorderRadius.circular(30),
                             border: Border.all(
                               color: _focusNode.hasFocus
-                                  ? const Color(0xFFFF8989).withOpacity(0.3)
+                                  ? LunaraColors.primary.withOpacity(0.3)
                                   : Colors.grey.shade200,
                               width: 2,
                             ),
                             boxShadow: [
                               BoxShadow(
                                 color: _focusNode.hasFocus
-                                    ? const Color(0xFFFF8989).withOpacity(0.15)
+                                    ? LunaraColors.primary.withOpacity(0.15)
                                     : Colors.black.withOpacity(0.06),
                                 blurRadius: _focusNode.hasFocus ? 25 : 20,
                                 offset: const Offset(0, 8),
@@ -263,7 +263,7 @@ class _ExpressionAnalysisScreenState extends State<ExpressionAnalysisScreen>
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: [
-                                      const Color(0xFFFF8989).withOpacity(0.08),
+                                      LunaraColors.primary.withOpacity(0.08),
                                       Colors.transparent,
                                     ],
                                   ),
@@ -320,9 +320,9 @@ class _ExpressionAnalysisScreenState extends State<ExpressionAnalysisScreen>
                                       border: InputBorder.none,
                                       counterText: "",
                                     ),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 17,
-                                      color: Color(0xFF3E2723),
+                                      color: AppTheme.textDark(context),
                                       height: 1.6,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -384,7 +384,7 @@ class _ExpressionAnalysisScreenState extends State<ExpressionAnalysisScreen>
                                                   AlwaysStoppedAnimation<Color>(
                                                 _charCount > 450
                                                     ? Colors.orange
-                                                    : const Color(0xFFFF8989),
+                                                    : LunaraColors.primary,
                                               ),
                                             ),
                                           ),
@@ -460,11 +460,11 @@ class _ExpressionAnalysisScreenState extends State<ExpressionAnalysisScreen>
                                 _navigateNext();
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFFF8989),
+                                backgroundColor: LunaraColors.primary,
                                 foregroundColor: Colors.white,
                                 elevation: 8,
                                 shadowColor:
-                                    const Color(0xFFFF8989).withOpacity(0.4),
+                                    LunaraColors.primary.withOpacity(0.4),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(30),
                                 ),

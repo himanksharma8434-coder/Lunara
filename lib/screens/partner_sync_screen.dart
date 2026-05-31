@@ -99,7 +99,8 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
           unselectedLabelColor: AppTheme.textLight(context),
           indicatorColor: AppTheme.primary(context),
           indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          labelStyle:
+              const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
           tabs: const [
             Tab(text: 'Share My Data'),
             Tab(text: 'View Partner'),
@@ -205,7 +206,8 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
                   color: Colors.green.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.link_rounded, color: Colors.green, size: 24),
+                child: const Icon(Icons.link_rounded,
+                    color: Colors.green, size: 24),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -233,7 +235,8 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.green.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -254,9 +257,11 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: () => _showRevokeDialog(cp),
-              icon: const Icon(Icons.link_off_rounded, color: Colors.red, size: 18),
+              icon: const Icon(Icons.link_off_rounded,
+                  color: Colors.red, size: 18),
               label: const Text('Disconnect Partner',
-                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                  style: TextStyle(
+                      color: Colors.red, fontWeight: FontWeight.w600)),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Colors.red, width: 1.5),
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -302,9 +307,7 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    cp.activeInviteCode!
-                        .split('')
-                        .join(' '),
+                    cp.activeInviteCode!.split('').join(' '),
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w800,
@@ -487,7 +490,6 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
                   contentPadding: const EdgeInsets.symmetric(vertical: 16),
                 ),
               ),
-
               if (_errorMessage != null) ...[
                 const SizedBox(height: 10),
                 Text(
@@ -498,9 +500,7 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
                       fontWeight: FontWeight.w500),
                 ),
               ],
-
               const SizedBox(height: 16),
-
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -527,7 +527,8 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
                             if (success) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Partner linked successfully! 🎉'),
+                                  content:
+                                      Text('Partner linked successfully! 🎉'),
                                   backgroundColor: Colors.green,
                                 ),
                               );
@@ -590,21 +591,21 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
         phaseColor = const Color(0xFFE57373);
       } else if (cycleDay <= 13) {
         phase = 'Follicular';
-        phaseColor = const Color(0xFF81C784);
+        phaseColor = LunaraColors.fertileGreen;
       } else if (cycleDay <= 16) {
         phase = 'Ovulation';
-        phaseColor = const Color(0xFFFFB74D);
+        phaseColor = LunaraColors.warning;
       } else {
         phase = 'Luteal';
-        phaseColor = const Color(0xFF64B5F6);
+        phaseColor = LunaraColors.ovulationBlue;
       }
     }
 
     // Get latest assessment
     Map<String, dynamic>? latestAssessment;
     if (_partnerAssessments.isNotEmpty) {
-      _partnerAssessments.sort((a, b) =>
-          (b['date'] as String).compareTo(a['date'] as String));
+      _partnerAssessments
+          .sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
       latestAssessment = _partnerAssessments.first;
     }
 
@@ -752,8 +753,8 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
                 ],
                 if (latestAssessment['sleep_hours'] != null) ...[
                   const SizedBox(height: 8),
-                  _buildInfoRow('Sleep',
-                      '${latestAssessment['sleep_hours']}h', Icons.bedtime),
+                  _buildInfoRow('Sleep', '${latestAssessment['sleep_hours']}h',
+                      Icons.bedtime),
                 ],
                 if (latestAssessment['steps'] != null) ...[
                   const SizedBox(height: 8),
@@ -772,11 +773,11 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
           width: double.infinity,
           child: OutlinedButton.icon(
             onPressed: () => _showRevokeDialog(cp),
-            icon: const Icon(Icons.link_off_rounded,
-                color: Colors.red, size: 18),
+            icon:
+                const Icon(Icons.link_off_rounded, color: Colors.red, size: 18),
             label: const Text('Disconnect',
-                style: TextStyle(
-                    color: Colors.red, fontWeight: FontWeight.w600)),
+                style:
+                    TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: Colors.red),
               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -881,8 +882,8 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
               }
             },
             child: const Text('Disconnect',
-                style: TextStyle(
-                    color: Colors.red, fontWeight: FontWeight.w600)),
+                style:
+                    TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
           ),
         ],
       ),

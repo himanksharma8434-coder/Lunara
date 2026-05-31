@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 
+import '../theme/app_theme.dart';
+
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -36,7 +38,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   child: Container(
                     height: 200,
                     width: double.infinity,
-                    color: const Color(0xFFFF8989),
+                    color: LunaraColors.primary,
                   ),
                 ),
                 // Back Button
@@ -95,7 +97,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         borderSide: BorderSide(color: Colors.grey),
                       ),
                       focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Color(0xFFFF8989)),
+                        borderSide: BorderSide(color: LunaraColors.primary),
                       ),
                     ),
                   ),
@@ -108,12 +110,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     child: ElevatedButton(
                       onPressed: _sendResetEmail,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF8989),
+                        backgroundColor: LunaraColors.primary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
                         ),
                         elevation: 5,
-                        shadowColor: const Color(0xFFFF8989),
+                        shadowColor: LunaraColors.primary,
                       ),
                       child: const Text(
                         "Send Reset Link",
@@ -152,7 +154,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => const Center(
-        child: CircularProgressIndicator(color: Color(0xFFFF8989)),
+        child: CircularProgressIndicator(color: LunaraColors.primary),
       ),
     );
 
