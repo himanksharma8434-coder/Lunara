@@ -1,0 +1,12 @@
+{
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "deno.enable": true,
+    "deno.unstable": [],
+    "deno.enablePaths": [
+        "supabase/functions"
+    ],
+    "deno.suggest.imports.hosts": {
+        "https://deno.land": true
+    },
+    "java.dependency.syncWithFolderExplorer": false
+}

@@ -1,20 +1,24 @@
 {
   "project_info": {
-    "project_number": "227886790166",
-    "project_id": "lunara-446ec",
-    "storage_bucket": "lunara-446ec.firebasestorage.app"
+    "project_number": "592495918096",
+    "project_id": "gen-lang-client-0522526333",
+    "storage_bucket": "gen-lang-client-0522526333.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:227886790166:android:960080b81f797ae2942737",
+        "mobilesdk_app_id": "1:592495918096:android:abcd1234abcd1234abcd12",
         "android_client_info": {
-          "package_name": "com.example.lunara"
+          "package_name": "com.example.lunaraai"
         }
       },
       "oauth_client": [
         {
-          "client_id": "227886790166-4gt3a9tr5n3vmphti2iinu9hvotqcrdg.apps.googleusercontent.com",
+          "client_id": "592495918096-6p7r3m1kujb82ckbrvs3kcd323r33q29.apps.googleusercontent.com",
+          "client_type": 3
+        },
+        {
+          "client_id": "592495918096-13ov72hqkckc847lhl89328h5g4gdtkc.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
@@ -27,15 +31,8 @@
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "227886790166-4gt3a9tr5n3vmphti2iinu9hvotqcrdg.apps.googleusercontent.com",
+              "client_id": "592495918096-13ov72hqkckc847lhl89328h5g4gdtkc.apps.googleusercontent.com",
               "client_type": 3
-            },
-            {
-              "client_id": "227886790166-7h3b6o7jg8vdrk1ac7eeaan9n320m7vp.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.example.lunara"
-              }
             }
           ]
         }

@@ -4,15 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:provider/provider.dart';
 import '../providers/cycle_provider.dart';
 import '../config/app_config.dart';
 import '../theme/app_theme.dart';
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../services/ai_rate_limit_service.dart';
-import '../services/groq_service.dart';
-
+ 
 class AIChatScreen extends StatefulWidget {
   final String? initialPrompt;
 
@@ -35,8 +33,17 @@ class _AIChatScreenState extends State<AIChatScreen>
   late AnimationController _fadeController;
   late AnimationController _pulseController;
   late AnimationController _dotsController;
+  late AnimationController _introController;
+  late AnimationController _orbController;
+  late AnimationController _shimmerController;
+  late AnimationController _glowRingController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _pulseAnimation;
+  late Animation<double> _introIconAnim;
+  late Animation<double> _introTitleAnim;
+  late Animation<double> _introTaglineAnim;
+  late Animation<double> _introBadgeAnim;
+  late Animation<double> _introFeaturesAnim;
   final List<String> _suggestedSymptoms = [];
   int _remainingRequests = AIRateLimitService.dailyLimit;
   final String _apiKey = AppConfig.groqApiKey;
@@ -81,6 +88,50 @@ class _AIChatScreenState extends State<AIChatScreen>
       duration: const Duration(milliseconds: 1200),
     )..repeat();
 
+    // ── Intro stagger controller ──
+    _introController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    );
+    _introIconAnim = CurvedAnimation(
+      parent: _introController,
+      curve: const Interval(0.0, 0.30, curve: Curves.elasticOut),
+    );
+    _introTitleAnim = CurvedAnimation(
+      parent: _introController,
+      curve: const Interval(0.15, 0.45, curve: Curves.easeOutCubic),
+    );
+    _introTaglineAnim = CurvedAnimation(
+      parent: _introController,
+      curve: const Interval(0.30, 0.60, curve: Curves.easeOutCubic),
+    );
+    _introBadgeAnim = CurvedAnimation(
+      parent: _introController,
+      curve: const Interval(0.45, 0.72, curve: Curves.easeOutCubic),
+    );
+    _introFeaturesAnim = CurvedAnimation(
+      parent: _introController,
+      curve: const Interval(0.55, 0.85, curve: Curves.easeOutCubic),
+    );
+
+    // ── Floating orbs ──
+    _orbController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat();
+
+    // ── Shimmer effect ──
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2500),
+    )..repeat();
+
+    // ── Glow ring ──
+    _glowRingController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+
     _fadeAnimation =
         CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
     _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
@@ -88,6 +139,7 @@ class _AIChatScreenState extends State<AIChatScreen>
     );
 
     _fadeController.forward();
+    _introController.forward();
     _setupApp();
   }
 
@@ -98,6 +150,10 @@ class _AIChatScreenState extends State<AIChatScreen>
     _fadeController.dispose();
     _pulseController.dispose();
     _dotsController.dispose();
+    _introController.dispose();
+    _orbController.dispose();
+    _shimmerController.dispose();
+    _glowRingController.dispose();
     super.dispose();
   }
 
@@ -698,111 +754,295 @@ class _AIChatScreenState extends State<AIChatScreen>
   }
 
   Widget _buildIntroHeader() {
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 1200),
-      tween: Tween(begin: 0.0, end: 1.0),
-      curve: Curves.easeOutBack,
-      builder: (context, value, child) {
-        return Opacity(
-          opacity: value,
-          child: Transform.scale(
-            scale: 0.8 + 0.2 * value,
-            child: child,
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        _introController,
+        _orbController,
+        _shimmerController,
+        _glowRingController,
+      ]),
+      builder: (context, _) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 25, top: 10),
+          padding: const EdgeInsets.all(24),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // ── Floating orbs background ──
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _FloatingOrbsPainter(
+                    progress: _orbController.value,
+                    color: LunaraColors.primary,
+                    opacity: (_introIconAnim.value * 0.4).clamp(0.0, 0.4),
+                  ),
+                ),
+              ),
+              // ── Main content column ──
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── AI Icon with glow ring ──
+                  _buildAnimatedIcon(),
+                  const SizedBox(height: 22),
+                  // ── Title ──
+                  _buildAnimatedTitle(),
+                  const SizedBox(height: 10),
+                  // ── Tagline with shimmer ──
+                  _buildAnimatedTagline(),
+                  const SizedBox(height: 22),
+                  // ── Security badge ──
+                  _buildAnimatedBadge(),
+                  const SizedBox(height: 16),
+                  // ── Feature pills ──
+                  _buildAnimatedFeatures(),
+                ],
+              ),
+            ],
           ),
         );
       },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 25, top: 10),
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              LunaraColors.primary.withOpacity(0.08),
-              LunaraColors.primaryDark.withOpacity(0.03),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(
-            color: LunaraColors.primary.withOpacity(0.15),
-            width: 1.5,
-          ),
-        ),
-        child: Column(
+    );
+  }
+
+  Widget _buildAnimatedIcon() {
+    final iconVal = _introIconAnim.value.clamp(0.0, 1.0);
+    final glowVal = _glowRingController.value;
+    return Transform.scale(
+      scale: (0.3 + 0.7 * iconVal).clamp(0.0, 1.2),
+      child: Opacity(
+        opacity: iconVal,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            // Glowing Animated Badge
+            // Glow ring 1 (outer)
             Container(
-              padding: const EdgeInsets.all(16),
+              width: 100 + 12 * glowVal,
+              height: 100 + 12 * glowVal,
               decoration: BoxDecoration(
-                color: LunaraColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: LunaraColors.primary.withOpacity(0.15 + 0.1 * glowVal),
+                  width: 2,
+                ),
+              ),
+            ),
+            // Glow ring 2 (middle)
+            Container(
+              width: 82 + 6 * (1 - glowVal),
+              height: 82 + 6 * (1 - glowVal),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: LunaraColors.primaryDark.withOpacity(0.1 + 0.08 * glowVal),
+                  width: 1.5,
+                ),
+              ),
+            ),
+            // Main icon circle
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    LunaraColors.primary,
+                    LunaraColors.primaryDark,
+                  ],
+                ),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: LunaraColors.primary.withOpacity(0.2),
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                  )
+                    color: LunaraColors.primary.withOpacity(0.3 + 0.2 * glowVal),
+                    blurRadius: 25 + 10 * glowVal,
+                    spreadRadius: 2 + 4 * glowVal,
+                  ),
+                  BoxShadow(
+                    color: LunaraColors.primaryDark.withOpacity(0.15),
+                    blurRadius: 40,
+                    offset: const Offset(0, 12),
+                  ),
                 ],
               ),
-              child: ShaderMask(
-                shaderCallback: (bounds) => const LinearGradient(
-                  colors: [LunaraColors.primary, LunaraColors.primaryDark],
-                ).createShader(bounds),
+              child: Transform.rotate(
+                angle: (1 - iconVal) * 0.5,
                 child: const Icon(
                   Icons.auto_awesome_rounded,
-                  size: 40,
+                  size: 36,
                   color: Colors.white,
                 ),
               ),
             ),
-            const SizedBox(height: 18),
-            // Title
-            Text(
-              'Lunara AI',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w900,
-                color: AppTheme.textDark(context),
-                letterSpacing: -0.8,
-              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnimatedTitle() {
+    final titleVal = _introTitleAnim.value.clamp(0.0, 1.0);
+    return Transform.translate(
+      offset: Offset(0, 25 * (1 - titleVal)),
+      child: Opacity(
+        opacity: titleVal,
+        child: Text(
+          'Lunara AI',
+          style: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.w900,
+            color: AppTheme.textDark(context),
+            letterSpacing: -1.0,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnimatedTagline() {
+    final tagVal = _introTaglineAnim.value.clamp(0.0, 1.0);
+    final shimmerVal = _shimmerController.value;
+    return Transform.translate(
+      offset: Offset(0, 20 * (1 - tagVal)),
+      child: Opacity(
+        opacity: tagVal,
+        child: ShaderMask(
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              colors: [
+                AppTheme.secondaryText(context),
+                LunaraColors.primary,
+                AppTheme.secondaryText(context),
+              ],
+              stops: [
+                (shimmerVal - 0.3).clamp(0.0, 1.0),
+                shimmerVal,
+                (shimmerVal + 0.3).clamp(0.0, 1.0),
+              ],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ).createShader(bounds);
+          },
+          blendMode: BlendMode.srcIn,
+          child: const Text(
+            'Knows your body more than ever',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.2,
+              color: Colors.white,
             ),
-            const SizedBox(height: 8),
-            // Tagline
-            Text(
-              'Which knows your body more than ever',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                color: AppTheme.secondaryText(context),
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppTheme.cardColor(context).withOpacity(0.6),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.security_rounded, size: 14, color: Colors.green),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Secure & Private Cycle Insights',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textLight(context),
-                    ),
-                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnimatedBadge() {
+    final badgeVal = _introBadgeAnim.value.clamp(0.0, 1.0);
+    return Transform.translate(
+      offset: Offset(0, 15 * (1 - badgeVal)),
+      child: Transform.scale(
+        scale: 0.8 + 0.2 * badgeVal,
+        child: Opacity(
+          opacity: badgeVal,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  LunaraColors.primary.withOpacity(0.08),
+                  LunaraColors.primaryDark.withOpacity(0.04),
                 ],
               ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: LunaraColors.primary.withOpacity(0.2),
+                width: 1,
+              ),
             ),
-          ],
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.shield_rounded, size: 12, color: Colors.green),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Secure & Private Cycle Insights',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textLight(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnimatedFeatures() {
+    final featVal = _introFeaturesAnim.value.clamp(0.0, 1.0);
+    final features = [
+      {'icon': Icons.insights_rounded, 'text': 'Cycle Analysis'},
+      {'icon': Icons.spa_rounded, 'text': 'Wellness Tips'},
+      {'icon': Icons.restaurant_menu_rounded, 'text': 'Nutrition'},
+    ];
+    return Transform.translate(
+      offset: Offset(0, 20 * (1 - featVal)),
+      child: Opacity(
+        opacity: featVal,
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: features.asMap().entries.map((entry) {
+            final i = entry.key;
+            final f = entry.value;
+            // Stagger each pill slightly
+            final delay = i * 0.12;
+            final itemVal = ((featVal - delay) / (1.0 - delay)).clamp(0.0, 1.0);
+            return Transform.scale(
+              scale: 0.7 + 0.3 * itemVal,
+              child: Opacity(
+                opacity: itemVal,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.cardColor(context).withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: LunaraColors.primary.withOpacity(0.12),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(f['icon'] as IconData, size: 14, color: LunaraColors.primary),
+                      const SizedBox(width: 5),
+                      Text(
+                        f['text'] as String,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.secondaryText(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
         ),
       ),
     );
@@ -863,79 +1103,10 @@ class _AIChatScreenState extends State<AIChatScreen>
     }
 
     if (_messages.isEmpty) {
-      return Center(
-        child: TweenAnimationBuilder<double>(
-          duration: const Duration(milliseconds: 1000),
-          tween: Tween(begin: 0.0, end: 1.0),
-          curve: Curves.easeOutCubic,
-          builder: (context, value, child) {
-            return Opacity(
-              opacity: value,
-              child: Transform.translate(
-                offset: Offset(0, 35 * (1 - value)),
-                child: child,
-              ),
-            );
-          },
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ScaleTransition(
-                scale: _pulseAnimation,
-                child: Container(
-                  padding: const EdgeInsets.all(35),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [LunaraColors.primary, LunaraColors.primaryDark],
-                    ),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: LunaraColors.primary.withOpacity(0.4),
-                        blurRadius: 30,
-                        offset: const Offset(0, 15),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.auto_awesome_rounded,
-                      size: 55, color: Colors.white),
-                ),
-              ),
-              const SizedBox(height: 30),
-              Text(
-                'Lunara AI',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.textDark(context),
-                  letterSpacing: -0.8,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Which knows your body more than ever',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: AppTheme.secondaryText(context),
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.2,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Ask me anything about periods, symptoms,\nnutrition, or wellness tips',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppTheme.textLight(context),
-                  height: 1.5,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
+      return SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: _buildIntroHeader(),
         ),
       );
     }
@@ -943,12 +1114,9 @@ class _AIChatScreenState extends State<AIChatScreen>
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(20),
-      itemCount: _messages.length + 1,
+      itemCount: _messages.length,
       itemBuilder: (context, index) {
-        if (index == 0) {
-          return _buildIntroHeader();
-        }
-        final m = _messages[index - 1];
+        final m = _messages[index];
         bool isAi = m["role"] == "ai";
         bool isAnimating = isAi && m["isComplete"] != true;
 
@@ -1309,4 +1477,57 @@ class _AIChatScreenState extends State<AIChatScreen>
       ),
     );
   }
+}
+
+// ─── Floating Orbs Custom Painter ─────────────────────────────
+class _FloatingOrbsPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+  final double opacity;
+
+  _FloatingOrbsPainter({
+    required this.progress,
+    required this.color,
+    required this.opacity,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (opacity <= 0) return;
+
+    final orbs = <_OrbData>[
+      _OrbData(0.15, 0.2, 14, 0.0, 0.35),
+      _OrbData(0.85, 0.15, 10, 0.3, 0.25),
+      _OrbData(0.1, 0.75, 12, 0.5, 0.3),
+      _OrbData(0.9, 0.8, 16, 0.7, 0.4),
+      _OrbData(0.5, 0.1, 8, 0.15, 0.2),
+      _OrbData(0.45, 0.9, 11, 0.85, 0.28),
+    ];
+
+    for (final orb in orbs) {
+      final angle = (progress + orb.phase) * 2 * math.pi;
+      final dx = orb.baseX * size.width + math.cos(angle) * 18;
+      final dy = orb.baseY * size.height + math.sin(angle * 0.7) * 14;
+
+      final paint = Paint()
+        ..color = color.withOpacity(opacity * orb.alpha)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, orb.radius * 0.8);
+
+      canvas.drawCircle(Offset(dx, dy), orb.radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_FloatingOrbsPainter oldDelegate) =>
+      oldDelegate.progress != progress || oldDelegate.opacity != opacity;
+}
+
+class _OrbData {
+  final double baseX;
+  final double baseY;
+  final double radius;
+  final double phase;
+  final double alpha;
+
+  const _OrbData(this.baseX, this.baseY, this.radius, this.phase, this.alpha);
 }

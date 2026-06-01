@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lunara — PCOS & Irregular Period Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #E8837C;
+    --primary-dark: #C45B55;
+    --primary-light: #FFE4E1;
+    --bg: #FFF9F7;
+    --text-dark: #2D2D2D;
+    --text-light: #8A8A8A;
+    --follicular: #06D6A0;
+    --ovulation: #4ECDC4;
+    --luteal: #9B72CF;
+    --period-red: #E8837C;
+    --warning: #FFB347;
+    --slide-bg: linear-gradient(145deg, #FFF9F7 0%, #FFF0ED 100%);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #0a0a0a;
+    color: var(--text-dark);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  .presentation {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+  }
+
+  .slide {
+    width: 100vw;
+    height: 100vh;
+    position: absolute;
+    top: 0; left: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 60px 80px;
+    opacity: 0;
+    transform: translateX(100px);
+    transition: all 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .slide.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+  }
+
+  .slide.exit {
+    opacity: 0;
+    transform: translateX(-100px);
+  }
+
+  /* ═══════ TITLE SLIDE ═══════ */
+  .slide-title {
+    background: linear-gradient(135deg, #1a0a08 0%, #2d1410 30%, #3d1a15 60%, #1a0a08 100%);
+    color: white;
+    text-align: center;
+  }
+
+  .slide-title::before {
+    content: '';
+    position: absolute;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(232,131,124,0.15) 0%, transparent 70%);
+    top: -100px; right: -100px;
+    border-radius: 50%;
+  }
+
+  .slide-title::after {
+    content: '';
+    position: absolute;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(155,114,207,0.1) 0%, transparent 70%);
+    bottom: -80px; left: -80px;
+    border-radius: 50%;
+  }
+
+  .title-logo {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 8px;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin-bottom: 30px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .title-main {
+    font-size: 64px;
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -2px;
+    margin-bottom: 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .title-main span {
+    background: linear-gradient(135deg, var(--primary) 0%, #FFB4A9 50%, var(--luteal) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .title-subtitle {
+    font-size: 22px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.6);
+    max-width: 700px;
+    line-height: 1.6;
+    position: relative;
+    z-index: 1;
+  }
+
+  .title-badge {
+    margin-top: 40px;
+    display: flex;
+    gap: 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .badge {
+    padding: 10px 24px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-primary {
+    background: rgba(232,131,124,0.2);
+    color: var(--primary);
+    border: 1px solid rgba(232,131,124,0.3);
+  }
+
+  .badge-purple {
+    background: rgba(155,114,207,0.15);
+    color: #B89ADB;
+    border: 1px solid rgba(155,114,207,0.3);
+  }
+
+  /* ═══════ CONTENT SLIDES ═══════ */
+  .slide-content {
+    background: var(--slide-bg);
+    padding: 50px 80px;
+    align-items: flex-start;
+  }
+
+  .slide-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
+    width: 100%;
+  }
+
+  .slide-number {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 800;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  .slide-tag {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+
+  .slide-title-text {
+    font-size: 42px;
+    font-weight: 900;
+    color: var(--text-dark);
+    letter-spacing: -1.5px;
+    line-height: 1.15;
+    margin-bottom: 10px;
+  }
+
+  .slide-desc {
+    font-size: 17px;
+    color: var(--text-light);
+    line-height: 1.6;
+    max-width: 900px;
+    margin-bottom: 40px;
+  }
+
+  /* Grid Layouts */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    width: 100%;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    width: 100%;
+  }
+
+  .grid-4 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 16px;
+    width: 100%;
+  }
+
+  /* Cards */
+  .card {
+    background: white;
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.04);
+    border: 1px solid rgba(0,0,0,0.04);
+    transition: transform 0.3s, box-shadow 0.3s;
+  }
+
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+  }
+
+  .card-icon {
+    width: 52px; height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 16px;
+  }
+
+  .card h3 {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-dark);
+    margin-bottom: 8px;
+    letter-spacing: -0.3px;
+  }
+
+  .card p {
+    font-size: 14px;
+    color: var(--text-light);
+    line-height: 1.6;
+  }
+
+  /* Code Block */
+  .code-block {
+    background: #1e1e2e;
+    border-radius: 16px;
+    padding: 24px 28px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    color: #cdd6f4;
+    overflow-x: auto;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .code-block .keyword { color: #cba6f7; }
+  .code-block .string { color: #a6e3a1; }
+  .code-block .comment { color: #6c7086; font-style: italic; }
+  .code-block .number { color: #fab387; }
+  .code-block .type { color: #89b4fa; }
+  .code-block .method { color: #f9e2af; }
+
+  /* Flow Diagram */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .flow-step {
+    background: white;
+    border-radius: 16px;
+    padding: 20px 24px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-dark);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    text-align: center;
+    min-width: 140px;
+    border: 1px solid rgba(0,0,0,0.04);
+  }
+
+  .flow-arrow {
+    font-size: 22px;
+    color: var(--primary);
+    font-weight: 800;
+  }
+
+  /* Table */
+  .data-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.04);
+  }
+
+  .data-table th {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    padding: 16px 24px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    text-align: left;
+  }
+
+  .data-table td {
+    background: white;
+    padding: 14px 24px;
+    font-size: 14px;
+    color: var(--text-dark);
+    border-bottom: 1px solid #f5f5f5;
+  }
+
+  .data-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* Phase Colors */
+  .phase-menstrual { background: rgba(232,131,124,0.12); color: var(--period-red); }
+  .phase-follicular { background: rgba(6,214,160,0.12); color: var(--follicular); }
+  .phase-ovulation { background: rgba(78,205,196,0.12); color: var(--ovulation); }
+  .phase-luteal { background: rgba(155,114,207,0.12); color: var(--luteal); }
+
+  /* Stat */
+  .stat-value {
+    font-size: 36px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-light);
+    margin-top: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Progress Bar */
+  .progress-bar {
+    height: 10px;
+    background: #f0f0f0;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-top: 10px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 1s ease;
+  }
+
+  /* Navigation */
+  .nav-bar {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(45,45,45,0.95);
+    backdrop-filter: blur(20px);
+    padding: 12px 28px;
+    border-radius: 50px;
+    z-index: 1000;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+  }
+
+  .nav-btn {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    border: none;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .nav-btn:hover {
+    background: var(--primary);
+    transform: scale(1.1);
+  }
+
+  .nav-counter {
+    color: rgba(255,255,255,0.7);
+    font-size: 14px;
+    font-weight: 600;
+    min-width: 60px;
+    text-align: center;
+  }
+
+  .nav-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .nav-dot {
+    width: 8px; height: 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.2);
+    transition: all 0.3s;
+    cursor: pointer;
+  }
+
+  .nav-dot.active {
+    width: 24px;
+    background: var(--primary);
+  }
+
+  /* Highlight */
+  .highlight {
+    color: var(--primary);
+    font-weight: 700;
+  }
+
+  .highlight-purple {
+    color: var(--luteal);
+    font-weight: 700;
+  }
+
+  /* ═══════ DARK SLIDE ═══════ */
+  .slide-dark {
+    background: linear-gradient(135deg, #1a0a08 0%, #2d1410 50%, #1a0a08 100%);
+    color: white;
+  }
+
+  .slide-dark .slide-title-text { color: white; }
+  .slide-dark .slide-desc { color: rgba(255,255,255,0.6); }
+  .slide-dark .card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .slide-dark .card h3 { color: white; }
+  .slide-dark .card p { color: rgba(255,255,255,0.6); }
+  .slide-dark .slide-tag { color: #FFB4A9; }
+
+  /* Architecture Diagram */
+  .arch-layer {
+    width: 100%;
+    padding: 18px 28px;
+    border-radius: 14px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-weight: 700;
+    font-size: 15px;
+    transition: transform 0.3s;
+  }
+
+  .arch-layer:hover {
+    transform: scale(1.02);
+  }
+
+  .arch-layer .icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .arch-detail {
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.7;
+    margin-top: 2px;
+  }
+
+  /* Comparison Highlight */
+  .compare-vs {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    width: 100%;
+  }
+
+  .compare-box {
+    flex: 1;
+    padding: 28px;
+    border-radius: 20px;
+    text-align: center;
+  }
+
+  .compare-vs-text {
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--text-light);
+  }
+
+  /* Animated underline */
+  .underline-gradient {
+    position: relative;
+    display: inline-block;
+  }
+
+  .underline-gradient::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary), var(--luteal));
+    border-radius: 2px;
+  }
+
+  /* List with icons */
+  .icon-list {
+    list-style: none;
+    padding: 0;
+  }
+
+  .icon-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 10px 0;
+    font-size: 15px;
+    color: var(--text-dark);
+    line-height: 1.5;
+  }
+
+  .icon-list li .li-icon {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  @media (max-width: 1200px) {
+    .slide { padding: 40px 50px; }
+    .title-main { font-size: 48px; }
+    .slide-title-text { font-size: 34px; }
+    .grid-4 { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="presentation" id="presentation">
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SLIDE 1: TITLE -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="slide slide-title active" id="slide-0">
+    <div class="title-logo">🌙 LUNARA</div>
+    <h1 class="title-main">
+      <span>PCOS & Irregular Period</span><br>
+      Intelligence System
+    </h1>
+    <p class="title-subtitle">
+      How Lunara's adaptive prediction engine handles highly variable cycles — 
+      from mild irregularity to PCOS-pattern anovulatory gaps.
+    </p>
+    <div class="title-badge">
+      <span class="badge badge-primary">Privacy-First • On-Device</span>
+      <span class="badge badge-purple">Adaptive ML • No Outlier Filtering</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SLIDE 2: THE PROBLEM -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="slide slide-content" id="slide-1">
+    <div class="slide-header">
+      <div class="slide-number">01</div>
+      <span class="slide-tag">Problem Statement</span>
+    </div>
+    <h2 class="slide-title-text">Why Traditional Trackers Fail<br>for Irregular Cycles</h2>
+    <p class="slide-desc">Most period trackers assume a fixed 28-day cycle. For the <span class="highlight">26% of women with PCOS</span> or irregular periods, this leads to wildly inaccurate predictions.</p>
+    
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-icon" style="background: rgba(232,131,124,0.12);">❌</div>
+        <h3>Fixed Cycle Length</h3>
+        <p>Traditional apps use a single average. A 28-day average is meaningless for someone with cycles ranging 22–65 days.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background: rgba(155,114,207,0.12);">❌</div>
+        <h3>Outlier Filtering</h3>
+        <p>Most apps discard "abnormal" long cycles (>45d). But for PCOS users, these ARE the pattern and must be respected.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background: rgba(6,214,160,0.12);">❌</div>
+        <h3>Single-Point Predictions</h3>
+        <p>Showing one predicted date with high irregularity creates false precision. Users need a confidence window.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SLIDE 3: LUNARA'S APPROACH -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="slide slide-dark" id="slide-2">
+    <div class="slide-header">
+      <div class="slide-number">02</div>
+      <span class="slide-tag">Our Approach</span>
+    </div>
+    <h2 class="slide-title-text">Lunara's Design Philosophy</h2>
+    <p class="slide-desc">Every design decision in our intelligence engine respects PCOS and irregular patterns as valid data — not noise to filter out.</p>
+    
+    <div class="grid-2" style="margin-top: 10px;">
+      <div>
+        <ul class="icon-list">
+          <li>
+            <span class="li-icon" style="background: rgba(232,131,124,0.2); color: var(--primary);">①</span>
+            <div><strong>No Outlier Filtering</strong> — Long cycles (>45d) are <em>weighted down</em>, never discarded. This preserves PCOS/anovulatory patterns in the data.</div>
+          </li>
+          <li>
+            <span class="li-icon" style="background: rgba(155,114,207,0.2); color: var(--luteal);">②</span>
+            <div><strong>Recency Weighting</strong> — Recent cycles influence predictions exponentially more than older cycles via a decay factor (λ = 0.80).</div>
+          </li>
+          <li>
+            <span class="li-icon" style="background: rgba(6,214,160,0.2); color: var(--follicular);">③</span>
+            <div><strong>Symptom Correlation</strong> — Pre-menstrual marker symptoms can shift the predicted date by ±3 days in real-time.</div>
+          </li>
+          <li>
+            <span class="li-icon" style="background: rgba(78,205,196,0.2); color: var(--ovulation);">④</span>
+            <div><strong>Adaptive Luteal Phase</strong> — Instead of assuming 14 days, the engine learns the actual luteal length from ovulation-proximal symptoms.</div>
+          </li>
+        </ul>
+      </div>
+      <div>
+        <div class="code-block">
+          <span class="comment">/// Design principles of MenstrualIntelligenceService:</span><br>
+          <span class="comment">///</span><br>
+          <span class="comment">/// - <span class="string">No outlier filtering</span>: Long cycles (&gt;45d)</span><br>
+          <span class="comment">///   are weighted down, not discarded.</span><br>
+          <span class="comment">///   This <span class="string">respects PCOS / anovulatory</span> patterns.</span><br>
+          <span class="comment">///</span><br>
+          <span class="comment">/// - <span class="string">Recency weighting</span>: Recent cycles</span><br>
+          <span class="comment">///   influence predictions more via exponential decay.</span><br>
+          <span class="comment">///</span><br>
+          <span class="comment">/// - <span class="string">Symptom correlation</span>: Pre-menstrual</span><br>
+          <span class="comment">///   markers can shift predicted date by ±3 days.</span><br>
+          <span class="comment">///</span><br>
+          <span class="comment">/// - <span class="string">Adaptive luteal phase</span>: Learns actual</span><br>
+          <span class="comment">///   luteal length from symptom data.</span><br><br>
+          <span class="keyword">class</span> <span class="type">MenstrualIntelligenceService</span> {<br>
+          &nbsp;&nbsp;<span class="keyword">static const double</span> <span class="method">_decayFactor</span> = <span class="number">0.80</span>;<br>
+          &nbsp;&nbsp;<span class="keyword">static const int</span> <span class="method">_maxSymptomAdjustment</span> = <span class="number">3</span>;<br>
+          &nbsp;&nbsp;<span class="keyword">static const int</span> <span class="method">_defaultLutealLength</span> = <span class="number">14</span>;<br>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SLIDE 4: CYCLE CLASSIFICATION -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="slide slide-content" id="slide-3">
+    <div class="slide-header">
+      <div class="slide-number">03</div>
+      <span class="slide-tag">Classification Engine</span>
+    </div>
+    <h2 class="slide-title-text">4-Tier Cycle Classification</h2>
+    <p class="slide-desc">Standard deviation (σ) of cycle gaps drives the classification, which in turn controls prediction behavior, UI messaging, and window sizing.</p>
+    
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Classification</th>
+          <th>Std Dev (σ)</th>
+          <th>Confidence</th>
+          <th>Window Size</th>
+          <th>Behavior</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong style="color: var(--follicular);">✓ Regular</strong></td>
+          <td>σ ≤ 2 days</td>
+          <td>
+            <span style="color: var(--follicular); font-weight: 700;">95%</span>
+            <div class="progress-bar"><div class="progress-fill" style="width: 95%; background: var(--follicular);"></div></div>
+          </td>
+          <td>±1 day</td>
+          <td>Single predicted date, high confidence label</td>
+        </tr>
+        <tr>
+          <td><strong style="color: var(--ovulation);">~ Mildly Irregular</strong></td>
+          <td>σ 2–4 days</td>
+          <td>
+            <span style="color: var(--ovulation); font-weight: 700;">75%</span>
+            <div class="progress-bar"><div class="progress-fill" style="width: 75%; background: var(--ovulation);"></div></div>
+          </td>
+          <td>±2–3 days</td>
+          <td>Single date + narrow variable window</td>
+        </tr>
+        <tr>
+          <td><strong style="color: var(--warning);">⚠ Irregular</strong></td>
+          <td>σ 4–7 days</td>
+          <td>
+            <span style="color: var(--warning); font-weight: 700;">50%</span>
+            <div class="progress-bar"><div class="progress-fill" style="width: 50%; background: var(--warning);"></div></div>
+          </td>
+          <td>±3–5 days</td>
+          <td>Window mode: "Track symptoms closely"</td>
+        </tr>
+        <tr>
+          <td><strong style="color: var(--period-red);">⛔ Highly Irregular</strong></td>
+          <td>σ > 7 days</td>
+          <td>
+            <span style="color: var(--period-red); font-weight: 700;">30%</span>
+            <div class="progress-bar"><div class="progress-fill" style="width: 30%; background: var(--period-red);"></div></div>
+          </td>
+          <td>±5–7 days</td>
+          <td>PCOS territory — prediction shown as range, doctor alert</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="margin-top: 20px; padding: 16px 24px; background: rgba(232,131,124,0.08); border-radius: 14px; border-left: 4px solid var(--primary); width: 100%;">
+      <p style="font-size: 14px; color: var(--text-dark);"><strong>💡 Key Insight:</strong> When σ > 7 (PCOS zone), the UI automatically switches to window-mode predictions and shows: <em>"Your cycles are highly irregular — predictions are shown as a window. Consider discussing with your doctor."</em></p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SLIDE 5: GAP CLASSIFICATION -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="slide slide-content" id="slide-4">
+    <div class="slide-header">
+      <div class="slide-number">04</div>
+      <span class="slide-tag">Gap Analysis</span>
+    </div>
+    <h2 class="slide-title-text">Individual Cycle Gap Classification</h2>
+    <p class="slide-desc">Each gap between period start dates is classified independently, then assigned a weight that influences the overall prediction. Long gaps aren't errors — they're data points with reduced influence.</p>
+    
+    <div class="grid-4">
+      <div class="card" style="border-top: 4px solid var(--follicular);">
+        <div style="font-size: 28px; margin-bottom: 10px;">🟢</div>
+        <h3 style="color: var(--follicular);">Normal</h3>
+        <div class="stat-value" style="color: var(--follicular);">18–35d</div>
+        <div class="stat-label">Cycle Length</div>
+        <p style="margin-top: 10px;">Standard menstrual cycle.<br><strong>Weight: 1.0×</strong></p>
+      </div>
+      <div class="card" style="border-top: 4px solid var(--ovulation);">
+        <div style="font-size: 28px; margin-bottom: 10px;">🔵</div>
+        <h3 style="color: var(--ovulation);">Extended</h3>
+        <div class="stat-value" style="color: var(--ovulation);">35–45d</div>
+        <div class="stat-label">Cycle Length</div>
+        <p style="margin-top: 10px;">Longer but still ovulatory.<br><strong>Weight: 1.0×</strong></p>
+      </div>
+      <div class="card" style="border-top: 4px solid var(--warning);">
+        <div style="font-size: 28px; margin-bottom: 10px;">🟠</div>
+        <h3 style="color: var(--warning);">Extended Luteal</h3>
+        <div class="stat-value" style="color: var(--warning);">45–90d</div>
+        <div class="stat-label">Cycle Length</div>
+        <p style="margin-top: 10px;">Possible delayed ovulation.<br><strong>Weight: 0.5×</strong></p>
+      </div>
+      <div class="card" style="border-top: 4px solid var(--period-red);">
+        <div style="font-size: 28px; margin-bottom: 10px;">🔴</div>
+        <h3 style="color: var(--period-red);">Anovulatory</h3>
+        <div class="stat-value" style="color: var(--period-red);">90+d</div>
+        <div class="stat-label">Cycle Length</div>
+        <p style="margin-top: 10px;">Likely anovulatory gap.<br><strong>Weight: 0.25×</strong></p>
+      </div>
+    </div>
+
+    <div style="margin-top: 24px; width: 100%;">
+      <div class="code-block" style="font-size: 13px;">
+        <span class="type">CycleGapType</span> <span class="method">_classifyGap</span>(<span class="keyword">int</span> days) {<br>
+        &nbsp;&nbsp;<span class="keyword">if</span> (days <= <span class="number">35</span>) <span class="keyword">return</span> CycleGapType.<span class="method">normal</span>;<br>
+        &nbsp;&nbsp;<span class="keyword">if</span> (days <= <span class="number">45</span>) <span class="keyword">return</span> CycleGapType.<span class="method">extended</span>;<br>
+        &nbsp;&nbsp;<span class="keyword">if</span> (days <= <span class="number">90</span>) <span class="keyword">return</span> CycleGapType.<span class="method">extendedLutealTransition</span>;&nbsp;&nbsp;<span class="comment">// PCOS common</span><br>
+        &nbsp;&nbsp;<span class="keyword">return</span> CycleGapType.<span class="method">anovulatoryGap</span>;&nbsp;&nbsp;<span class="comment">// Likely no ovulation occurred</span><br>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SLIDE 6: WEIGHTED ALGORITHM -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="slide slide-dark" id="slide-5">
+    <div class="slide-header">
+      <div class="slide-number">05</div>
+      <span class="slide-tag">Core Algorithm</span>
+    </div>
+    <h2 class="slide-title-text">Exponential Decay Weighted Average</h2>
+    <p class="slide-desc">The heart of Lunara's prediction engine. Each cycle gap gets two weights: <span style="color: #FFB4A9;">recency decay</span> and <span style="color: #B89ADB;">gap-type penalty</span>, multiplied together.</p>
+    
+    <div class="grid-2">
+      <div>
+        <div class="card" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); margin-bottom: 16px;">
+          <h3 style="color: white;">📐 Formula</h3>
+          <p style="color: rgba(255,255,255,0.7); font-size: 15px; line-height: 2;">
+            For each cycle gap <em>i</em> (most recent first):<br>
+            <strong style="color: #FFB4A9;">recency_weight</strong> = 0.80 <sup>(n − 1 − i)</sup><br>
+            <strong style="color: #B89ADB;">type_weight</strong> = { 1.0, 1.0, 0.5, 0.25 }<br>
+            <strong style="color: white;">combined</strong> = recency × type<br><br>
+            <strong style="color: #a6e3a1;">effective_length</strong> = Σ(gap × combined) / Σ(combined)
+          </p>
+        </div>
+        
+        <div class="card" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);">
+          <h3 style="color: white;">🎯 Example: PCOS Scenario</h3>
+          <p style="color: rgba(255,255,255,0.7); font-size: 14px; line-height: 1.8;">
+            Cycle history: <strong>32, 28, 72, 35, 30</strong> days<br><br>
+            The 72-day gap gets classified as <em>ExtendedLutealTransition</em> (0.5× weight) AND decayed by recency — so it barely pulls the average up, while the recent 35 and 30-day cycles dominate.
+          </p>
+        </div>
+      </div>
+      <div>
+        <div class="code-block">
+          <span class="keyword">double</span> <span class="method">_computeWeightedLength</span>(<br>
+          &nbsp;&nbsp;<span class="type">List&lt;int&gt;</span> gaps, <span class="type">List&lt;CycleGapType&gt;</span> types<br>
+          ) {<br>
+          &nbsp;&nbsp;<span class="keyword">double</span> totalWeight = <span class="number">0</span>;<br>
+          &nbsp;&nbsp;<span class="keyword">double</span> weightedSum = <span class="number">0</span>;<br><br>
+          &nbsp;&nbsp;<span class="keyword">for</span> (<span class="keyword">int</span> i = gaps.length - <span class="number">1</span>; i >= <span class="number">0</span>; i--) {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// Recency: most recent = 1.0, decays</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">final</span> recencyWeight = <br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pow(<span class="number">0.80</span>, (gaps.length - <span class="number">1</span> - i));<br><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// Gap type penalty for long cycles</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">final</span> typeWeight = <span class="method">_gapTypeWeight</span>(types[i]);<br><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">final</span> combined = recencyWeight * typeWeight;<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;weightedSum += gaps[i] * combined;<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;totalWeight += combined;<br>
+          &nbsp;&nbsp;}<br><br>
+          &nbsp;&nbsp;<span class="keyword">return</span> weightedSum / totalWeight;<br>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SLIDE 7: SYMPTOM INTELLIGENCE -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="slide slide-content" id="slide-6">
+    <div class="slide-header">
+      <div class="slide-number">06</div>
+      <span class="slide-tag">Symptom Intelligence</span>
+    </div>
+    <h2 class="slide-title-text">Real-Time Symptom Adjustment</h2>
+    <p class="slide-desc">For PCOS users, symptoms are the most reliable signal. Lunara monitors pre-menstrual markers to shift predictions by up to ±3 days in real-time.</p>
+
+    <div class="grid-2">
+      <div>
+        <div class="card" style="margin-bottom: 16px;">
+          <h3>🔍 Pre-Menstrual Markers Tracked</h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;">
+            <span style="padding: 8px 16px; background: rgba(232,131,124,0.1); border-radius: 20px; font-size: 13px; font-weight: 600; color: var(--primary);">Cramps</span>
+            <span style="padding: 8px 16px; background: rgba(232,131,124,0.1); border-radius: 20px; font-size: 13px; font-weight: 600; color: var(--primary);">Bloating</span>
+            <span style="padding: 8px 16px; background: rgba(232,131,124,0.1); border-radius: 20px; font-size: 13px; font-weight: 600; color: var(--primary);">Breast Tenderness</span>
+            <span style="padding: 8px 16px; background: rgba(232,131,124,0.1); border-radius: 20px; font-size: 13px; font-weight: 600; color: var(--primary);">Back Pain</span>
+            <span style="padding: 8px 16px; background: rgba(232,131,124,0.1); border-radius: 20px; font-size: 13px; font-weight: 600; color: var(--primary);">Mood Swings</span>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom: 16px;">
+          <h3>🥚 Ovulation Markers (Luteal Learning)</h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;">
+            <span style="padding: 8px 16px; background: rgba(155,114,207,0.1); border-radius: 20px; font-size: 13px; font-weight: 600; color: var(--luteal);">Nausea</span>
+            <span style="padding: 8px 16px; background: rgba(155,114,207,0.1); border-radius: 20px; font-size: 13px; font-weight: 600; color: var(--luteal);">Breast Tenderness</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>🌡️ FAM Biomarkers (BBT + CM)</h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;">
+            <span style="padding: 8px 16px; background: rgba(78,205,196,0.1); border-radius: 20px; font-size: 13px; font-weight: 600; color: var(--ovulation);">BBT Thermal Shift ≥ 0.2°C</span>
+            <span style="padding: 8px 16px; background: rgba(78,205,196,0.1); border-radius: 20px; font-size: 13px; font-weight: 600; color: var(--ovulation);">Cervical Mucus Peak</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" style="border: 2px solid rgba(232,131,124,0.2);">
+          <h3>📊 Adjustment Decision Logic</h3>
+          <div style="margin-top: 16px;">
+            <div style="padding: 14px; background: rgba(6,214,160,0.08); border-radius: 12px; margin-bottom: 10px;">
+              <strong style="color: var(--follicular);">Early Markers ≥ 2</strong>
+              <p style="font-size: 13px; margin-top: 4px;">Symptoms appeared early → <strong>Pull prediction closer</strong> (up to −3 days)</p>
+            </div>
+            <div style="padding: 14px; background: rgba(255,179,71,0.08); border-radius: 12px; margin-bottom: 10px;">
+              <strong style="color: var(--warning);">Late Absence ≥ 4</strong>
+              <p style="font-size: 13px; margin-top: 4px;">No markers in expected PMS window → <strong>Push prediction further</strong> (up to +3 days)</p>
+            </div>
+            <div style="padding: 14px; background: rgba(78,205,196,0.08); border-radius: 12px;">
+              <strong style="color: var(--ovulation);">BBT + CM Agreement</strong>
+              <p style="font-size: 13px; margin-top: 4px;">Both signals within 2 days → <strong>Confirmed ovulation</strong> (+15% confidence boost)</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SLIDE 8: PREDICTION PIPELINE -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="slide slide-content" id="slide-7">
+    <div class="slide-header">
+      <div class="slide-number">07</div>
+      <span class="slide-tag">Pipeline</span>
+    </div>
+    <h2 class="slide-title-text">End-to-End Prediction Pipeline</h2>
+    <p class="slide-desc">Every time the user logs a period or symptom, this pipeline re-runs locally in milliseconds — no network calls required.</p>
+
+    <div class="flow" style="margin-bottom: 30px;">
+      <div class="flow-step" style="background: rgba(232,131,124,0.1); border: 2px solid var(--primary);">
+        📅 Cycle History<br><small style="color: var(--text-light);">Sorted dates</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        📏 Compute Gaps<br><small style="color: var(--text-light);">Day differences</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="background: rgba(155,114,207,0.1); border: 2px solid var(--luteal);">
+        🏷️ Classify Gaps<br><small style="color: var(--text-light);">4-tier system</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        ⚖️ Weighted Avg<br><small style="color: var(--text-light);">Decay × Type</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="background: rgba(6,214,160,0.1); border: 2px solid var(--follicular);">
+        📊 σ & Confidence<br><small style="color: var(--text-light);">Classification</small>
+      </div>
+    </div>
+
+    <div class="flow" style="margin-bottom: 30px;">
+      <div class="flow-step" style="background: rgba(78,205,196,0.1); border: 2px solid var(--ovulation);">
+        🌡️ BBT + CM Scan<br><small style="color: var(--text-light);">FAM analysis</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        🧠 Adaptive Luteal<br><small style="color: var(--text-light);">10–17 day range</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="background: rgba(255,179,71,0.1); border: 2px solid var(--warning);">
+        💊 Symptom Adjust<br><small style="color: var(--text-light);">±3 day shift</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="background: var(--primary); color: white; border: none;">
+        🎯 PredictionResult<br><small style="color: rgba(255,255,255,0.7);">Final output</small>
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <div class="card" style="text-align: center;">
+        <div class="stat-value" style="color: var(--primary);">0ms</div>
+        <div class="stat-label">Network Latency</div>
+        <p style="margin-top: 6px;">100% on-device computation</p>
+      </div>
+      <div class="card" style="text-align: center;">
+        <div class="stat-value" style="color: var(--luteal);">12</div>
+        <div class="stat-label">Max Cycles Stored</div>
+        <p style="margin-top: 6px;">Rolling window, newest prioritized</p>
+      </div>
+      <div class="card" style="text-align: center;">
+        <div class="stat-value" style="color: var(--follicular);">15</div>
+        <div class="stat-label">Output Fields</div>
+        <p style="margin-top: 6px;">Dates, scores, phases, narratives</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SLIDE 9: ADAPTIVE VARIABLE WINDOW -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="slide slide-dark" id="slide-8">
+    <div class="slide-header">
+      <div class="slide-number">08</div>
+      <span class="slide-tag">Variable Window</span>
+    </div>
+    <h2 class="slide-title-text">Adaptive Prediction Windows</h2>
+    <p class="slide-desc">Instead of a single date, Lunara dynamically grows the prediction window based on the user's actual cycle variability. This is critical for PCOS support.</p>
+    
+    <div class="grid-2">
+      <div>
+        <div class="card" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); margin-bottom: 16px;">
+          <h3 style="color: white;">📐 Window Margin Formula</h3>
+          <p style="color: rgba(255,255,255,0.7); font-size: 16px; margin-top: 12px;">
+            margin = <strong style="color: #FFB4A9;">round(σ × 0.8)</strong>.clamp(<span class="number" style="color: #a6e3a1;">1</span>, <span class="number" style="color: #fab387;">7</span>)
+          </p>
+          <p style="color: rgba(255,255,255,0.5); font-size: 14px; margin-top: 8px;">
+            Window = [prediction − margin, prediction + margin]
+          </p>
+        </div>
+
+        <div class="card" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);">
+          <h3 style="color: white;">🔔 isVariableWindow</h3>
+          <p style="color: rgba(255,255,255,0.7); font-size: 14px; margin-top: 8px; line-height: 1.8;">
+            When <code style="color: #FFB4A9;">confidenceScore < 0.6</code>, the UI automatically switches from showing a single date to showing a <strong style="color: white;">date range</strong>:<br><br>
+            <em style="color: rgba(255,255,255,0.5);">"Expected between Apr 20 – Apr 26"</em><br>
+            instead of<br>
+            <em style="color: rgba(255,255,255,0.5);">"Expected on Apr 23"</em>
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <div class="compare-vs" style="flex-direction: column; gap: 16px;">
+          <div class="compare-box" style="background: rgba(6,214,160,0.1); border: 2px solid rgba(6,214,160,0.3); width: 100%;">
+            <div style="font-size: 14px; font-weight: 700; color: var(--follicular); margin-bottom: 8px;">REGULAR CYCLE (σ = 1.5)</div>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <div style="width: 60px; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px;"></div>
+              <div style="width: 16px; height: 16px; background: var(--follicular); border-radius: 50%;"></div>
+              <div style="width: 60px; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px;"></div>
+            </div>
+            <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 6px;">±1 day window</div>
+          </div>
+          
+          <div class="compare-box" style="background: rgba(255,179,71,0.1); border: 2px solid rgba(255,179,71,0.3); width: 100%;">
+            <div style="font-size: 14px; font-weight: 700; color: var(--warning); margin-bottom: 8px;">IRREGULAR (σ = 5.5)</div>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <div style="width: 120px; height: 8px; background: rgba(255,179,71,0.3); border-radius: 4px;"></div>
+              <div style="width: 16px; height: 16px; background: var(--warning); border-radius: 50%;"></div>
+              <div style="width: 120px; height: 8px; background: rgba(255,179,71,0.3); border-radius: 4px;"></div>
+            </div>
+            <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 6px;">±4 day window</div>
+          </div>
+
+          <div class="compare-box" style="background: rgba(232,131,124,0.1); border: 2px solid rgba(232,131,124,0.3); width: 100%;">
+            <div style="font-size: 14px; font-weight: 700; color: var(--period-red); margin-bottom: 8px;">PCOS / HIGHLY IRREGULAR (σ = 12)</div>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <div style="width: 200px; height: 8px; background: rgba(232,131,124,0.3); border-radius: 4px;"></div>
+              <div style="width: 16px; height: 16px; background: var(--period-red); border-radius: 50%;"></div>
+              <div style="width: 200px; height: 8px; background: rgba(232,131,124,0.3); border-radius: 4px;"></div>
+            </div>
+            <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 6px;">±7 day window (maximum)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SLIDE 10: ONBOARDING & USER FLOW -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="slide slide-content" id="slide-9">
+    <div class="slide-header">
+      <div class="slide-number">09</div>
+      <span class="slide-tag">User Experience</span>
+    </div>
+    <h2 class="slide-title-text">Onboarding & User Journey</h2>
+    <p class="slide-desc">Lunara asks about cycle regularity during onboarding and continuously learns from real data — improving predictions with every logged cycle.</p>
+
+    <div class="grid-2">
+      <div>
+        <div class="card" style="margin-bottom: 16px; border: 2px solid rgba(232,131,124,0.15);">
+          <h3>📋 Onboarding Flow</h3>
+          <div style="margin-top: 16px;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f5f5f5;">
+              <span style="width: 28px; height: 28px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 800;">1</span>
+              <span style="font-size: 14px;"><strong>Body Metrics</strong> — Age, height, weight</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f5f5f5;">
+              <span style="width: 28px; height: 28px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 800;">2</span>
+              <span style="font-size: 14px;"><strong>Last Period Date</strong> — Anchor point</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f5f5f5;">
+              <span style="width: 28px; height: 28px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 800;">3</span>
+              <span style="font-size: 14px;"><strong>Cycle Length</strong> — User's best estimate</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f5f5f5;">
+              <span style="width: 28px; height: 28px; background: var(--warning); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 800;">4</span>
+              <span style="font-size: 14px;"><strong>"Regular or Irregular?"</strong> — Sets <code>isIrregular</code> flag</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0;">
+              <span style="width: 28px; height: 28px; background: var(--follicular); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 800;">5</span>
+              <span style="font-size: 14px;"><strong>Symptoms & Feelings</strong> — Initial data seeding</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" style="margin-bottom: 16px;">
+          <h3>🔄 Continuous Learning Loop</h3>
+          <p style="margin-top: 8px;">After onboarding, every interaction improves predictions:</p>
+          <div style="margin-top: 16px;">
+            <div style="padding: 12px 16px; background: rgba(232,131,124,0.06); border-radius: 10px; margin-bottom: 8px; font-size: 13px;">
+              <strong>Period Start Logged</strong> → Adds to cycle history → Recalculates weighted average → Updates classification
+            </div>
+            <div style="padding: 12px 16px; background: rgba(155,114,207,0.06); border-radius: 10px; margin-bottom: 8px; font-size: 13px;">
+              <strong>Symptoms Logged</strong> → Checks for PMS markers → May shift prediction ±3 days → Updates adjustment narrative
+            </div>
+            <div style="padding: 12px 16px; background: rgba(78,205,196,0.06); border-radius: 10px; margin-bottom: 8px; font-size: 13px;">
+              <strong>BBT/CM Logged</strong> → Thermal shift detection → Ovulation confirmation → Confidence boost up to +15%
+            </div>
+            <div style="padding: 12px 16px; background: rgba(6,214,160,0.06); border-radius: 10px; font-size: 13px;">
+              <strong>Period Confirmed</strong> → Prompt near predicted date → One-tap confirmation closes the loop
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SLIDE 11: ARCHITECTURE -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="slide slide-content" id="slide-10">
+    <div class="slide-header">
+      <div class="slide-number">10</div>
+      <span class="slide-tag">Architecture</span>
+    </div>
+    <h2 class="slide-title-text">System Architecture</h2>
+    <p class="slide-desc">A layered, privacy-first architecture ensures all PCOS/irregular period intelligence runs locally while optional cloud sync keeps data backed up.</p>
+
+    <div class="grid-2">
+      <div>
+        <div class="arch-layer" style="background: rgba(232,131,124,0.1); border: 1px solid rgba(232,131,124,0.2);">
+          <div class="icon" style="background: var(--primary); color: white;">🖥️</div>
+          <div>
+            <div style="color: var(--primary);">Presentation Layer</div>
+            <div class="arch-detail">InsightsScreen, CalendarScreen, HomeTab</div>
+          </div>
+        </div>
+        <div style="text-align: center; font-size: 14px; color: var(--text-light); padding: 4px;">↕ Provider pattern — reactive UI updates</div>
+        
+        <div class="arch-layer" style="background: rgba(155,114,207,0.1); border: 1px solid rgba(155,114,207,0.2);">
+          <div class="icon" style="background: var(--luteal); color: white;">⚙️</div>
+          <div>
+            <div style="color: var(--luteal);">State Management</div>
+            <div class="arch-detail">CycleProvider — 1560 lines of cycle intelligence</div>
+          </div>
+        </div>
+        <div style="text-align: center; font-size: 14px; color: var(--text-light); padding: 4px;">↕ Calls intelligence service on every data change</div>
+
+        <div class="arch-layer" style="background: rgba(78,205,196,0.1); border: 1px solid rgba(78,205,196,0.2);">
+          <div class="icon" style="background: var(--ovulation); color: white;">🧠</div>
+          <div>
+            <div style="color: var(--ovulation);">Intelligence Engine</div>
+            <div class="arch-detail">MenstrualIntelligenceService — pure, stateless, 676 lines</div>
+          </div>
+        </div>
+        <div style="text-align: center; font-size: 14px; color: var(--text-light); padding: 4px;">↕ Returns immutable PredictionResult</div>
+
+        <div class="arch-layer" style="background: rgba(6,214,160,0.1); border: 1px solid rgba(6,214,160,0.2);">
+          <div class="icon" style="background: var(--follicular); color: white;">💾</div>
+          <div>
+            <div style="color: var(--follicular);">Data Layer</div>
+            <div class="arch-detail">Hive (encrypted) + SharedPreferences + Supabase (optional sync)</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" style="margin-bottom: 16px;">
+          <h3>📦 PredictionResult Model</h3>
+          <p style="margin-top: 8px;">The immutable output object containing 15 fields:</p>
+          <div class="code-block" style="margin-top: 12px; font-size: 12px;">
+            <span class="keyword">class</span> <span class="type">PredictionResult</span> {<br>
+            &nbsp;&nbsp;<span class="keyword">final</span> <span class="type">DateTime?</span> <span class="method">predictedNextPeriod</span>;<br>
+            &nbsp;&nbsp;<span class="keyword">final</span> <span class="type">DateTime?</span> <span class="method">windowStart</span>;&nbsp;&nbsp;<span class="comment">// ← Variable window</span><br>
+            &nbsp;&nbsp;<span class="keyword">final</span> <span class="type">DateTime?</span> <span class="method">windowEnd</span>;<br>
+            &nbsp;&nbsp;<span class="keyword">final</span> <span class="type">DateTime?</span> <span class="method">predictedOvulation</span>;<br>
+            &nbsp;&nbsp;<span class="keyword">final</span> <span class="type">double</span> <span class="method">effectiveCycleLength</span>;<br>
+            &nbsp;&nbsp;<span class="keyword">final</span> <span class="type">double</span> <span class="method">confidenceScore</span>;&nbsp;&nbsp;<span class="comment">// 0.0–1.0</span><br>
+            &nbsp;&nbsp;<span class="keyword">final</span> <span class="type">CycleClassification</span> <span class="method">cycleClassification</span>;<br>
+            &nbsp;&nbsp;<span class="keyword">final</span> <span class="type">int</span> <span class="method">lutealPhaseLength</span>;&nbsp;&nbsp;<span class="comment">// Adaptive</span><br>
+            &nbsp;&nbsp;<span class="keyword">final</span> <span class="type">OvulationConfidence</span> <span class="method">ovulationConfidence</span>;<br>
+            &nbsp;&nbsp;<span class="keyword">final</span> <span class="type">List&lt;String&gt;</span> <span class="method">adjustmentFactors</span>;<br>
+            &nbsp;&nbsp;<span class="keyword">final</span> <span class="type">List&lt;CycleGapType&gt;</span> <span class="method">gapClassifications</span>;<br>
+            &nbsp;&nbsp;<span class="comment">// ... and more</span><br>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SLIDE 12: CLOSING -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="slide slide-title" id="slide-11">
+    <div class="title-logo">🌙 LUNARA</div>
+    <h1 class="title-main">
+      <span>Every Cycle Is Valid.</span><br>
+      <span style="font-size: 52px;">Every Pattern Matters.</span>
+    </h1>
+    <p class="title-subtitle">
+      Lunara doesn't filter out your data — it learns from it.<br>
+      Whether your cycle is 25 days or 90 days, the intelligence engine adapts.
+    </p>
+    <div class="title-badge">
+      <span class="badge badge-primary">No Outlier Filtering</span>
+      <span class="badge badge-purple">Adaptive Confidence Windows</span>
+      <span class="badge" style="background: rgba(6,214,160,0.2); color: #06D6A0; border: 1px solid rgba(6,214,160,0.3);">Symptom-Driven Adjustments</span>
+    </div>
+    <p style="margin-top: 40px; font-size: 14px; color: rgba(255,255,255,0.4); position: relative; z-index: 1;">
+      Built with Flutter • Powered by Dart • Privacy-First on Device
+    </p>
+  </div>
+
+</div>
+
+<!-- Navigation -->
+<div class="nav-bar">
+  <button class="nav-btn" onclick="prevSlide()">◀</button>
+  <div class="nav-dots" id="navDots"></div>
+  <span class="nav-counter" id="navCounter">1 / 12</span>
+  <button class="nav-btn" onclick="nextSlide()">▶</button>
+</div>
+
+<script>
+  let currentSlide = 0;
+  const totalSlides = 12;
+
+  function initDots() {
+    const dotsContainer = document.getElementById('navDots');
+    for (let i = 0; i < totalSlides; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+      dot.onclick = () => goToSlide(i);
+      dotsContainer.appendChild(dot);
+    }
+  }
+
+  function updateSlide() {
+    document.querySelectorAll('.slide').forEach((slide, i) => {
+      slide.classList.remove('active', 'exit');
+      if (i === currentSlide) {
+        slide.classList.add('active');
+      } else if (i < currentSlide) {
+        slide.classList.add('exit');
+      }
+    });
+
+    document.querySelectorAll('.nav-dot').forEach((dot, i) => {
+      dot.className = 'nav-dot' + (i === currentSlide ? ' active' : '');
+    });
+
+    document.getElementById('navCounter').textContent = `${currentSlide + 1} / ${totalSlides}`;
+  }
+
+  function nextSlide() {
+    if (currentSlide < totalSlides - 1) {
+      currentSlide++;
+      updateSlide();
+    }
+  }
+
+  function prevSlide() {
+    if (currentSlide > 0) {
+      currentSlide--;
+      updateSlide();
+    }
+  }
+
+  function goToSlide(n) {
+    currentSlide = n;
+    updateSlide();
+  }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      nextSlide();
+    } else if (e.key === 'ArrowLeft' || e.key === 'Backspace') {
+      e.preventDefault();
+      prevSlide();
+    } else if (e.key === 'f' || e.key === 'F') {
+      document.documentElement.requestFullscreen?.();
+    }
+  });
+
+  initDots();
+</script>
+
+</body>
+</html>

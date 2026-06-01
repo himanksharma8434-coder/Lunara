@@ -14,6 +14,7 @@ import 'account_settings_screen.dart';
 import 'legal_screen.dart';
 import 'login_screen.dart';
 import 'partner_sync_screen.dart';
+import 'help_support_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -477,18 +478,14 @@ class ProfileScreen extends StatelessWidget {
                       Icons.help_outline,
                       'Help & Support',
                       'FAQs, contact us',
-                      () async {
+                      () {
                         HapticFeedback.lightImpact();
-                        final Uri url = Uri.parse('https://lunara.app/help');
-                        try {
-                          await launchUrl(url, mode: LaunchMode.externalApplication);
-                        } catch (_) {
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Could not open help page')),
-                          );
-                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const HelpSupportScreen(),
+                          ),
+                        );
                       },
                     ),
 
