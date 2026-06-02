@@ -288,7 +288,8 @@ class _AIChatScreenState extends State<AIChatScreen>
               "13. Always prioritize user safety and well-being. "
               "14. shortened the answer as much as possible, keep it short and precise of max 6-7 lines. "
               "15. NEVER ask for personal information like full name, address, phone number, or email."
-              "16. KEEP THE ANSWER SHORT AND PRECISE OF MAX 3 LINES.",
+              "16. KEEP THE ANSWER SHORT AND PRECISE OF MAX 3 LINES."
+              "17. don't Mention patient name in starting of the response",
         );
 
         // Simple check to see if model is valid (optional, sendMessage will fail later anyway)
