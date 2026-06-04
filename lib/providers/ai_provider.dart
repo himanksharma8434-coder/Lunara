@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'cycle_provider.dart';
 import '../services/ai_rate_limit_service.dart';
+import '../services/premium_service.dart';
 import '../services/groq_service.dart';
 
 class AIProvider with ChangeNotifier {
@@ -12,11 +13,7 @@ class AIProvider with ChangeNotifier {
   AIProvider({required String apiKey}) : _model = _initializeModel(apiKey);
 
   static GroqModel _initializeModel(String apiKey) {
-    final List<String> potentialModels = [
-      'llama-3.3-70b-versatile',
-      'llama-3.1-8b-instant',
-      'mixtral-8x7b-32768',
-    ];
+    final List<String> potentialModels = PremiumService.instance.availableModels;
 
     for (var modelName in potentialModels) {
       try {
@@ -40,7 +37,7 @@ class AIProvider with ChangeNotifier {
       if (!canRequest) {
         messages.add({
           "role": "ai",
-          "content": "Daily limit reached (100). Please try again tomorrow. 💕"
+          "content": "Daily limit reached (${PremiumService.freeDailyLimit}). Upgrade to Premium for unlimited! 💎"
         });
         isLoading = false;
         notifyListeners();

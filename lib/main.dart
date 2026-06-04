@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:lunara/services/premium_service.dart';
 
 // local files
 import 'config/app_config.dart';
@@ -83,6 +84,9 @@ void main() {
           error: e, stackTrace: st, tag: 'Health');
     }
 
+    // Initialize Premium Service (reads cached status + cloud sync)
+    await PremiumService.instance.init();
+
     runApp(MyApp(prefs: prefs));
   }, (error, stack) {
     log.error('Uncaught async error',
@@ -140,6 +144,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ChangeNotifierProvider(create: (_) => ThemeProvider(widget.prefs)),
         ChangeNotifierProvider(create: (_) => AuthProvider(widget.prefs)),
         ChangeNotifierProvider(create: (_) => CycleProvider(widget.prefs)),
+        ChangeNotifierProvider.value(value: PremiumService.instance),
         ChangeNotifierProvider.value(value: _privacyProvider),
       ],
       child: Builder(

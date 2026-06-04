@@ -13,6 +13,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/groq_service.dart';
 import '../services/ai_rate_limit_service.dart';
+import '../services/premium_service.dart';
  
 class AIChatScreen extends StatefulWidget {
   final String? initialPrompt;
@@ -48,7 +49,7 @@ class _AIChatScreenState extends State<AIChatScreen>
   late Animation<double> _introBadgeAnim;
   late Animation<double> _introFeaturesAnim;
   final List<String> _suggestedSymptoms = [];
-  int _remainingRequests = AIRateLimitService.dailyLimit;
+  int _remainingRequests = PremiumService.freeDailyLimit;
   final String _apiKey = AppConfig.groqApiKey;
 
   final List<Map<String, dynamic>> _quickActions = [
@@ -253,12 +254,8 @@ class _AIChatScreenState extends State<AIChatScreen>
     String today = now.toString().split(' ')[0];
     String time = TimeOfDay.now().format(context);
 
-    // List of models to try in order of preference
-    final List<String> potentialModels = [
-      'llama-3.3-70b-versatile',
-      'llama-3.1-8b-instant',
-      'mixtral-8x7b-32768',
-    ];
+    // List of models to try — tier-aware (premium gets 70b, free gets 8b)
+    final List<String> potentialModels = PremiumService.instance.availableModels;
 
     // Filter out excluded models
     final filteredModels = potentialModels.where((m) => !excludeModels.contains(m)).toList();
@@ -392,12 +389,131 @@ class _AIChatScreenState extends State<AIChatScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text(
-                'Daily limit reached (100). Please try again tomorrow. 💕'),
-            backgroundColor: LunaraColors.primaryDark,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
             behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            padding: EdgeInsets.zero,
+            content: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF7A8A), Color(0xFFD8405B)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFD8405B).withOpacity(0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.star_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Daily limit reached!',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          'Unlock unlimited AI answers with PRO.',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () async {
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      await PremiumService.instance.setPremium(true);
+                      await _updateRemainingRequests();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: Colors.transparent,
+                            elevation: 0,
+                            behavior: SnackBarBehavior.floating,
+                            padding: EdgeInsets.zero,
+                            content: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF4CAF50),
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF4CAF50).withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.check_circle_rounded, color: Colors.white),
+                                  const SizedBox(width: 12),
+                                  const Expanded(
+                                    child: Text(
+                                      'Premium unlocked! Enjoy unlimited messages.',
+                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFFD8405B),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    ),
+                    child: const Text(
+                      'Upgrade',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       }
@@ -719,20 +835,53 @@ class _AIChatScreenState extends State<AIChatScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'AI Assistant',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.textDark(context),
-                    letterSpacing: -0.3,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      'AI Assistant',
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                        color: AppTheme.textDark(context),
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: PremiumService.instance.isPremium
+                            ? LunaraColors.warning.withOpacity(0.15)
+                            : AppTheme.subtleBackground(context),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: PremiumService.instance.isPremium
+                              ? LunaraColors.warning.withOpacity(0.4)
+                              : AppTheme.divider(context),
+                        ),
+                      ),
+                      child: Text(
+                        PremiumService.instance.isPremium ? '💎 PRO' : 'FREE',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: PremiumService.instance.isPremium
+                              ? LunaraColors.warning
+                              : AppTheme.textLight(context),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
-                  '$_remainingRequests questions left today',
+                  _remainingRequests == -1
+                      ? 'Unlimited questions · Premium'
+                      : '$_remainingRequests questions left today',
                   style: TextStyle(
                     fontSize: 12,
-                    color: AppTheme.textLight(context),
+                    color: _remainingRequests == -1
+                        ? LunaraColors.warning
+                        : AppTheme.textLight(context),
                     fontWeight: FontWeight.w500,
                   ),
                 ),

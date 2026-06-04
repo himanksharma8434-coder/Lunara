@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../providers/cycle_provider.dart';
 import '../providers/theme_provider.dart';
@@ -15,6 +14,7 @@ import 'legal_screen.dart';
 import 'login_screen.dart';
 import 'partner_sync_screen.dart';
 import 'help_support_screen.dart';
+import '../services/premium_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -94,15 +94,26 @@ class ProfileScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 6),
                       decoration: BoxDecoration(
-                        color: LunaraColors.warning.withOpacity(0.15),
+                        color: PremiumService.instance.isPremium
+                            ? LunaraColors.warning.withOpacity(0.15)
+                            : AppTheme.subtleBackground(context),
                         borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: PremiumService.instance.isPremium
+                              ? LunaraColors.warning.withOpacity(0.4)
+                              : AppTheme.divider(context),
+                        ),
                       ),
-                      child: const Text(
-                        'Premium Member',
+                      child: Text(
+                        PremiumService.instance.isPremium
+                            ? '💎 Premium Member'
+                            : 'Free Plan',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: LunaraColors.warning,
+                          color: PremiumService.instance.isPremium
+                              ? LunaraColors.warning
+                              : AppTheme.textLight(context),
                         ),
                       ),
                     ),
