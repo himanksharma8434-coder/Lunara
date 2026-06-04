@@ -85,25 +85,44 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
 
       // ─── AI REPLY LOGIC FOR QUESTIONS ───
       if (_selectedCategory == 'Question') {
-        try {
+        if (AppConfig.groqApiKey.isEmpty) {
+          aiReply = "Configuration Error: Groq API key is missing. Please check your setup.";
+        } else {
+          bool success = false;
           final systemInstruction = "You are Lunara's automated AI Support Assistant. "
               "The user has submitted a support question. Answer it beautifully, clearly, and concisely (under 4 sentences). "
               "Use bullet points if helpful. Keep your tone supportive, clean, and highly professional. "
               "Do not state details not supported by the app.";
 
-          final model = GroqModel(
-            model: 'llama-3.3-70b-versatile',
-            apiKey: AppConfig.groqApiKey,
-            systemInstruction: systemInstruction,
-          );
+          final modelsToTry = [
+            'llama-3.3-70b-versatile',
+            'llama-3.1-8b-instant',
+            'mixtral-8x7b-32768'
+          ];
+          
+          for (final modelName in modelsToTry) {
+            try {
+              final model = GroqModel(
+                model: modelName,
+                apiKey: AppConfig.groqApiKey,
+                systemInstruction: systemInstruction,
+              );
 
-          final response = await model.generateContent([Content.text(feedback)]);
-          if (response.text != null && response.text!.isNotEmpty) {
-            aiReply = response.text;
-            status = 'replied_by_ai';
+              final response = await model.generateContent([Content.text(feedback)]).timeout(const Duration(seconds: 15));
+              if (response.text != null && response.text!.isNotEmpty) {
+                aiReply = response.text;
+                status = 'replied_by_ai';
+                success = true;
+                break; // Break the loop if successful
+              }
+            } catch (aiError) {
+              debugPrint('Support AI generation failed with $modelName: $aiError');
+            }
           }
-        } catch (aiError) {
-          debugPrint('Support AI generation failed: $aiError');
+          
+          if (!success) {
+            aiReply = "Our AI is currently experiencing high volume. Your question has been logged, and our team will review it shortly! 💕";
+          }
         }
       }
 

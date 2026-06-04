@@ -10,6 +10,9 @@ import '../providers/cycle_provider.dart';
 import '../config/app_config.dart';
 import '../theme/app_theme.dart';
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/groq_service.dart';
+import '../services/ai_rate_limit_service.dart';
  
 class AIChatScreen extends StatefulWidget {
   final String? initialPrompt;
