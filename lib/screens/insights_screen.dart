@@ -53,7 +53,7 @@ class _InsightsScreenState extends State<InsightsScreen>
   Widget build(BuildContext context) {
     final provider = Provider.of<CycleProvider>(context);
     return Scaffold(
-      backgroundColor: LunaraColors.background,
+      backgroundColor: AppTheme.background(context),
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: FutureBuilder<void>(
@@ -143,9 +143,9 @@ class _InsightsScreenState extends State<InsightsScreen>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              LunaraColors.primaryLight,
-              LunaraColors.backgroundPink.withOpacity(0.4),
-              LunaraColors.background,
+              AppTheme.subtleBackground(context),
+              AppTheme.backgroundPink(context).withOpacity(0.4),
+              AppTheme.background(context),
             ],
           ),
         ),
@@ -157,51 +157,51 @@ class _InsightsScreenState extends State<InsightsScreen>
                 Navigator.pop(context);
               },
               child: Container(
-                padding: const EdgeInsets.all(10),
+                padding: EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppTheme.cardColor(context),
                   borderRadius: BorderRadius.circular(14),
-                  boxShadow: LunaraShadows.soft,
+                  boxShadow: AppTheme.softShadow(context),
                 ),
-                child: const Icon(Icons.arrow_back_ios_new,
-                    size: 18, color: LunaraColors.textDark),
+                child: Icon(Icons.arrow_back_ios_new,
+                    size: 18, color: AppTheme.textDark(context)),
               ),
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Your Insights',
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w900,
-                      color: LunaraColors.textDark,
+                      color: AppTheme.textDark(context),
                       letterSpacing: -0.5,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: 2),
                   Text(
                     'Track patterns • Understand your body',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: LunaraColors.textBrown.withOpacity(0.7),
+                      color: AppTheme.textBrown(context).withOpacity(0.7),
                     ),
                   ),
                 ],
               ),
             ),
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: EdgeInsets.all(10),
               decoration: BoxDecoration(
-                gradient: LunaraGradients.primary,
+                gradient: AppTheme.primaryGradient(context),
                 borderRadius: BorderRadius.circular(14),
-                boxShadow: LunaraShadows.glow,
+                boxShadow: AppTheme.glowShadow(context),
               ),
-              child: const Icon(Icons.insights_rounded,
-                  size: 20, color: Colors.white),
+              child: Icon(Icons.insights_rounded,
+                  size: 20, color: AppTheme.cardColor(context)),
             ),
           ],
         ),
@@ -211,7 +211,7 @@ class _InsightsScreenState extends State<InsightsScreen>
 
   Widget _buildExportButton(BuildContext context, CycleProvider provider) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      margin: EdgeInsets.fromLTRB(20, 16, 20, 8),
       width: double.infinity,
       child: ElevatedButton(
         onPressed: () async {
@@ -226,16 +226,16 @@ class _InsightsScreenState extends State<InsightsScreen>
           await PdfExportService.generateAndShareDoctorReport(provider);
         },
         style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          backgroundColor: LunaraColors.primary,
+          padding: EdgeInsets.symmetric(vertical: 16),
+          backgroundColor: AppTheme.primary(context),
           foregroundColor: Colors.white,
           elevation: 4,
-          shadowColor: LunaraColors.primaryLight,
+          shadowColor: AppTheme.subtleBackground(context),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(LunaraRadius.md),
           ),
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.picture_as_pdf_rounded, size: 20),
@@ -280,12 +280,12 @@ class _InsightsScreenState extends State<InsightsScreen>
     ];
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 4, 20, 4),
-      padding: const EdgeInsets.all(6),
+      margin: EdgeInsets.fromLTRB(20, 4, 20, 4),
+      padding: EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.cardColor(context),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: LunaraShadows.soft,
+        boxShadow: AppTheme.softShadow(context),
       ),
       child: Row(
         children: ranges.map((r) {
@@ -307,10 +307,10 @@ class _InsightsScreenState extends State<InsightsScreen>
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                padding: EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
                   gradient: isSelected
-                      ? LunaraGradients.primary
+                      ? AppTheme.primaryGradient(context)
                       : null,
                   color: isSelected ? null : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
@@ -323,8 +323,8 @@ class _InsightsScreenState extends State<InsightsScreen>
                           size: 10,
                           color: isSelected
                               ? Colors.white70
-                              : LunaraColors.textLight.withOpacity(0.5)),
-                    if (isLocked) const SizedBox(width: 3),
+                              : AppTheme.textLight(context).withOpacity(0.5)),
+                    if (isLocked) SizedBox(width: 3),
                     Text(
                       label,
                       style: TextStyle(
@@ -333,8 +333,8 @@ class _InsightsScreenState extends State<InsightsScreen>
                         color: isSelected
                             ? Colors.white
                             : isLocked
-                                ? LunaraColors.textLight.withOpacity(0.5)
-                                : LunaraColors.textDark,
+                                ? AppTheme.textLight(context).withOpacity(0.5)
+                                : AppTheme.textDark(context),
                       ),
                     ),
                   ],
@@ -356,23 +356,23 @@ class _InsightsScreenState extends State<InsightsScreen>
         padding: EdgeInsets.zero,
         duration: const Duration(seconds: 3),
         content: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               colors: [Color(0xFFFF7A8A), Color(0xFFD8405B)],
             ),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
             children: [
-              const Icon(Icons.workspace_premium_rounded,
-                  color: Colors.white, size: 20),
-              const SizedBox(width: 10),
-              const Expanded(
+              Icon(Icons.workspace_premium_rounded,
+                  color: AppTheme.cardColor(context), size: 20),
+              SizedBox(width: 10),
+              Expanded(
                 child: Text(
                   'Extended history is a Premium feature',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppTheme.cardColor(context),
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
                   ),
@@ -385,15 +385,15 @@ class _InsightsScreenState extends State<InsightsScreen>
                   if (mounted) setState(() {});
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.25),
+                    color: AppTheme.cardColor(context).withOpacity(0.25),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Upgrade',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: AppTheme.cardColor(context),
                       fontWeight: FontWeight.w800,
                       fontSize: 12,
                     ),
@@ -412,11 +412,11 @@ class _InsightsScreenState extends State<InsightsScreen>
     final isPremium = PremiumService.instance.isPremium;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 6, 20, 6),
-      padding: const EdgeInsets.all(22),
+      margin: EdgeInsets.fromLTRB(20, 6, 20, 6),
+      padding: EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: isPremium
-            ? const LinearGradient(
+            ? LinearGradient(
                 colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -427,12 +427,12 @@ class _InsightsScreenState extends State<InsightsScreen>
         boxShadow: isPremium
             ? [
                 BoxShadow(
-                  color: const Color(0xFF6C63FF).withOpacity(0.2),
+                  color: Color(0xFF6C63FF).withOpacity(0.2),
                   blurRadius: 20,
-                  offset: const Offset(0, 6),
+                  offset: Offset(0, 6),
                 ),
               ]
-            : LunaraShadows.soft,
+            : AppTheme.softShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -440,17 +440,17 @@ class _InsightsScreenState extends State<InsightsScreen>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
+                  gradient: LinearGradient(
                     colors: [Color(0xFF6C63FF), Color(0xFF5B52CC)],
                   ),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.auto_awesome_rounded,
-                    size: 18, color: Colors.white),
+                child: Icon(Icons.auto_awesome_rounded,
+                    size: 18, color: AppTheme.cardColor(context)),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -461,7 +461,7 @@ class _InsightsScreenState extends State<InsightsScreen>
                           fontWeight: FontWeight.w600,
                           color: isPremium
                               ? Colors.white54
-                              : LunaraColors.textLight,
+                              : AppTheme.textLight(context),
                           letterSpacing: 0.5,
                         )),
                     Text(
@@ -469,7 +469,7 @@ class _InsightsScreenState extends State<InsightsScreen>
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
-                        color: isPremium ? Colors.white : LunaraColors.textDark,
+                        color: isPremium ? Colors.white : AppTheme.textDark(context),
                       ),
                     ),
                   ],
@@ -477,35 +477,35 @@ class _InsightsScreenState extends State<InsightsScreen>
               ),
               if (!isPremium)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       colors: [Color(0xFFFFB74D), Color(0xFFFF9800)],
                     ),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.lock_rounded, size: 12, color: Colors.white),
+                      Icon(Icons.lock_rounded, size: 12, color: AppTheme.cardColor(context)),
                       SizedBox(width: 4),
                       Text('PRO',
                           style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w900,
-                              color: Colors.white)),
+                              color: AppTheme.cardColor(context))),
                     ],
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           if (!isPremium) ...[
             // Locked state — show blurred preview
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: LunaraColors.divider.withOpacity(0.5),
+                color: AppTheme.divider(context).withOpacity(0.5),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Column(
@@ -513,24 +513,24 @@ class _InsightsScreenState extends State<InsightsScreen>
                   _buildLockedInsightRow(
                     Icons.bedtime_rounded,
                     'Sleep ↔ Mood correlation detected',
-                    const Color(0xFFB39DDB),
+                    Color(0xFFB39DDB),
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                   _buildLockedInsightRow(
                     Icons.monitor_heart_rounded,
                     'Symptom pattern found on cycle day...',
-                    LunaraColors.periodRed,
+                    AppTheme.periodRed(context),
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                   _buildLockedInsightRow(
                     Icons.trending_up_rounded,
                     'Activity levels affect your...',
-                    LunaraColors.fertileGreen,
+                    AppTheme.fertileGreen(context),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -539,15 +539,15 @@ class _InsightsScreenState extends State<InsightsScreen>
                   if (mounted) setState(() {});
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6C63FF),
+                  backgroundColor: Color(0xFF6C63FF),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding: EdgeInsets.symmetric(vertical: 14),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.workspace_premium_rounded, size: 18),
@@ -569,34 +569,34 @@ class _InsightsScreenState extends State<InsightsScreen>
                 child: ElevatedButton(
                   onPressed: _isGeneratingAI ? null : () => _generateAIInsights(provider),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6C63FF),
+                    backgroundColor: Color(0xFF6C63FF),
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: const Color(0xFF6C63FF).withOpacity(0.5),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    disabledBackgroundColor: Color(0xFF6C63FF).withOpacity(0.5),
+                    padding: EdgeInsets.symmetric(vertical: 14),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                   child: _isGeneratingAI
-                      ? const Row(
+                      ? Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             SizedBox(
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white),
+                                  strokeWidth: 2, color: AppTheme.cardColor(context)),
                             ),
                             SizedBox(width: 10),
                             Text('Analyzing patterns...',
                                 style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
-                                    color: Colors.white)),
+                                    color: AppTheme.cardColor(context))),
                           ],
                         )
-                      : const Row(
+                      : Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.auto_awesome_rounded, size: 18),
@@ -618,26 +618,26 @@ class _InsightsScreenState extends State<InsightsScreen>
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(6),
+          padding: EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: color.withOpacity(0.15),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, size: 14, color: color),
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: 10),
         Expanded(
           child: Text(
             text,
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: LunaraColors.textLight.withOpacity(0.5),
+              color: AppTheme.textLight(context).withOpacity(0.5),
             ),
           ),
         ),
         Icon(Icons.blur_on_rounded,
-            size: 16, color: LunaraColors.textLight.withOpacity(0.3)),
+            size: 16, color: AppTheme.textLight(context).withOpacity(0.3)),
       ],
     );
   }
@@ -688,7 +688,7 @@ Example format:
 [CORRELATION]
 Your sleep drops below 6h on Wednesdays, and your mood consistently dips to "Low" on Thursdays. This suggests poor midweek sleep directly impacts next-day mood.
 
-Do NOT use markdown formatting. Keep each insight concise.
+Do NOT use markdown formatting. Keep each insight EXTREMELY short (1 sentence max).
 ''';
 
       final model = GroqModel(
@@ -735,29 +735,29 @@ Do NOT use markdown formatting. Keep each insight concise.
       switch (type) {
         case 'CORRELATION':
           icon = Icons.compare_arrows_rounded;
-          color = const Color(0xFF6C63FF);
+          color = Color(0xFF6C63FF);
           break;
         case 'PATTERN':
           icon = Icons.timeline_rounded;
-          color = const Color(0xFFFFB74D);
+          color = Color(0xFFFFB74D);
           break;
         case 'PREDICTION':
           icon = Icons.auto_graph_rounded;
-          color = const Color(0xFF4CAF50);
+          color = Color(0xFF4CAF50);
           break;
         case 'ALERT':
           icon = Icons.warning_amber_rounded;
-          color = const Color(0xFFEF5350);
+          color = Color(0xFFEF5350);
           break;
         default:
           icon = Icons.lightbulb_rounded;
-          color = LunaraColors.primary;
+          color = AppTheme.primary(context);
       }
 
       widgets.add(
         Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.all(14),
+          margin: EdgeInsets.only(bottom: 10),
+          padding: EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: color.withOpacity(0.08),
             borderRadius: BorderRadius.circular(14),
@@ -767,14 +767,14 @@ Do NOT use markdown formatting. Keep each insight concise.
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, size: 16, color: color),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -788,13 +788,13 @@ Do NOT use markdown formatting. Keep each insight concise.
                         letterSpacing: 1,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       text,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: Colors.white,
+                        color: AppTheme.cardColor(context),
                         height: 1.5,
                       ),
                     ),
@@ -816,8 +816,8 @@ Do NOT use markdown formatting. Keep each insight concise.
             final provider = Provider.of<CycleProvider>(context, listen: false);
             _generateAIInsights(provider);
           },
-          icon: const Icon(Icons.refresh_rounded, size: 16, color: Colors.white54),
-          label: const Text('Regenerate',
+          icon: Icon(Icons.refresh_rounded, size: 16, color: Colors.white54),
+          label: Text('Regenerate',
               style: TextStyle(
                   color: Colors.white54,
                   fontWeight: FontWeight.w700,
@@ -848,12 +848,12 @@ class _CyclePhaseCard extends StatelessWidget {
     final ovulationEnd = 17;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 8, 20, 6),
-      padding: const EdgeInsets.all(22),
+      margin: EdgeInsets.fromLTRB(20, 8, 20, 6),
+      padding: EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.cardColor(context),
         borderRadius: BorderRadius.circular(LunaraRadius.lg),
-        boxShadow: LunaraShadows.soft,
+        boxShadow: AppTheme.softShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -861,26 +861,26 @@ class _CyclePhaseCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: _phaseColor(phase).withOpacity(0.12),
+                  color: _phaseColor(context, phase).withOpacity(0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   _phaseIcon(phase),
                   size: 18,
-                  color: _phaseColor(phase),
+                  color: _phaseColor(context, phase),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Cycle Phase',
+                  Text('Cycle Phase',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: LunaraColors.textLight,
+                        color: AppTheme.textLight(context),
                         letterSpacing: 0.5,
                       )),
                   Text(
@@ -888,7 +888,7 @@ class _CyclePhaseCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: _phaseColor(phase),
+                      color: _phaseColor(context, phase),
                     ),
                   ),
                 ],
@@ -896,9 +896,9 @@ class _CyclePhaseCard extends StatelessWidget {
               const Spacer(),
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: LunaraColors.textDark,
+                  color: AppTheme.textDark(context),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: RichText(
@@ -906,10 +906,10 @@ class _CyclePhaseCard extends StatelessWidget {
                     children: [
                       TextSpan(
                         text: 'Day $day',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w900,
-                          color: Colors.white,
+                          color: AppTheme.cardColor(context),
                         ),
                       ),
                       TextSpan(
@@ -917,7 +917,7 @@ class _CyclePhaseCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: Colors.white.withOpacity(0.6),
+                          color: AppTheme.cardColor(context).withOpacity(0.6),
                         ),
                       ),
                     ],
@@ -926,7 +926,7 @@ class _CyclePhaseCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 22),
+          SizedBox(height: 22),
           // Phase progress bar
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
@@ -934,25 +934,25 @@ class _CyclePhaseCard extends StatelessWidget {
               height: 12,
               child: Row(
                 children: [
-                  _segment(periodEnd / total, LunaraColors.periodRed, day, 1,
+                  _segment(periodEnd / total, AppTheme.periodRed(context), day, 1,
                       periodEnd, total),
                   _segment(
                       (ovulationStart - periodEnd - 1) / total,
-                      LunaraColors.follicularTeal,
+                      AppTheme.follicularTeal(context),
                       day,
                       periodEnd + 1,
                       ovulationStart - 1,
                       total),
                   _segment(
                       (ovulationEnd - ovulationStart + 1) / total,
-                      LunaraColors.ovulationBlue,
+                      AppTheme.ovulationBlue(context),
                       day,
                       ovulationStart,
                       ovulationEnd,
                       total),
                   _segment(
                       (total - ovulationEnd) / total,
-                      LunaraColors.lutealPurple,
+                      AppTheme.lutealPurple(context),
                       day,
                       ovulationEnd + 1,
                       total,
@@ -961,37 +961,37 @@ class _CyclePhaseCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           // Phase labels
           Row(
             children: [
-              _phaseLabel('Menstrual', LunaraColors.periodRed),
-              _phaseLabel('Follicular', LunaraColors.follicularTeal),
-              _phaseLabel('Ovulation', LunaraColors.ovulationBlue),
-              _phaseLabel('Luteal', LunaraColors.lutealPurple),
+              _phaseLabel(context, 'Menstrual', AppTheme.periodRed(context)),
+              _phaseLabel(context, 'Follicular', AppTheme.follicularTeal(context)),
+              _phaseLabel(context, 'Ovulation', AppTheme.ovulationBlue(context)),
+              _phaseLabel(context, 'Luteal', AppTheme.lutealPurple(context)),
             ],
           ),
           if (provider.daysUntilNextPeriod > 0 &&
               provider.daysUntilNextPeriod <= provider.cycleLength) ...[
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
               decoration: BoxDecoration(
-                color: LunaraColors.primaryLight.withOpacity(0.5),
+                color: AppTheme.subtleBackground(context).withOpacity(0.5),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.calendar_today_rounded,
-                      size: 16, color: LunaraColors.primaryDark),
-                  const SizedBox(width: 10),
+                  Icon(Icons.calendar_today_rounded,
+                      size: 16, color: AppTheme.primary(context)),
+                  SizedBox(width: 10),
                   Text(
                     'Next period in ${provider.daysUntilNextPeriod} days',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: LunaraColors.primaryDark,
+                      color: AppTheme.primary(context),
                     ),
                   ),
                 ],
@@ -1010,7 +1010,7 @@ class _CyclePhaseCard extends StatelessWidget {
       flex: (flex * 100).round().clamp(1, 100),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 500),
-        margin: const EdgeInsets.symmetric(horizontal: 1),
+        margin: EdgeInsets.symmetric(horizontal: 1),
         decoration: BoxDecoration(
           color: isActive ? color : color.withOpacity(0.25),
           borderRadius: BorderRadius.circular(6),
@@ -1019,7 +1019,7 @@ class _CyclePhaseCard extends StatelessWidget {
     );
   }
 
-  Widget _phaseLabel(String label, Color color) {
+  Widget _phaseLabel(BuildContext context, String label, Color color) {
     return Expanded(
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1029,14 +1029,14 @@ class _CyclePhaseCard extends StatelessWidget {
             height: 6,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 4),
+          SizedBox(width: 4),
           Flexible(
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w600,
-                  color: LunaraColors.textLight),
+                  color: AppTheme.textLight(context)),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -1045,18 +1045,18 @@ class _CyclePhaseCard extends StatelessWidget {
     );
   }
 
-  Color _phaseColor(String phase) {
+  Color _phaseColor(BuildContext context, String phase) {
     switch (phase) {
       case 'Menstrual':
-        return LunaraColors.periodRed;
+        return AppTheme.periodRed(context);
       case 'Follicular':
-        return LunaraColors.follicularTeal;
+        return AppTheme.follicularTeal(context);
       case 'Ovulation':
-        return LunaraColors.ovulationBlue;
+        return AppTheme.ovulationBlue(context);
       case 'Luteal':
-        return LunaraColors.lutealPurple;
+        return AppTheme.lutealPurple(context);
       default:
-        return LunaraColors.primary;
+        return AppTheme.primary(context);
     }
   }
 
@@ -1090,12 +1090,12 @@ class _WellnessTrendsCard extends StatelessWidget {
     final history = provider.getWellnessHistory(days);
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 6, 20, 6),
-      padding: const EdgeInsets.all(22),
+      margin: EdgeInsets.fromLTRB(20, 6, 20, 6),
+      padding: EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.cardColor(context),
         borderRadius: BorderRadius.circular(LunaraRadius.lg),
-        boxShadow: LunaraShadows.soft,
+        boxShadow: AppTheme.softShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1103,23 +1103,23 @@ class _WellnessTrendsCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: LunaraColors.ovulationBlue.withOpacity(0.12),
+                  color: AppTheme.ovulationBlue(context).withOpacity(0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.bar_chart_rounded,
-                    size: 18, color: LunaraColors.ovulationBlue),
+                child: Icon(Icons.bar_chart_rounded,
+                    size: 18, color: AppTheme.ovulationBlue(context)),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Wellness Trends',
+                  Text('Wellness Trends',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: LunaraColors.textLight,
+                        color: AppTheme.textLight(context),
                         letterSpacing: 0.5,
                       )),
                   Text(
@@ -1127,25 +1127,25 @@ class _WellnessTrendsCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: LunaraColors.textDark,
+                      color: AppTheme.textDark(context),
                     ),
                   ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _legendDot('Water', LunaraColors.ovulationBlue),
-              const SizedBox(width: 20),
-              _legendDot('Sleep', LunaraColors.lutealPurple),
-              const SizedBox(width: 20),
-              _legendDot('Steps', LunaraColors.fertileGreen),
+              _legendDot(context, 'Water', AppTheme.ovulationBlue(context)),
+              SizedBox(width: 20),
+              _legendDot(context, 'Sleep', AppTheme.lutealPurple(context)),
+              SizedBox(width: 20),
+              _legendDot(context, 'Steps', AppTheme.fertileGreen(context)),
             ],
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           SizedBox(
             height: 180,
             child: BarChart(
@@ -1155,16 +1155,16 @@ class _WellnessTrendsCard extends StatelessWidget {
                 barTouchData: BarTouchData(
                   enabled: true,
                   touchTooltipData: BarTouchTooltipData(
-                    getTooltipColor: (_) => LunaraColors.textDark,
+                    getTooltipColor: (_) => AppTheme.textDark(context),
                     tooltipPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                       final labels = ['💧 Water', '😴 Sleep', '🚶 Steps'];
                       final units = [' glasses', ' hrs', ''];
                       return BarTooltipItem(
                         '${labels[rodIndex]}\n${rod.toY.toStringAsFixed(rodIndex == 2 ? 0 : 1)}${units[rodIndex]}',
-                        const TextStyle(
-                          color: Colors.white,
+                        TextStyle(
+                          color: AppTheme.cardColor(context),
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1181,17 +1181,17 @@ class _WellnessTrendsCard extends StatelessWidget {
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
                         if (index < 0 || index >= history.length) {
-                          return const SizedBox.shrink();
+                          return SizedBox.shrink();
                         }
                         final date = history[index]['date'] as DateTime;
                         return Padding(
-                          padding: const EdgeInsets.only(top: 8),
+                          padding: EdgeInsets.only(top: 8),
                           child: Text(
                             DateFormat('E').format(date).substring(0, 2),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
-                              color: LunaraColors.textLight,
+                              color: AppTheme.textLight(context),
                             ),
                           ),
                         );
@@ -1211,7 +1211,7 @@ class _WellnessTrendsCard extends StatelessWidget {
                   drawVerticalLine: false,
                   horizontalInterval: _calculateMaxY(history) / 4,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: LunaraColors.divider,
+                    color: AppTheme.divider(context),
                     strokeWidth: 1,
                   ),
                 ),
@@ -1230,22 +1230,22 @@ class _WellnessTrendsCard extends StatelessWidget {
                       BarChartRodData(
                         toY: water,
                         width: 8,
-                        color: LunaraColors.ovulationBlue,
-                        borderRadius: const BorderRadius.vertical(
+                        color: AppTheme.ovulationBlue(context),
+                        borderRadius: BorderRadius.vertical(
                             top: Radius.circular(4)),
                       ),
                       BarChartRodData(
                         toY: sleep,
                         width: 8,
-                        color: LunaraColors.lutealPurple,
-                        borderRadius: const BorderRadius.vertical(
+                        color: AppTheme.lutealPurple(context),
+                        borderRadius: BorderRadius.vertical(
                             top: Radius.circular(4)),
                       ),
                       BarChartRodData(
                         toY: stepsNormalized,
                         width: 8,
-                        color: LunaraColors.fertileGreen,
-                        borderRadius: const BorderRadius.vertical(
+                        color: AppTheme.fertileGreen(context),
+                        borderRadius: BorderRadius.vertical(
                             top: Radius.circular(4)),
                       ),
                     ],
@@ -1273,7 +1273,7 @@ class _WellnessTrendsCard extends StatelessWidget {
     return (max + 2).ceilToDouble();
   }
 
-  Widget _legendDot(String label, Color color) {
+  Widget _legendDot(BuildContext context, String label, Color color) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1285,13 +1285,13 @@ class _WellnessTrendsCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(3),
           ),
         ),
-        const SizedBox(width: 5),
+        SizedBox(width: 5),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w600,
-            color: LunaraColors.textLight,
+            color: AppTheme.textLight(context),
           ),
         ),
       ],
@@ -1342,12 +1342,12 @@ class _MoodTrendCard extends StatelessWidget {
     }).toList();
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 6, 20, 6),
-      padding: const EdgeInsets.all(22),
+      margin: EdgeInsets.fromLTRB(20, 6, 20, 6),
+      padding: EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.cardColor(context),
         borderRadius: BorderRadius.circular(LunaraRadius.lg),
-        boxShadow: LunaraShadows.soft,
+        boxShadow: AppTheme.softShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1355,23 +1355,23 @@ class _MoodTrendCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: LunaraColors.warning.withOpacity(0.12),
+                  color: Colors.orange.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.mood_rounded,
-                    size: 18, color: LunaraColors.warning),
+                child: Icon(Icons.mood_rounded,
+                    size: 18, color: Colors.orange),
               ),
-              const SizedBox(width: 12),
-              const Column(
+              SizedBox(width: 12),
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Mood Trend',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: LunaraColors.textLight,
+                        color: AppTheme.textLight(context),
                         letterSpacing: 0.5,
                       )),
                   Text(
@@ -1379,14 +1379,14 @@ class _MoodTrendCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: LunaraColors.textDark,
+                      color: AppTheme.textDark(context),
                     ),
                   ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
           SizedBox(
             height: 160,
             child: LineChart(
@@ -1396,9 +1396,9 @@ class _MoodTrendCard extends StatelessWidget {
                 lineTouchData: LineTouchData(
                   enabled: true,
                   touchTooltipData: LineTouchTooltipData(
-                    getTooltipColor: (_) => LunaraColors.textDark,
+                    getTooltipColor: (_) => AppTheme.textDark(context),
                     tooltipPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     getTooltipItems: (touchedSpots) {
                       return touchedSpots.map((spot) {
                         final emoji = _valueToEmoji(spot.y);
@@ -1406,8 +1406,8 @@ class _MoodTrendCard extends StatelessWidget {
                         final date = history[index]['date'] as DateTime;
                         return LineTooltipItem(
                           '$emoji ${history[index]['mood']}\n${DateFormat('MMM d').format(date)}',
-                          const TextStyle(
-                            color: Colors.white,
+                          TextStyle(
+                            color: AppTheme.cardColor(context),
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1425,17 +1425,17 @@ class _MoodTrendCard extends StatelessWidget {
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
                         if (index < 0 || index >= history.length) {
-                          return const SizedBox.shrink();
+                          return SizedBox.shrink();
                         }
                         final date = history[index]['date'] as DateTime;
                         return Padding(
-                          padding: const EdgeInsets.only(top: 8),
+                          padding: EdgeInsets.only(top: 8),
                           child: Text(
                             DateFormat('E').format(date).substring(0, 2),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
-                              color: LunaraColors.textLight,
+                              color: AppTheme.textLight(context),
                             ),
                           ),
                         );
@@ -1449,11 +1449,11 @@ class _MoodTrendCard extends StatelessWidget {
                       interval: 1,
                       getTitlesWidget: (value, meta) {
                         if (value < 1 || value > 5) {
-                          return const SizedBox.shrink();
+                          return SizedBox.shrink();
                         }
                         return Text(
                           _valueToEmoji(value),
-                          style: const TextStyle(fontSize: 12),
+                          style: TextStyle(fontSize: 12),
                         );
                       },
                     ),
@@ -1469,7 +1469,7 @@ class _MoodTrendCard extends StatelessWidget {
                   drawVerticalLine: false,
                   horizontalInterval: 1,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: LunaraColors.divider,
+                    color: AppTheme.divider(context),
                     strokeWidth: 1,
                   ),
                 ),
@@ -1478,16 +1478,16 @@ class _MoodTrendCard extends StatelessWidget {
                     spots: spots,
                     isCurved: true,
                     curveSmoothness: 0.35,
-                    color: LunaraColors.warning,
+                    color: Colors.orange,
                     barWidth: 3,
                     dotData: FlDotData(
                       show: true,
                       getDotPainter: (spot, percent, bar, index) {
                         return FlDotCirclePainter(
                           radius: 4,
-                          color: Colors.white,
+                          color: AppTheme.cardColor(context),
                           strokeWidth: 2.5,
-                          strokeColor: LunaraColors.warning,
+                          strokeColor: Colors.orange,
                         );
                       },
                     ),
@@ -1497,8 +1497,8 @@ class _MoodTrendCard extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          LunaraColors.warning.withOpacity(0.15),
-                          LunaraColors.warning.withOpacity(0.02),
+                          Colors.orange.withOpacity(0.15),
+                          Colors.orange.withOpacity(0.02),
                         ],
                       ),
                     ),
@@ -1529,12 +1529,12 @@ class _SymptomFrequencyCard extends StatelessWidget {
     final topSymptoms = frequency.entries.take(6).toList();
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 6, 20, 6),
-      padding: const EdgeInsets.all(22),
+      margin: EdgeInsets.fromLTRB(20, 6, 20, 6),
+      padding: EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.cardColor(context),
         borderRadius: BorderRadius.circular(LunaraRadius.lg),
-        boxShadow: LunaraShadows.soft,
+        boxShadow: AppTheme.softShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1542,23 +1542,23 @@ class _SymptomFrequencyCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: LunaraColors.periodRed.withOpacity(0.12),
+                  color: AppTheme.periodRed(context).withOpacity(0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.healing_rounded,
-                    size: 18, color: LunaraColors.periodRed),
+                child: Icon(Icons.healing_rounded,
+                    size: 18, color: AppTheme.periodRed(context)),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Symptom Patterns',
+                  Text('Symptom Patterns',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: LunaraColors.textLight,
+                        color: AppTheme.textLight(context),
                         letterSpacing: 0.5,
                       )),
                   Text(
@@ -1566,39 +1566,39 @@ class _SymptomFrequencyCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: LunaraColors.textDark,
+                      color: AppTheme.textDark(context),
                     ),
                   ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           if (topSymptoms.isEmpty)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 40),
+              padding: EdgeInsets.symmetric(vertical: 40),
               child: Column(
                 children: [
                   Icon(Icons.check_circle_outline_rounded,
                       size: 48,
-                      color: LunaraColors.fertileGreen.withOpacity(0.4)),
-                  const SizedBox(height: 12),
+                      color: AppTheme.fertileGreen(context).withOpacity(0.4)),
+                  SizedBox(height: 12),
                   Text(
                     'No symptoms logged yet',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: LunaraColors.textLight.withOpacity(0.6),
+                      color: AppTheme.textLight(context).withOpacity(0.6),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
                     'Log symptoms daily to see patterns here',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: LunaraColors.textLight.withOpacity(0.4),
+                      color: AppTheme.textLight(context).withOpacity(0.4),
                     ),
                   ),
                 ],
@@ -1614,17 +1614,17 @@ class _SymptomFrequencyCard extends StatelessWidget {
 
               // Gradient colors from warm to cool based on index
               final colors = [
-                LunaraColors.periodRed,
-                LunaraColors.primary,
-                LunaraColors.warning,
-                LunaraColors.ovulationBlue,
-                LunaraColors.lutealPurple,
-                LunaraColors.follicularTeal,
+                AppTheme.periodRed(context),
+                AppTheme.primary(context),
+                Colors.orange,
+                AppTheme.ovulationBlue(context),
+                AppTheme.lutealPurple(context),
+                AppTheme.follicularTeal(context),
               ];
               final barColor = colors[index % colors.length];
 
               return Padding(
-                padding: const EdgeInsets.only(bottom: 14),
+                padding: EdgeInsets.only(bottom: 14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1633,14 +1633,14 @@ class _SymptomFrequencyCard extends StatelessWidget {
                       children: [
                         Text(
                           _formatSymptomName(symptom),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: LunaraColors.textDark,
+                            color: AppTheme.textDark(context),
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(
+                          padding: EdgeInsets.symmetric(
                               horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: barColor.withOpacity(0.1),
@@ -1657,7 +1657,7 @@ class _SymptomFrequencyCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: 6),
                     TweenAnimationBuilder<double>(
                       duration: Duration(milliseconds: 800 + (index * 100)),
                       tween: Tween(begin: 0.0, end: ratio),
@@ -1666,7 +1666,7 @@ class _SymptomFrequencyCard extends StatelessWidget {
                         return Container(
                           height: 8,
                           decoration: BoxDecoration(
-                            color: LunaraColors.divider,
+                            color: AppTheme.divider(context),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: FractionallySizedBox(
