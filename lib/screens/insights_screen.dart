@@ -461,7 +461,7 @@ class _InsightsScreenState extends State<InsightsScreen>
                           fontWeight: FontWeight.w600,
                           color: isPremium
                               ? Colors.white54
-                              : AppTheme.textLight(context),
+                              : AppTheme.textDark(context).withOpacity(0.6),
                           letterSpacing: 0.5,
                         )),
                     Text(
@@ -487,13 +487,13 @@ class _InsightsScreenState extends State<InsightsScreen>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.lock_rounded, size: 12, color: AppTheme.cardColor(context)),
+                      Icon(Icons.lock_rounded, size: 12, color: Colors.white),
                       SizedBox(width: 4),
                       Text('PRO',
                           style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w900,
-                              color: AppTheme.cardColor(context))),
+                              color: Colors.white)),
                     ],
                   ),
                 ),
@@ -505,7 +505,7 @@ class _InsightsScreenState extends State<InsightsScreen>
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.divider(context).withOpacity(0.5),
+                color: AppTheme.divider(context).withOpacity(0.08),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Column(
@@ -632,12 +632,12 @@ class _InsightsScreenState extends State<InsightsScreen>
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: AppTheme.textLight(context).withOpacity(0.5),
+              color: AppTheme.textDark(context).withOpacity(0.7),
             ),
           ),
         ),
         Icon(Icons.blur_on_rounded,
-            size: 16, color: AppTheme.textLight(context).withOpacity(0.3)),
+            size: 16, color: AppTheme.textDark(context).withOpacity(0.4)),
       ],
     );
   }
@@ -794,7 +794,7 @@ Do NOT use markdown formatting. Keep each insight EXTREMELY short (1 sentence ma
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: AppTheme.cardColor(context),
+                        color: AppTheme.textDark(context),
                         height: 1.5,
                       ),
                     ),

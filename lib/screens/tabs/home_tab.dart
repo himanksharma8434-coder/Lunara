@@ -1955,6 +1955,15 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
 
   Widget _buildModernActionCard(String text, IconData icon, Color bgColor,
       Color accentColor, VoidCallback onTap) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Make background adapt to dark mode (using low opacity accent color instead of static light pastel colors)
+    final effectiveBg = isDark ? accentColor.withOpacity(0.12) : bgColor;
+    // Contrast check: use accentColor or black depending on mode
+    final effectiveTextColor = isDark ? accentColor : const Color(0xFF2D2D2D);
+    final iconBgColor = isDark
+        ? accentColor.withOpacity(0.2)
+        : AppTheme.cardColor(context).withOpacity(0.85);
+
     return AnimatedPressableCard(
       onTap: () {
         HapticFeedback.lightImpact();
@@ -1963,15 +1972,17 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 14),
         decoration: BoxDecoration(
-          color: bgColor,
+          color: effectiveBg,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: AppTheme.cardColor(context).withOpacity(0.6),
+            color: isDark
+                ? accentColor.withOpacity(0.3)
+                : AppTheme.cardColor(context).withOpacity(0.6),
             width: 2,
           ),
           boxShadow: [
             BoxShadow(
-              color: accentColor.withOpacity(0.15),
+              color: accentColor.withOpacity(isDark ? 0.05 : 0.15),
               blurRadius: 12,
               offset: const Offset(0, 5),
             ),
@@ -1982,7 +1993,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.cardColor(context).withOpacity(0.7),
+                color: iconBgColor,
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 28, color: accentColor),
@@ -1993,7 +2004,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
-                color: AppTheme.textDark(context),
+                color: effectiveTextColor,
               ),
               textAlign: TextAlign.center,
             ),
