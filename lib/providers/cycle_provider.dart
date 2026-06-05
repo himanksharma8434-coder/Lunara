@@ -45,6 +45,7 @@ class CycleProvider extends ChangeNotifier {
   // Symptom Tracking
   List<String> _todaySymptoms = [];
   final Map<DateTime, List<String>> _symptomHistory = {};
+  List<Map<String, dynamic>> _customSymptoms = [];
 
   // Notes & Journal
   final List<Map<String, dynamic>> _journalEntries = [];
@@ -137,6 +138,17 @@ class CycleProvider extends ChangeNotifier {
       final decoded = jsonDecode(historyJson) as Map<String, dynamic>;
       _wellnessHistory =
           decoded.map((k, v) => MapEntry(k, Map<String, dynamic>.from(v)));
+    }
+
+    // Load custom symptoms
+    final customSymptomsJson = _prefs.getString('custom_symptoms');
+    if (customSymptomsJson != null) {
+      try {
+        final decoded = jsonDecode(customSymptomsJson) as List<dynamic>;
+        _customSymptoms = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+      } catch (e) {
+        debugPrint('Error loading custom symptoms: $e');
+      }
     }
 
     _calculatePredictions();
@@ -366,6 +378,8 @@ class CycleProvider extends ChangeNotifier {
     // Persist cycle history
     await _prefs.setString('cycle_history',
         jsonEncode(_cycleHistory.map((d) => d.toIso8601String()).toList()));
+    // Persist custom symptoms
+    await _prefs.setString('custom_symptoms', jsonEncode(_customSymptoms));
   }
 
   // Getters - User Info
@@ -379,6 +393,7 @@ class CycleProvider extends ChangeNotifier {
   int get height => _height;
   bool get bodyMetricsCompleted => _bodyMetricsCompleted;
   bool get isIrregular => _isIrregular;
+  List<Map<String, dynamic>> get customSymptoms => _customSymptoms;
 
   // Partner Tracking Getters
   bool get isTrackingForSomeoneElse => _isTrackingForSomeoneElse;
@@ -1440,6 +1455,29 @@ class CycleProvider extends ChangeNotifier {
   void setTodaySymptoms(List<String> symptoms) {
     _todaySymptoms = symptoms;
     _updateSymptomHistory();
+    _saveDailySnapshot();
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  void addCustomSymptom(String name, int iconCodePoint, int colorValue) {
+    if (!_customSymptoms.any((s) => s['name'].toString().toLowerCase() == name.toLowerCase())) {
+      _customSymptoms.add({
+        'name': name,
+        'iconCodePoint': iconCodePoint,
+        'colorValue': colorValue,
+      });
+      _saveToPrefs();
+      notifyListeners();
+    }
+  }
+
+  void deleteCustomSymptom(String name) {
+    _customSymptoms.removeWhere((s) => s['name'] == name);
+    _todaySymptoms.remove(name);
+    _updateSymptomHistory();
+    _saveDailySnapshot();
+    _saveToPrefs();
     notifyListeners();
   }
 

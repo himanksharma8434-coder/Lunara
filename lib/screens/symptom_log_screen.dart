@@ -2,7 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
+import '../providers/cycle_provider.dart';
 import 'bbt_log_screen.dart';
 
 class SymptomLogScreen extends StatefulWidget {
@@ -15,7 +17,7 @@ class SymptomLogScreen extends StatefulWidget {
 class _SymptomLogScreenState extends State<SymptomLogScreen> {
   final Set<String> _selectedSymptoms = {};
 
-  final List<Map<String, dynamic>> _symptoms = [
+  final List<Map<String, dynamic>> _defaultSymptoms = [
     {
       'name': 'Cramps',
       'icon': Icons.flash_on_rounded,
@@ -58,8 +60,244 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     },
   ];
 
+  final List<IconData> _availableIcons = [
+    Icons.healing_rounded,
+    Icons.sentiment_dissatisfied_rounded,
+    Icons.bolt_rounded,
+    Icons.spa_rounded,
+    Icons.warning_rounded,
+    Icons.favorite_rounded,
+    Icons.water_drop_rounded,
+    Icons.hotel_rounded,
+    Icons.nights_stay_rounded,
+    Icons.restaurant_rounded,
+  ];
+
+  final List<Color> _availableColors = [
+    LunaraColors.primary,
+    LunaraColors.warning,
+    const Color(0xFFBA68C8), // Purple
+    LunaraColors.ovulationBlue,
+    const Color(0xFFFFD54F), // Yellow
+    LunaraColors.fertileGreen,
+    const Color(0xFFE57373), // Soft Red
+    const Color(0xFF4DB6AC), // Teal
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = Provider.of<CycleProvider>(context, listen: false);
+      setState(() {
+        _selectedSymptoms.addAll(provider.todaySymptoms);
+      });
+    });
+  }
+
+  void _showCreateCustomSymptomDialog(BuildContext context) {
+    final nameController = TextEditingController();
+    IconData selectedIcon = _availableIcons.first;
+    Color selectedColor = _availableColors.first;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppTheme.cardColor(context),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: Text(
+                'Create Custom Symptom',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textDark(context),
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      textCapitalization: TextCapitalization.sentences,
+                      maxLength: 24,
+                      style: TextStyle(color: AppTheme.textDark(context)),
+                      decoration: InputDecoration(
+                        labelText: 'Symptom Name',
+                        hintText: 'e.g. Migraine, Back ache',
+                        counterText: '',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Choose Icon',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textDark(context),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 50,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _availableIcons.length,
+                        itemBuilder: (context, index) {
+                          final icon = _availableIcons[index];
+                          final isSelected = icon == selectedIcon;
+                          return GestureDetector(
+                            onTap: () {
+                              setDialogState(() {
+                                selectedIcon = icon;
+                              });
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? selectedColor.withOpacity(0.2)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected ? selectedColor : Colors.grey.shade300,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Icon(icon, color: isSelected ? selectedColor : Colors.grey),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Choose Color',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textDark(context),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 40,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _availableColors.length,
+                        itemBuilder: (context, index) {
+                          final color = _availableColors[index];
+                          final isSelected = color == selectedColor;
+                          return GestureDetector(
+                            onTap: () {
+                              setDialogState(() {
+                                selectedColor = color;
+                              });
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isSelected ? AppTheme.textDark(context) : Colors.transparent,
+                                  width: 3,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Cancel', style: TextStyle(color: AppTheme.textLight(context))),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final name = nameController.text.trim();
+                    if (name.isEmpty) return;
+
+                    final provider = Provider.of<CycleProvider>(context, listen: false);
+                    provider.addCustomSymptom(name, selectedIcon.codePoint, selectedColor.value);
+                    
+                    setState(() {
+                      _selectedSymptoms.add(name);
+                    });
+
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: LunaraColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Create', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteCustomSymptom(BuildContext context, String name) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Custom Symptom?'),
+        content: Text('Are you sure you want to delete "$name"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final provider = Provider.of<CycleProvider>(context, listen: false);
+              provider.deleteCustomSymptom(name);
+              setState(() {
+                _selectedSymptoms.remove(name);
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final provider = Provider.of<CycleProvider>(context);
+    
+    // Map custom symptoms from provider
+    final customList = provider.customSymptoms.map((s) {
+      return {
+        'name': s['name'] as String,
+        'icon': IconData(s['iconCodePoint'] as int, fontFamily: 'MaterialIcons'),
+        'color': Color(s['colorValue'] as int),
+        'isCustom': true,
+      };
+    }).toList();
+
+    // Combine standard and custom symptoms
+    final allSymptoms = [..._defaultSymptoms, ...customList];
+
     return Scaffold(
       backgroundColor: AppTheme.background(context),
       appBar: AppBar(
@@ -96,68 +334,126 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                 Wrap(
                   spacing: 12,
                   runSpacing: 12,
-                  children: _symptoms.map((symptom) {
-                    final isSelected =
-                        _selectedSymptoms.contains(symptom['name']);
-                    return GestureDetector(
+                  children: [
+                    ...allSymptoms.map((symptom) {
+                      final isSelected =
+                          _selectedSymptoms.contains(symptom['name']);
+                      final isCustom = symptom['isCustom'] == true;
+                      
+                      return GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          setState(() {
+                            if (isSelected) {
+                              _selectedSymptoms.remove(symptom['name']);
+                            } else {
+                              _selectedSymptoms.add(symptom['name']);
+                            }
+                          });
+                        },
+                        onLongPress: isCustom
+                            ? () => _confirmDeleteCustomSymptom(context, symptom['name'])
+                            : null,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? symptom['color'].withOpacity(0.2)
+                                : AppTheme.cardColor(context),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isSelected
+                                  ? symptom['color']
+                                  : Colors.grey.shade300,
+                              width: 2,
+                            ),
+                            boxShadow: [
+                              if (isSelected)
+                                BoxShadow(
+                                  color: symptom['color'].withOpacity(0.3),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                symptom['icon'],
+                                color: symptom['color'],
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                symptom['name'],
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: isSelected
+                                      ? symptom['color']
+                                      : AppTheme.textDark(context),
+                                ),
+                              ),
+                              if (isCustom) ...[
+                                const SizedBox(width: 6),
+                                GestureDetector(
+                                  onTap: () => _confirmDeleteCustomSymptom(context, symptom['name']),
+                                  child: Icon(
+                                    Icons.cancel_rounded,
+                                    size: 16,
+                                    color: Colors.red.withOpacity(0.7),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                    
+                    // "+ Create Custom" Button Card
+                    GestureDetector(
                       onTap: () {
                         HapticFeedback.lightImpact();
-                        setState(() {
-                          if (isSelected) {
-                            _selectedSymptoms.remove(symptom['name']);
-                          } else {
-                            _selectedSymptoms.add(symptom['name']);
-                          }
-                        });
+                        _showCreateCustomSymptomDialog(context);
                       },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                      child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
-                          color: isSelected
-                              ? symptom['color'].withOpacity(0.2)
-                              : AppTheme.cardColor(context),
+                          color: Colors.transparent,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: isSelected
-                                ? symptom['color']
-                                : Colors.grey.shade300,
+                            color: LunaraColors.primary.withOpacity(0.5),
+                            style: BorderStyle.solid,
                             width: 2,
                           ),
-                          boxShadow: [
-                            if (isSelected)
-                              BoxShadow(
-                                color: symptom['color'].withOpacity(0.3),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                          ],
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              symptom['icon'],
-                              color: symptom['color'],
+                              Icons.add_circle_outline_rounded,
+                              color: LunaraColors.primary,
                               size: 20,
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: 8),
                             Text(
-                              symptom['name'],
+                              'Create Custom',
                               style: TextStyle(
                                 fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: isSelected
-                                    ? symptom['color']
-                                    : AppTheme.textDark(context),
+                                fontWeight: FontWeight.bold,
+                                color: LunaraColors.primary,
                               ),
                             ),
                           ],
                         ),
                       ),
-                    );
-                  }).toList(),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 40),
                 const Text(
@@ -193,19 +489,18 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
               width: double.infinity,
               height: 55,
               child: ElevatedButton(
-                onPressed: _selectedSymptoms.isEmpty
-                    ? null
-                    : () {
-                        HapticFeedback.mediumImpact();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                                '${_selectedSymptoms.length} symptom(s) logged'),
-                            backgroundColor: const Color(0xFF06D6A0),
-                          ),
-                        );
-                        Navigator.pop(context);
-                      },
+                onPressed: () {
+                  HapticFeedback.mediumImpact();
+                  provider.setTodaySymptoms(_selectedSymptoms.toList());
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          '${_selectedSymptoms.length} symptom(s) logged successfully!'),
+                      backgroundColor: const Color(0xFF06D6A0),
+                    ),
+                  );
+                  Navigator.pop(context);
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: LunaraColors.primary,
                   disabledBackgroundColor: Colors.grey[300],
@@ -215,7 +510,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
                 ),
                 child: Text(
                   _selectedSymptoms.isEmpty
-                      ? 'Select Symptoms'
+                      ? 'No symptoms today (Clear Log)'
                       : 'Save ${_selectedSymptoms.length} Symptom(s)',
                   style: const TextStyle(
                     fontSize: 16,
@@ -230,6 +525,7 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
       ),
     );
   }
+
   Widget _buildAdvancedTrackingCard(BuildContext context, String title,
       String subtitle, IconData icon, Color color) {
     return GestureDetector(
@@ -288,3 +584,4 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
     );
   }
 }
+
