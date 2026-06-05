@@ -10,10 +10,12 @@ import '../ai_chat_screen.dart';
 import '../note_screen.dart';
 import '../insights_screen.dart';
 import '../wellness_plan_screen.dart';
+import '../premium_screen.dart';
 import '../assessment_screen.dart';
 import '../bbt_log_screen.dart';
 import '../../widgets/animations.dart';
 import '../../models/prediction_result.dart';
+import '../../services/premium_service.dart';
 
 // HOME TAB - ENHANCED
 class HomeTab extends StatefulWidget {
@@ -598,6 +600,33 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                 onTap: () {
                                   HapticFeedback.lightImpact();
                                   provider.dismissPeriodConfirmation();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.auto_awesome_rounded,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          const Expanded(
+                                            child: Text(
+                                              'Noted! Lunara\'s intelligence will adjust your predictions.',
+                                              style: TextStyle(fontWeight: FontWeight.w600),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: LunaraColors.primaryDark,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                                      duration: const Duration(seconds: 3),
+                                    ),
+                                  );
                                 },
                                 child: Container(
                                   padding:
@@ -625,6 +654,89 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 10),
+                        // "Correct Date" link
+                        Center(
+                          child: GestureDetector(
+                            onTap: () async {
+                              HapticFeedback.lightImpact();
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                                lastDate: DateTime.now(),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: ColorScheme.light(
+                                        primary: AppTheme.primary(context),
+                                        onPrimary: Colors.white,
+                                        onSurface: AppTheme.textDark(context),
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
+                              );
+                              if (picked != null) {
+                                provider.updateLastPeriodDate(picked);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Row(
+                                        children: [
+                                          Icon(
+                                            Icons.check_circle_rounded,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                          SizedBox(width: 10),
+                                          Expanded(
+                                            child: Text(
+                                              'Period date updated! Predictions recalculated.',
+                                              style: TextStyle(fontWeight: FontWeight.w600),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: const Color(0xFF06D6A0),
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                                      duration: const Duration(seconds: 3),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.edit_calendar_rounded,
+                                    size: 14,
+                                    color: LunaraColors.lutealPurple.withOpacity(0.8),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'It started on a different day',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: LunaraColors.lutealPurple.withOpacity(0.8),
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: LunaraColors.lutealPurple.withOpacity(0.4),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -1434,6 +1546,87 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                 ),
               ),
             ),
+
+            // ─── Premium Upgrade Banner ───
+            if (!PremiumService.instance.isPremium)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const PremiumScreen()),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF2D1B4E), Color(0xFF44206E)],
+                        ),
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF44206E).withOpacity(0.3),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(
+                              Icons.workspace_premium_rounded,
+                              color: Colors.amber,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Upgrade to Premium',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  'Unlock unlimited AI, 90-day trends & more',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.6),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 16,
+                            color: Colors.white.withOpacity(0.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
 
             // Bottom spacing for nav bar
             // Irregular Period Section - Premium Design
