@@ -871,11 +871,29 @@ class CycleProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// User says "Not yet" — dismiss for today.
+  /// User says "Not yet" — dismiss for today and notify backend.
   void dismissPeriodConfirmation() {
     _prefs.setString(
         'period_confirm_dismissed', DateTime.now().toIso8601String());
+    // Sync this delay event to backend so intelligence engine can learn
+    _syncPeriodDelayToCloud();
     notifyListeners();
+  }
+
+  /// Log a period delay ("Not yet") event to the cloud so the backend
+  /// intelligence engine can learn from prediction misses.
+  Future<void> _syncPeriodDelayToCloud() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null || _nextPeriodDate == null) return;
+    try {
+      await DatabaseService().logPeriodDelay(
+        userId: userId,
+        predictedDate: _nextPeriodDate!,
+        dismissedAt: DateTime.now(),
+      );
+    } catch (e) {
+      debugPrint('Cloud sync error (period delay): $e');
+    }
   }
 
   // ─── FERTILE WINDOW (Clinical Model) ─────────────────

@@ -281,6 +281,29 @@ class DatabaseService {
     }
   }
 
+  // ─── PERIOD DELAY EVENTS ────────────────────────────
+
+  /// Log a period delay event when the user dismisses the
+  /// "Did your period start?" prompt with "Not yet".
+  /// This feeds the backend intelligence engine so it can
+  /// learn from prediction misses and adjust future cycles.
+  Future<void> logPeriodDelay({
+    required String userId,
+    required DateTime predictedDate,
+    required DateTime dismissedAt,
+  }) async {
+    try {
+      await _db.from('period_delay_events').insert({
+        'user_id': userId,
+        'predicted_date': predictedDate.toIso8601String().split('T')[0],
+        'dismissed_at': dismissedAt.toIso8601String(),
+        'event_type': 'not_yet',
+      });
+    } catch (e) {
+      debugPrint('Cloud sync error (logPeriodDelay): $e');
+    }
+  }
+
   // ─── GENERIC HELPERS ───────────────────────────────
 
   /// Stream any table's data in real-time for a specific user.
