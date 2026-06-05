@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,6 +13,9 @@ class AppNotificationService extends ChangeNotifier {
 
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
+
+  // Stream for handling notification actions tapped by the user
+  final StreamController<String> actionStream = StreamController<String>.broadcast();
 
   // Notification IDs
   static const int _dailyReminderId = 100;
@@ -75,7 +79,14 @@ class AppNotificationService extends ChangeNotifier {
 
     const settings =
         InitializationSettings(android: androidSettings, iOS: iosSettings);
-    await _notifications.initialize(settings: settings);
+    await _notifications.initialize(
+      settings: settings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        if (response.actionId != null) {
+          actionStream.add(response.actionId!);
+        }
+      },
+    );
 
     // Load preferences
     final prefs = await SharedPreferences.getInstance();
@@ -210,30 +221,63 @@ class AppNotificationService extends ChangeNotifier {
   }) async {
     if (!_cycleEnabled) return;
 
-    final reminderDate = nextPeriodDate.subtract(const Duration(days: 2));
-    if (reminderDate.isBefore(DateTime.now())) return;
+    final rawReminderDate = nextPeriodDate.subtract(const Duration(days: 2));
+    // Force the notification to fire at 9:00 AM local time
+    final reminderDate = tz.TZDateTime(
+        tz.local, rawReminderDate.year, rawReminderDate.month, rawReminderDate.day, 9, 0);
+
+    if (reminderDate.isBefore(tz.TZDateTime.now(tz.local))) return;
 
     final title = isTrackingForSomeoneElse
         ? "${trackedPersonName.isNotEmpty ? trackedPersonName : "Partner"}'s Period is Approaching"
         : "Period approaching";
 
-    final body = isTrackingForSomeoneElse
-        ? "Their period is predicted to start in 2 days. Time to be extra supportive!"
-        : "Your cycle is expected to start in 2 days. Stay prepared! 🌸";
+    final partnerBodies = [
+      "Their period is predicted to start in 2 days. Time to be extra supportive!",
+      "A gentle heads-up: their cycle begins soon. Bring out their favorite snacks!",
+      "Expect their period in about 48 hours. Keep the vibes calm and positive ✨"
+    ];
+
+    final selfBodies = [
+      "Just a heads up, your period is likely arriving in a couple of days. Time to prep your favorite snacks! 🍫",
+      "Your cycle is approaching! Make sure you've got everything you need for the days ahead. 🌸",
+      "A gentle reminder from Lunara: your period is expected in about 2 days. Be kind to yourself!",
+      "Prediction update: expect your cycle to begin soon. Keep your water bottle handy! 💧",
+      "Your period is around the corner. Remember to prioritize rest and stay hydrated! ✨"
+    ];
+
+    final bodyPool = isTrackingForSomeoneElse ? partnerBodies : selfBodies;
+    final selectedBody = (bodyPool.toList()..shuffle()).first;
 
     await _notifications.zonedSchedule(
       id: _periodReminderId,
       title: title,
-      body: body,
-      scheduledDate: tz.TZDateTime.from(reminderDate, tz.local),
-      notificationDetails: const NotificationDetails(
+      body: selectedBody,
+      scheduledDate: reminderDate,
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           'period_channel',
           'Period Reminders',
           importance: Importance.max,
           priority: Priority.high,
+          actions: [
+            if (!isTrackingForSomeoneElse) ...[
+              const AndroidNotificationAction(
+                'action_period_started',
+                'Yes, it started',
+                showsUserInterface: true,
+              ),
+              const AndroidNotificationAction(
+                'action_not_yet',
+                'Not yet',
+                showsUserInterface: true,
+              ),
+            ]
+          ],
         ),
-        iOS: DarwinNotificationDetails(),
+        iOS: DarwinNotificationDetails(
+          categoryIdentifier: 'period_reminder',
+        ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
@@ -246,22 +290,38 @@ class AppNotificationService extends ChangeNotifier {
   }) async {
     if (!_cycleEnabled) return;
 
-    final reminderDate = fertileWindowStart.subtract(const Duration(days: 1));
-    if (reminderDate.isBefore(DateTime.now())) return;
+    final rawReminderDate = fertileWindowStart.subtract(const Duration(days: 1));
+    // Force the notification to fire at 9:00 AM local time
+    final reminderDate = tz.TZDateTime(
+        tz.local, rawReminderDate.year, rawReminderDate.month, rawReminderDate.day, 9, 0);
+
+    if (reminderDate.isBefore(tz.TZDateTime.now(tz.local))) return;
 
     final title = isTrackingForSomeoneElse
         ? "${trackedPersonName.isNotEmpty ? trackedPersonName : "Partner"}'s Fertile Window"
         : "Fertile Window Approaching";
 
-    final body = isTrackingForSomeoneElse
-        ? "Their fertile window begins tomorrow."
-        : "Your fertile window begins tomorrow.";
+    final partnerBodies = [
+      "Their fertile window begins tomorrow.",
+      "Just a heads up: their fertile window is starting tomorrow.",
+      "Prediction update: their fertile window opens tomorrow."
+    ];
+
+    final selfBodies = [
+      "Your fertile window begins tomorrow. Keep logging your symptoms for the best insights!",
+      "Ovulation is approaching! Your fertile window officially starts tomorrow. ✨",
+      "Just a heads up: you are entering your fertile window starting tomorrow.",
+      "Your fertile window opens tomorrow! A great time to stay in tune with your body's signals."
+    ];
+
+    final bodyPool = isTrackingForSomeoneElse ? partnerBodies : selfBodies;
+    final selectedBody = (bodyPool.toList()..shuffle()).first;
 
     await _notifications.zonedSchedule(
       id: _ovulationReminderId,
       title: title,
-      body: body,
-      scheduledDate: tz.TZDateTime.from(reminderDate, tz.local),
+      body: selectedBody,
+      scheduledDate: reminderDate,
       notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'fertility_channel',

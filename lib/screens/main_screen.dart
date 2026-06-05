@@ -8,6 +8,9 @@ import 'ai_chat_screen.dart';
 import 'appointment_screen.dart';
 import 'community_screen.dart';
 import 'profile_screen.dart';
+import 'dart:async';
+import 'package:provider/provider.dart';
+import '../providers/cycle_provider.dart';
 import 'tabs/home_tab.dart';
 import '../services/app_notification_service.dart';
 
@@ -23,6 +26,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   late AnimationController _breathingController;
   late AnimationController _entryController;
   late AnimationController _fabController;
+  StreamSubscription<String>? _actionSubscription;
 
   @override
   void initState() {
@@ -46,6 +50,51 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
 
     _entryController.forward();
+
+    // Listen for notification action taps
+    _actionSubscription = AppNotificationService().actionStream.stream.listen((action) {
+      if (!mounted) return;
+      final provider = Provider.of<CycleProvider>(context, listen: false);
+      
+      if (action == 'action_period_started') {
+        provider.confirmPeriodStarted();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Expanded(child: Text("Period start logged successfully!")),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      } else if (action == 'action_not_yet') {
+        provider.dismissPeriodConfirmation();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.auto_awesome, color: Colors.white),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text("Noted! Lunara's intelligence will adjust your predictions."),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF6C63FF),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    });
   }
 
   Future<void> _requestAllPermissions() async {
@@ -68,6 +117,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _actionSubscription?.cancel();
     _breathingController.dispose();
     _entryController.dispose();
     _fabController.dispose();
