@@ -90,6 +90,44 @@ Deno.serve(async (req: Request) => {
 
     console.log('Email sent successfully:', info.messageId);
 
+    // ─── SMS NOTIFICATION FOR HIGH PRIORITY PREMIUM USERS ───
+    const isHighPriority = message.includes('[PRIORITY: HIGH]');
+    const phoneMatch = message.match(/\[USER_PHONE:\s*([^\]]+)\]/);
+    const phone = phoneMatch ? phoneMatch[1] : null;
+
+    if (isHighPriority && phone && isUpdateReplied && newRecord.status === 'replied') {
+      const brevoApiKey = Deno.env.get('BREVO_API_KEY');
+      if (brevoApiKey) {
+        try {
+          console.log(`Sending SMS to high priority user at ${phone}...`);
+          const smsResponse = await fetch('https://api.brevo.com/v3/transactionalSMS/sms', {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'api-key': brevoApiKey,
+            },
+            body: JSON.stringify({
+              type: 'transactional',
+              sender: 'Lunara', 
+              recipient: phone, 
+              content: `Lunara Support: We have replied to your high priority ticket. Please check your email for the detailed response.`,
+            })
+          });
+
+          if (!smsResponse.ok) {
+            console.error('Brevo SMS Error:', await smsResponse.text());
+          } else {
+            console.log('SMS sent successfully');
+          }
+        } catch (smsError) {
+          console.error('Failed to send SMS:', smsError);
+        }
+      } else {
+         console.warn('BREVO_API_KEY is not set, skipping SMS');
+      }
+    }
+
     return new Response(JSON.stringify({ message: 'Email sent successfully', messageId: info.messageId }), {
       headers: { 'Content-Type': 'application/json' },
       status: 200,

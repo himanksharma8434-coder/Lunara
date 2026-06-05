@@ -8,6 +8,7 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../services/groq_service.dart';
+import '../services/premium_service.dart';
 import '../config/app_config.dart';
 
 class HelpSupportScreen extends StatefulWidget {
@@ -128,11 +129,22 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
 
       // ─── INSERT INTO SUPABASE ───
       final supabase = Supabase.instance.client;
+      final isPremium = PremiumService.instance.isPremium;
+      final phone = supabase.auth.currentUser?.phone ?? '';
+
+      String finalMessage = feedback;
+      if (isPremium) {
+        finalMessage += '\n\n[PRIORITY: HIGH]';
+        if (phone.isNotEmpty) {
+          finalMessage += '\n[USER_PHONE: $phone]';
+        }
+      }
+
       await supabase.from('support_tickets').insert({
         'user_id': uid,
         'email': userEmail,
         'category': _selectedCategory,
-        'message': feedback,
+        'message': finalMessage,
         'ai_reply': aiReply,
         'status': status,
       });
