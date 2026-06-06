@@ -9,6 +9,10 @@ class CommunityCommentModel {
   final String content;
   final DateTime createdAt;
 
+  // Threaded reply parsing properties
+  final int? parentId;
+  final String cleanContent;
+
   CommunityCommentModel({
     this.id,
     required this.postId,
@@ -17,7 +21,25 @@ class CommunityCommentModel {
     this.authorAvatar,
     required this.content,
     DateTime? createdAt,
-  }) : createdAt = createdAt ?? DateTime.now();
+  }) : createdAt = createdAt ?? DateTime.now(),
+       parentId = _parseParentId(content),
+       cleanContent = _parseCleanContent(content);
+
+  static int? _parseParentId(String text) {
+    final match = RegExp(r'^\[reply:(\d+)\]').firstMatch(text);
+    if (match != null) {
+      return int.tryParse(match.group(1)!);
+    }
+    return null;
+  }
+
+  static String _parseCleanContent(String text) {
+    final match = RegExp(r'^\[reply:\d+\](.*)$', dotAll: true).firstMatch(text);
+    if (match != null) {
+      return match.group(1)!;
+    }
+    return text;
+  }
 
   factory CommunityCommentModel.fromJson(Map<String, dynamic> json) {
     return CommunityCommentModel(
@@ -44,4 +66,36 @@ class CommunityCommentModel {
       'created_at': createdAt.toIso8601String(),
     };
   }
+}
+
+class ParsedComment {
+  final CommunityCommentModel comment;
+  final List<ParsedComment> replies = [];
+
+  ParsedComment({
+    required this.comment,
+  });
+}
+
+List<ParsedComment> buildCommentTree(List<Map<String, dynamic>> rawComments) {
+  final Map<int, ParsedComment> commentMap = {};
+  final List<ParsedComment> rootComments = [];
+
+  for (final data in rawComments) {
+    final comment = CommunityCommentModel.fromJson(data);
+    if (comment.id != null) {
+      commentMap[comment.id!] = ParsedComment(comment: comment);
+    }
+  }
+
+  for (final parsed in commentMap.values) {
+    final parentId = parsed.comment.parentId;
+    if (parentId != null && commentMap.containsKey(parentId)) {
+      commentMap[parentId]!.replies.add(parsed);
+    } else {
+      rootComments.add(parsed);
+    }
+  }
+
+  return rootComments;
 }

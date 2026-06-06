@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
+import '../models/community_post_model.dart';
 
 class DatabaseService {
   final SupabaseClient _db = Supabase.instance.client;
@@ -562,6 +563,52 @@ class DatabaseService {
       });
     } catch (e) {
       debugPrint('Error adding comment: $e');
+    }
+  }
+
+  /// Fetch a single community post by ID
+  Future<CommunityPostModel?> getCommunityPostById(int postId) async {
+    try {
+      final response = await _db
+          .from('community_posts')
+          .select()
+          .eq('id', postId)
+          .maybeSingle();
+      if (response != null) {
+        return CommunityPostModel.fromJson(response);
+      }
+    } catch (e) {
+      debugPrint('Error fetching post by id: $e');
+    }
+    return null;
+  }
+
+  /// Fetch replies to the current user's community posts
+  Future<List<Map<String, dynamic>>> getRepliesToUserPosts(String userId) async {
+    try {
+      // 1. Get the user's post IDs
+      final postsResponse = await _db
+          .from('community_posts')
+          .select('id')
+          .eq('author_id', userId);
+      
+      final posts = List<Map<String, dynamic>>.from(postsResponse);
+      if (posts.isEmpty) return [];
+
+      final postIds = posts.map((p) => p['id'] as int).toList();
+
+      // 2. Get comments on those posts, excluding the user's own comments
+      final commentsResponse = await _db
+          .from('community_comments')
+          .select()
+          .inFilter('post_id', postIds)
+          .neq('author_id', userId)
+          .order('created_at', ascending: false);
+      
+      return List<Map<String, dynamic>>.from(commentsResponse);
+    } catch (e) {
+      debugPrint('Error fetching replies to user posts: $e');
+      return [];
     }
   }
 }
