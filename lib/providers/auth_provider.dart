@@ -59,9 +59,11 @@ class AuthProvider with ChangeNotifier {
         }
       } else if (event == AuthChangeEvent.signedIn) {
         // signedIn fires for explicit logins AND sometimes for background
-        // token restores. Only trust it if the user explicitly logged in.
-        if (_userDidExplicitLogin) {
+        // token restores. Trust it if the user explicitly logged in, OR
+        // if there is a valid session and the user has already seen onboarding.
+        if (_userDidExplicitLogin || (session != null && hasSeenOnboarding)) {
           _isLoggedIn = true;
+          _userDidExplicitLogin = true;
           if (!oldIsLoggedIn) {
             _loadUserData();
           }
@@ -71,18 +73,23 @@ class AuthProvider with ChangeNotifier {
         }
       } else if (event == AuthChangeEvent.tokenRefreshed) {
         // tokenRefreshed fires when Supabase refreshes an existing token
-        // in the background. NEVER let this promote a user from
-        // logged-out to logged-in — that's the ghost session bug.
-        if (_isLoggedIn) {
-          // Already logged in, just keep the state as-is.
-          debugPrint('AuthProvider: tokenRefreshed while logged in — OK');
+        // in the background. If the user has seen onboarding and we have a valid
+        // session, we should trust it and keep/promote them to logged in.
+        if (_isLoggedIn || (session != null && hasSeenOnboarding)) {
+          _isLoggedIn = true;
+          _userDidExplicitLogin = true;
+          debugPrint('AuthProvider: tokenRefreshed — OK');
+          if (!oldIsLoggedIn) {
+            _loadUserData();
+          }
         } else {
           debugPrint(
               'AuthProvider: IGNORING tokenRefreshed — user is not logged in');
         }
       } else if (event == AuthChangeEvent.userUpdated) {
-        if (_userDidExplicitLogin) {
+        if (_userDidExplicitLogin || (session != null && hasSeenOnboarding)) {
           _isLoggedIn = true;
+          _userDidExplicitLogin = true;
         }
       } else if (event == AuthChangeEvent.signedOut ||
           event == AuthChangeEvent.userDeleted) {
