@@ -51,7 +51,7 @@ class _InsightsScreenState extends State<InsightsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<CycleProvider>(context);
+    final provider = Provider.of<CycleProvider>(context, listen: false);
     return Scaffold(
       backgroundColor: AppTheme.background(context),
       body: FadeTransition(
@@ -81,7 +81,7 @@ class _InsightsScreenState extends State<InsightsScreen>
                 SliverToBoxAdapter(
                   child: _buildAnimatedCard(
                     delay: 0,
-                    child: _CyclePhaseCard(provider: provider),
+                    child: const _CyclePhaseCard(),
                   ),
                 ),
                 // AI Predictive Trends (Premium)
@@ -95,21 +95,21 @@ class _InsightsScreenState extends State<InsightsScreen>
                 SliverToBoxAdapter(
                   child: _buildAnimatedCard(
                     delay: 100,
-                    child: _WellnessTrendsCard(provider: provider, days: _selectedRange),
+                    child: _WellnessTrendsCard(days: _selectedRange),
                   ),
                 ),
                 // Mood Trend
                 SliverToBoxAdapter(
                   child: _buildAnimatedCard(
                     delay: 200,
-                    child: _MoodTrendCard(provider: provider, days: _selectedRange),
+                    child: _MoodTrendCard(days: _selectedRange),
                   ),
                 ),
                 // Symptom Frequency
                 SliverToBoxAdapter(
                   child: _buildAnimatedCard(
                     delay: 300,
-                    child: _SymptomFrequencyCard(provider: provider, days: _selectedRange),
+                    child: _SymptomFrequencyCard(days: _selectedRange),
                   ),
                 ),
 
@@ -835,15 +835,20 @@ Do NOT use markdown formatting. Keep each insight EXTREMELY short (1 sentence ma
 // ═══════════════════════════════════════════════════════════════════
 
 class _CyclePhaseCard extends StatelessWidget {
-  final CycleProvider provider;
-  const _CyclePhaseCard({required this.provider});
+  const _CyclePhaseCard();
 
   @override
   Widget build(BuildContext context) {
-    final day = provider.currentCycleDay;
-    final total = provider.cycleLength;
-    final phase = provider.currentPhase;
-    final periodEnd = provider.periodDuration;
+    final (day, total, phase, periodEnd, daysUntilNextPeriod) =
+        context.select<CycleProvider, (int, int, String, int, int)>(
+      (p) => (
+        p.currentCycleDay,
+        p.cycleLength,
+        p.currentPhase,
+        p.periodDuration,
+        p.daysUntilNextPeriod,
+      ),
+    );
     final ovulationStart = 13;
     final ovulationEnd = 17;
 
@@ -971,8 +976,8 @@ class _CyclePhaseCard extends StatelessWidget {
               _phaseLabel(context, 'Luteal', AppTheme.lutealPurple(context)),
             ],
           ),
-          if (provider.daysUntilNextPeriod > 0 &&
-              provider.daysUntilNextPeriod <= provider.cycleLength) ...[
+          if (daysUntilNextPeriod > 0 &&
+              daysUntilNextPeriod <= total) ...[
             SizedBox(height: 16),
             Container(
               width: double.infinity,
@@ -987,7 +992,7 @@ class _CyclePhaseCard extends StatelessWidget {
                       size: 16, color: AppTheme.primary(context)),
                   SizedBox(width: 10),
                   Text(
-                    'Next period in ${provider.daysUntilNextPeriod} days',
+                    'Next period in $daysUntilNextPeriod days',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -1081,13 +1086,14 @@ class _CyclePhaseCard extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════
 
 class _WellnessTrendsCard extends StatelessWidget {
-  final CycleProvider provider;
   final int days;
-  const _WellnessTrendsCard({required this.provider, this.days = 7});
+  const _WellnessTrendsCard({this.days = 7});
 
   @override
   Widget build(BuildContext context) {
-    final history = provider.getWellnessHistory(days);
+    final history = context.select<CycleProvider, List<Map<String, dynamic>>>(
+      (p) => p.getWellnessHistory(days),
+    );
 
     return Container(
       margin: EdgeInsets.fromLTRB(20, 6, 20, 6),
@@ -1304,9 +1310,8 @@ class _WellnessTrendsCard extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════
 
 class _MoodTrendCard extends StatelessWidget {
-  final CycleProvider provider;
   final int days;
-  const _MoodTrendCard({required this.provider, this.days = 7});
+  const _MoodTrendCard({this.days = 7});
 
   double _moodToValue(String mood) {
     switch (mood.toLowerCase()) {
@@ -1336,7 +1341,9 @@ class _MoodTrendCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final history = provider.getWellnessHistory(days);
+    final history = context.select<CycleProvider, List<Map<String, dynamic>>>(
+      (p) => p.getWellnessHistory(days),
+    );
     final spots = history.asMap().entries.map((e) {
       return FlSpot(e.key.toDouble(), _moodToValue(e.value['mood'] as String));
     }).toList();
@@ -1519,13 +1526,14 @@ class _MoodTrendCard extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════
 
 class _SymptomFrequencyCard extends StatelessWidget {
-  final CycleProvider provider;
   final int days;
-  const _SymptomFrequencyCard({required this.provider, this.days = 30});
+  const _SymptomFrequencyCard({this.days = 30});
 
   @override
   Widget build(BuildContext context) {
-    final frequency = provider.getSymptomFrequency(days);
+    final frequency = context.select<CycleProvider, Map<String, int>>(
+      (p) => p.getSymptomFrequency(days),
+    );
     final topSymptoms = frequency.entries.take(6).toList();
 
     return Container(
