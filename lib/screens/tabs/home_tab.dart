@@ -18,6 +18,9 @@ import '../../widgets/animations.dart';
 import '../../widgets/custom_toast.dart';
 import '../../models/prediction_result.dart';
 import '../../services/premium_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/database_service.dart';
+import '../notifications_screen.dart';
 
 // HOME TAB - ENHANCED
 class HomeTab extends StatefulWidget {
@@ -31,6 +34,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
   late AnimationController _breathingController;
   late AnimationController _scrollController;
   final GlobalKey _irregularButtonKey = GlobalKey();
+  bool _hasNewNotifications = false;
 
   @override
   void initState() {
@@ -45,6 +49,54 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 800),
     );
     _scrollController.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkNotifications();
+    });
+  }
+
+  Future<void> _checkNotifications() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userId = authProvider.userId;
+    if (userId.isEmpty) return;
+
+    try {
+      final dbService = DatabaseService();
+      final replies = await dbService.getRepliesToUserPosts(userId);
+      if (replies.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _hasNewNotifications = false;
+          });
+        }
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final lastViewStr = prefs.getString('last_notifications_view_time');
+      if (lastViewStr == null) {
+        if (mounted) {
+          setState(() {
+            _hasNewNotifications = true;
+          });
+        }
+        return;
+      }
+
+      final lastView = DateTime.parse(lastViewStr);
+      final hasNew = replies.any((r) {
+        final createdAt = DateTime.tryParse(r['created_at'] ?? '') ?? DateTime.now();
+        return createdAt.isAfter(lastView);
+      });
+
+      if (mounted) {
+        setState(() {
+          _hasNewNotifications = hasNew;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking notifications in home: $e');
+    }
   }
 
   @override
@@ -148,12 +200,18 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<CycleProvider>(context);
+    final provider = Provider.of<CycleProvider>(context, listen: false);
     final authProvider = Provider.of<AuthProvider>(context);
+    final userName = context.select<CycleProvider, String>((p) => p.userName);
+    final dynamicGreeting = context.select<CycleProvider, String>((p) => p.dynamicGreeting);
+    final isOnPeriod = context.select<CycleProvider, bool>((p) => p.isOnPeriod);
+    final shouldShowPeriodConfirmation = context.select<CycleProvider, bool>((p) => p.shouldShowPeriodConfirmation);
+    final predictiveInsight = context.select<CycleProvider, String?>((p) => p.predictiveInsight);
+    final currentPredictions = context.select<CycleProvider, List<String>>((p) => p.currentPredictions);
     final textColor = Theme.of(context).colorScheme.onSurface;
     final showDeferredBanner = authProvider.hasDeferredAssessment &&
-        provider.isOnPeriod &&
-        authProvider.shouldShowAssessment(provider.isOnPeriod);
+        isOnPeriod &&
+        authProvider.shouldShowAssessment(isOnPeriod);
 
     return Container(
       decoration: BoxDecoration(
@@ -193,7 +251,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                   ],
                                 ).createShader(bounds),
                                 child: Text(
-                                  'Hello, ${provider.userName.isEmpty ? 'There' : provider.userName.split(' ')[0]}',
+                                  'Hello, ${userName.isEmpty ? 'There' : userName.split(' ')[0]}',
                                   style: const TextStyle(
                                     fontSize: 26,
                                     fontWeight: FontWeight.w900,
@@ -216,7 +274,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
-                                      provider.dynamicGreeting,
+                                      dynamicGreeting,
                                       style: TextStyle(
                                         fontSize: 13,
                                         color: AppTheme.textLight(context),
@@ -234,7 +292,17 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                         ),
                         const SizedBox(width: 10),
                         GestureDetector(
-                          onTap: () => HapticFeedback.lightImpact(),
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const NotificationsScreen(),
+                              ),
+                            ).then((_) {
+                              _checkNotifications();
+                            });
+                          },
                           child: Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
@@ -257,27 +325,28 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                   color: textColor,
                                   size: 22,
                                 ),
-                                Positioned(
-                                  right: 0,
-                                  top: 0,
-                                  child: Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      gradient:
-                                          AppTheme.primaryGradient(context),
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AppTheme.primary(context)
-                                              .withOpacity(0.5),
-                                          blurRadius: 4,
-                                          spreadRadius: 1,
-                                        ),
-                                      ],
+                                if (_hasNewNotifications)
+                                  Positioned(
+                                    right: 0,
+                                    top: 0,
+                                    child: Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        gradient:
+                                            AppTheme.primaryGradient(context),
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: AppTheme.primary(context)
+                                                .withOpacity(0.5),
+                                            blurRadius: 4,
+                                            spreadRadius: 1,
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
                               ],
                             ),
                           ),
@@ -290,7 +359,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
             ),
 
             // Complete Profile Banner (name missing)
-            if (provider.userName.isEmpty)
+            if (userName.isEmpty)
               SliverToBoxAdapter(
                 child: Padding(
                   padding:
@@ -507,7 +576,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
               ),
 
             // Period Confirmation Banner
-            if (provider.shouldShowPeriodConfirmation)
+            if (shouldShowPeriodConfirmation)
               SliverToBoxAdapter(
                 child: Padding(
                   padding:
@@ -749,7 +818,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
               ),
 
             // AI Predictive Insight Card
-            if (provider.predictiveInsight != null)
+            if (predictiveInsight != null)
               SliverToBoxAdapter(
                 child: Padding(
                   padding:
@@ -809,7 +878,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                provider.predictiveInsight!,
+                                predictiveInsight,
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: AppTheme.textLight(context),
@@ -827,182 +896,9 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
 
             // Enhanced Cycle Ring
             SliverToBoxAdapter(
-              child: GestureDetector(
+              child: CycleRingWidget(
+                breathingAnimation: _breathingController,
                 onTap: () => _showEnhancedDetails(context, provider),
-                child: AnimatedBuilder(
-                  animation: _breathingController,
-                  builder: (context, child) {
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(30),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                        child: Container(
-                      height: 250,
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.cardColor(context).withOpacity(0.35),
-                        borderRadius: BorderRadius.circular(30),
-                        border: Border.all(
-                          color: AppTheme.cardColor(context).withOpacity(0.3),
-                          width: 1.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          // Animated glow effect
-                          Container(
-                            width: 200 + (_breathingController.value * 15),
-                            height: 200 + (_breathingController.value * 15),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: RadialGradient(
-                                colors: [
-                                  LunaraColors.primary.withOpacity(
-                                      0.1 * _breathingController.value),
-                                  Colors.transparent,
-                                ],
-                              ),
-                            ),
-                          ),
-                          // Ring
-                          SizedBox(
-                            width: 200,
-                            height: 200,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                RepaintBoundary(
-                                  child: CustomPaint(
-                                    size: const Size(200, 200),
-                                    painter: StaticBackgroundRingPainter(
-                                      progress: provider.currentCycleDay /
-                                          provider.cycleLength,
-                                    ),
-                                  ),
-                                ),
-                                RepaintBoundary(
-                                  child: CustomPaint(
-                                    size: const Size(200, 200),
-                                    painter: AnimatedForegroundRingPainter(
-                                      progress: provider.currentCycleDay /
-                                          provider.cycleLength,
-                                      breathAnimation: _breathingController.value,
-                                    ),
-                                  ),
-                                ),
-                                // Center info with glassmorphism
-                                Container(
-                                  width: 130,
-                                  height: 130,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: AppTheme.cardColor(context).withOpacity(0.8),
-                                    border: Border.all(
-                                      color: AppTheme.cardColor(context).withOpacity(0.6),
-                                      width: 2,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.05),
-                                        blurRadius: 15,
-                                        spreadRadius: 2,
-                                      ),
-                                    ],
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 5,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          gradient: const LinearGradient(
-                                            colors: [
-                                              LunaraColors.primary,
-                                              LunaraColors.primaryDark
-                                            ],
-                                          ),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        child: Text(
-                                          provider.currentPhase.toUpperCase(),
-                                          style: const TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w900,
-                                            color: Colors.white,
-                                            letterSpacing: 1.2,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.baseline,
-                                        textBaseline: TextBaseline.alphabetic,
-                                        children: [
-                                          ShaderMask(
-                                            shaderCallback: (bounds) =>
-                                                const LinearGradient(
-                                              colors: [
-                                                LunaraColors.textDark,
-                                                LunaraColors.primary
-                                              ],
-                                            ).createShader(bounds),
-                                            child: Text(
-                                              '${provider.currentCycleDay}',
-                                              style: const TextStyle(
-                                                fontSize: 44,
-                                                fontWeight: FontWeight.w900,
-                                                color: Colors.white,
-                                                height: 1,
-                                              ),
-                                            ),
-                                          ),
-                                          Text(
-                                            '/${provider.cycleLength}',
-                                            style: TextStyle(
-                                              fontSize: 17,
-                                              fontWeight: FontWeight.w700,
-                                              color: AppTheme.secondaryText(context),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'cycle days',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: AppTheme.secondaryText(context),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                      ),
-                    );
-                  },
-                ),
               ),
             ),
 
@@ -1035,51 +931,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  children: [
-                    // Standard Stats Row
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildInteractiveStat(
-                            'Sleep',
-                            Icons.nightlight_rounded,
-                            const Color(0xFFB39DDB),
-                            '${provider.sleepHours}h',
-                            0,
-                            onTap: () =>
-                                _showEditStatDialog(context, provider, 'Sleep'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _buildInteractiveStat(
-                            'Water',
-                            Icons.water_drop_rounded,
-                            LunaraColors.ovulationBlue,
-                            '${provider.waterGlasses}',
-                            50,
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              provider.incrementWater();
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _buildInteractiveStat(
-                            'Steps',
-                            Icons.directions_walk_rounded,
-                            LunaraColors.fertileGreen,
-                            '${provider.dailySteps}',
-                            100,
-                            onTap: () =>
-                                _showEditStatDialog(context, provider, 'Steps'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                child: StatsRowWidget(
+                  onShowEditStatDialog: (statName) => _showEditStatDialog(context, provider, statName),
                 ),
               ),
             ),
@@ -1147,110 +1000,22 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
 
             const SliverToBoxAdapter(child: SizedBox(height: 14)),
 
-            if (provider.currentPredictions.isNotEmpty) ...[
+            if (currentPredictions.isNotEmpty) ...[
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: FadeSlideIn(
-                    delay: const Duration(milliseconds: 200),
-                    child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            AppTheme.primary(context).withOpacity(0.12),
-                            AppTheme.cardColor(context).withOpacity(0.3),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: AppTheme.primary(context).withOpacity(0.2),
-                          width: 1.5,
-                        ),
-                        boxShadow: AppTheme.softShadow(context),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.auto_awesome_rounded,
-                                color: AppTheme.primary(context),
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                "Today's Predictions",
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppTheme.textDark(context),
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            "Based on your past cycles, you might experience:",
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppTheme.textLight(context),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children:
-                                provider.currentPredictions.map((symptom) {
-                              return ActionChip(
-                                backgroundColor:
-                                    AppTheme.primaryGradient(context)
-                                        .colors
-                                        .first,
-                                side: BorderSide.none,
-                                labelStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                ),
-                                label: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.add_circle,
-                                        color: Colors.white, size: 14),
-                                    const SizedBox(width: 4),
-                                    Text("Log $symptom"),
-                                  ],
-                                ),
-                                onPressed: () {
-                                  HapticFeedback.lightImpact();
-                                  provider.addSymptom(symptom);
-                                  CustomToast.show(
-                                    context,
-                                    message: '$symptom logged for today',
-                                    icon: Icons.health_and_safety_rounded,
-                                    backgroundColor: AppTheme.primary(context),
-                                    duration: const Duration(seconds: 2),
-                                  );
-                                },
-                              );
-                            }).toList(),
-                          ),
-                        ],
-                      ),
-                    ),
-                      ),
-                    ),
+                  child: PredictionsWidget(
+                    predictions: currentPredictions,
+                    onLogSymptom: (symptom) {
+                      provider.addSymptom(symptom);
+                      CustomToast.show(
+                        context,
+                        message: '$symptom logged for today',
+                        icon: Icons.health_and_safety_rounded,
+                        backgroundColor: AppTheme.primary(context),
+                        duration: const Duration(seconds: 2),
+                      );
+                    },
                   ),
                 ),
               ),
@@ -1264,36 +1029,36 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                 child: Row(
                   children: [
                     Expanded(
-                      child: _buildPremiumAICard(
-                        'Diet Plan',
-                        Icons.restaurant_menu_rounded,
-                        const LinearGradient(
+                      child: PremiumAICard(
+                        text: 'Diet Plan',
+                        icon: Icons.restaurant_menu_rounded,
+                        gradient: const LinearGradient(
                           colors: [
-                            LunaraColors.fertileGreen,
+                            Color(0xFF81C784),
                             Color(0xFF66BB6A)
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        'I need a personalized diet plan based on my menstrual cycle phase.',
-                        0,
+                        prompt: 'I need a personalized diet plan based on my menstrual cycle phase.',
+                        delay: 0,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _buildPremiumAICard(
-                        'Workout',
-                        Icons.fitness_center_rounded,
-                        const LinearGradient(
+                      child: PremiumAICard(
+                        text: 'Workout',
+                        icon: Icons.fitness_center_rounded,
+                        gradient: const LinearGradient(
                           colors: [
-                            LunaraColors.primary,
-                            LunaraColors.primaryDark
+                            Color(0xFFFF8989),
+                            Color(0xFFD8405B)
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        'I need a workout routine suitable for my current cycle phase.',
-                        100,
+                        prompt: 'I need a workout routine suitable for my current cycle phase.',
+                        delay: 100,
                       ),
                     ),
                   ],
@@ -1304,548 +1069,57 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
             // Insights Card
-            SliverToBoxAdapter(
+            const SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) =>
-                            const InsightsScreen(),
-                        transitionsBuilder:
-                            (context, animation, secondaryAnimation, child) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: SlideTransition(
-                              position: Tween<Offset>(
-                                begin: const Offset(0, 0.05),
-                                end: Offset.zero,
-                              ).animate(CurvedAnimation(
-                                parent: animation,
-                                curve: Curves.easeOutCubic,
-                              )),
-                              child: child,
-                            ),
-                          );
-                        },
-                        transitionDuration: const Duration(milliseconds: 350),
-                      ),
-                    );
-                  },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                      child: Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [LunaraColors.textDark.withOpacity(0.85), const Color(0xFF5D4037).withOpacity(0.85)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.1),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: LunaraColors.textDark.withOpacity(0.3),
-                          blurRadius: 15,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.insights_rounded,
-                              color: Colors.white, size: 22),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${provider.cycleOwnerName} Insights',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              SizedBox(height: 2),
-                              Text(
-                                'Charts, trends & cycle patterns',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white70,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                      ),
-                    ),
-                  ),
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: InsightsCardWidget(),
               ),
             ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
             // AI Wellness Plan Card
-            SliverToBoxAdapter(
+            const SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) =>
-                            const WellnessPlanScreen(),
-                        transitionsBuilder:
-                            (context, animation, secondaryAnimation, child) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: SlideTransition(
-                              position: Tween<Offset>(
-                                begin: const Offset(0, 0.05),
-                                end: Offset.zero,
-                              ).animate(CurvedAnimation(
-                                parent: animation,
-                                curve: Curves.easeOutCubic,
-                              )),
-                              child: child,
-                            ),
-                          );
-                        },
-                        transitionDuration: const Duration(milliseconds: 350),
-                      ),
-                    );
-                  },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                      child: Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [const Color(0xFF6C63FF).withOpacity(0.85), const Color(0xFF5B52CC).withOpacity(0.85)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.1),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF6C63FF).withOpacity(0.3),
-                          blurRadius: 15,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.health_and_safety_rounded,
-                              color: Colors.white, size: 22),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Text(
-                                    'AI Wellness Plan',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: const Text(
-                                      'PRO',
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w900,
-                                        color: Colors.white,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              const Text(
-                                'Personalized nutrition, sleep & stress plans',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white70,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.arrow_forward_ios_rounded,
-                            color: Colors.white54, size: 16),
-                      ],
-                    ),
-                      ),
-                    ),
-                  ),
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: WellnessPlanCardWidget(),
               ),
             ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
             // FAM / Clinical Tracking Card
-            SliverToBoxAdapter(
-              child: _buildFamTrackingCard(context, provider),
+            const SliverToBoxAdapter(
+              child: FamTrackingWidget(),
             ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
             // Regular Actions with hover effect
-            SliverToBoxAdapter(
+            const SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildModernActionCard(
-                        provider.symptomPromptName,
-                        Icons.edit_note_rounded,
-                        LunaraColors.primaryLight,
-                        LunaraColors.primary,
-                        () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const SymptomLogScreen()),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildModernActionCard(
-                        'Add Note',
-                        Icons.note_add_rounded,
-                        const Color(0xFFE1BEE7),
-                        const Color(0xFFB39DDB),
-                        () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const NoteScreen()),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: RegularActionsRowWidget(),
               ),
             ),
 
             // ─── Premium Upgrade Banner ───
             if (!PremiumService.instance.isPremium)
-              SliverToBoxAdapter(
+              const SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                  child: GestureDetector(
-                    onTap: () {
-                      HapticFeedback.mediumImpact();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const PremiumScreen()),
-                      );
-                    },
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(22),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                        child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [const Color(0xFF2D1B4E).withOpacity(0.85), const Color(0xFF44206E).withOpacity(0.85)],
-                        ),
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.08),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF44206E).withOpacity(0.3),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: const Icon(
-                              Icons.workspace_premium_rounded,
-                              color: Colors.amber,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Upgrade to Premium',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  'Unlock unlimited AI, 90-day trends & more',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.white.withOpacity(0.6),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            size: 16,
-                            color: Colors.white.withOpacity(0.5),
-                          ),
-                        ],
-                      ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: PremiumUpgradeBannerWidget(),
                 ),
               ),
 
             // Bottom spacing for nav bar
-            // Irregular Period Section - Premium Design
+// Irregular Period Section - Premium Design
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
               sliver: SliverToBoxAdapter(
-                child: Column(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(28),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 500),
-                          curve: Curves.easeInOut,
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: provider.isIrregular
-                                ? const Color(0xFFFF8566).withOpacity(0.08)
-                                : AppTheme.subtleBackground(context).withOpacity(0.4),
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(
-                              color: provider.isIrregular
-                                  ? const Color(0xFFFF8566).withOpacity(0.25)
-                                  : AppTheme.primary(context).withOpacity(0.15),
-                              width: 2,
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  TweenAnimationBuilder<double>(
-                                    duration: const Duration(milliseconds: 400),
-                                    tween: Tween<double>(
-                                      begin: provider.isIrregular ? 0.0 : 1.0,
-                                      end: provider.isIrregular ? 1.0 : 0.0,
-                                    ),
-                                    builder: (context, value, child) {
-                                      final color = Color.lerp(
-                                        AppTheme.primary(context),
-                                        const Color(0xFFFF8566),
-                                        value,
-                                      )!;
-                                      return Container(
-                                        padding: const EdgeInsets.all(14),
-                                        decoration: BoxDecoration(
-                                          color: color.withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(16),
-                                        ),
-                                        child: AnimatedSwitcher(
-                                          duration: const Duration(milliseconds: 300),
-                                          child: Icon(
-                                            provider.isIrregular
-                                                ? Icons.event_busy_rounded
-                                                : Icons.event_available_rounded,
-                                            key: ValueKey<bool>(provider.isIrregular),
-                                            color: color,
-                                            size: 26,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  const SizedBox(width: 18),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        AnimatedSwitcher(
-                                          duration: const Duration(milliseconds: 300),
-                                          transitionBuilder: (child, animation) {
-                                            return FadeTransition(opacity: animation, child: child);
-                                          },
-                                          child: Text(
-                                            provider.isIrregular
-                                                ? 'Period is Irregular'
-                                                : 'Period is Regular',
-                                            key: ValueKey<bool>(provider.isIrregular),
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w900,
-                                              color: AppTheme.textDark(context),
-                                            ),
-                                          ),
-                                        ),
-                                        AnimatedSwitcher(
-                                          duration: const Duration(milliseconds: 300),
-                                          transitionBuilder: (child, animation) {
-                                            return FadeTransition(opacity: animation, child: child);
-                                          },
-                                          child: Text(
-                                            provider.isIrregular
-                                                ? 'Predictions are adjusted for variability'
-                                                : 'Predictions follow a steady pattern',
-                                            key: ValueKey<bool>(provider.isIrregular),
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color: AppTheme.textLight(context),
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 24),
-                              SizedBox(
-                                key: _irregularButtonKey,
-                                width: double.infinity,
-                                height: 56,
-                                child: TweenAnimationBuilder<double>(
-                                  duration: const Duration(milliseconds: 400),
-                                  tween: Tween<double>(
-                                    begin: provider.isIrregular ? 0.0 : 1.0,
-                                    end: provider.isIrregular ? 1.0 : 0.0,
-                                  ),
-                                  builder: (context, value, child) {
-                                    final color = Color.lerp(
-                                      AppTheme.primary(context),
-                                      const Color(0xFFFF8566),
-                                      value,
-                                    )!;
-                                    return ElevatedButton(
-                                      onPressed: () => _showIrregularAnimation(provider),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: color,
-                                        foregroundColor: Colors.white,
-                                        elevation: 0,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                      ),
-                                      child: child,
-                                    );
-                                  },
-                                  child: AnimatedSwitcher(
-                                    duration: const Duration(milliseconds: 300),
-                                    transitionBuilder: (child, animation) {
-                                      return FadeTransition(opacity: animation, child: child);
-                                    },
-                                    child: Text(
-                                      provider.isIrregular
-                                          ? 'Mark as Regular'
-                                          : 'Mark as Irregular',
-                                      key: ValueKey<bool>(provider.isIrregular),
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'This helps Lunara adapt to your body',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textLight(context).withOpacity(0.7),
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
+                child: IrregularPeriodWidget(
+                  irregularButtonKey: _irregularButtonKey,
+                  onToggleIrregular: () => _showIrregularAnimation(provider),
                 ),
               ),
             ),
@@ -1889,243 +1163,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildInteractiveStat(
-      String label, IconData icon, Color color, String value, int delay,
-      {VoidCallback? onTap}) {
-    return TweenAnimationBuilder<double>(
-      duration: Duration(milliseconds: 600 + delay),
-      curve: Curves.easeOutBack,
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, animation, child) {
-        return Transform.scale(
-          scale: animation,
-          child: GestureDetector(
-            onTapDown: (_) => HapticFeedback.lightImpact(),
-            onTap: onTap,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
-              decoration: BoxDecoration(
-                color: AppTheme.cardColor(context).withOpacity(0.4),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: color.withOpacity(0.25), width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withOpacity(0.15),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          color.withOpacity(0.2),
-                          color.withOpacity(0.1)
-                        ],
-                      ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(icon, color: color, size: 22),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.secondaryText(context),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    value,
-                    style: TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w900,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 
-  Widget _buildPremiumAICard(
-      String text, IconData icon, Gradient gradient, String prompt, int delay) {
-    return TweenAnimationBuilder<double>(
-      duration: Duration(milliseconds: 600 + delay),
-      curve: Curves.easeOutBack,
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, animation, child) {
-        return Transform.scale(
-          scale: animation,
-          child: GestureDetector(
-            onTap: () {
-              HapticFeedback.mediumImpact();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AIChatScreen(initialPrompt: prompt),
-                ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                gradient: gradient,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.25),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.35),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.5),
-                        width: 2,
-                      ),
-                    ),
-                    child: Icon(icon, size: 30, color: Colors.white),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    text,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      letterSpacing: 0.3,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.4),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.auto_awesome_rounded,
-                            size: 13, color: Colors.white),
-                        SizedBox(width: 5),
-                        Text(
-                          'AI Powered',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 
-  Widget _buildModernActionCard(String text, IconData icon, Color bgColor,
-      Color accentColor, VoidCallback onTap) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    // Make background adapt to dark mode (using low opacity accent color instead of static light pastel colors)
-    final effectiveBg = isDark ? accentColor.withOpacity(0.12) : bgColor;
-    // Contrast check: use accentColor or black depending on mode
-    final effectiveTextColor = isDark ? accentColor : const Color(0xFF2D2D2D);
-    final iconBgColor = isDark
-        ? accentColor.withOpacity(0.2)
-        : AppTheme.cardColor(context).withOpacity(0.85);
-
-    return AnimatedPressableCard(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 14),
-        decoration: BoxDecoration(
-          color: effectiveBg.withOpacity(isDark ? 0.3 : 0.5),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isDark
-                ? accentColor.withOpacity(0.2)
-                : accentColor.withOpacity(0.15),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: accentColor.withOpacity(isDark ? 0.05 : 0.1),
-              blurRadius: 12,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: iconBgColor,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 28, color: accentColor),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              text,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                color: effectiveTextColor,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-          ),
-        ),
-      ),
-    );
-  }
 
   void _showEnhancedDetails(BuildContext context, CycleProvider provider) {
     HapticFeedback.mediumImpact();
@@ -2353,122 +1392,6 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildFamTrackingCard(BuildContext context, CycleProvider provider) {
-    final confidence = provider.ovulationConfidence;
-    Color statusColor;
-    String statusText;
-    IconData statusIcon;
-
-    switch (confidence) {
-      case OvulationConfidence.confirmed:
-        statusColor = LunaraColors.fertileGreen;
-        statusText = 'Ovulation Confirmed';
-        statusIcon = Icons.verified_rounded;
-        break;
-      case OvulationConfidence.probable:
-        statusColor = LunaraColors.ovulationBlue;
-        statusText = 'Ovulation Probable';
-        statusIcon = Icons.hourglass_top_rounded;
-        break;
-      case OvulationConfidence.unconfirmed:
-        statusColor = AppTheme.textLight(context);
-        statusText = 'Ovulation Unconfirmed';
-        statusIcon = Icons.help_outline_rounded;
-        break;
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.mediumImpact();
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const BbtLogScreen()),
-          );
-        },
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppTheme.cardColor(context).withOpacity(0.4),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: statusColor.withOpacity(0.2),
-              width: 1.5,
-            ),
-            boxShadow: AppTheme.softShadow(context),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.device_thermostat_rounded,
-                    color: statusColor, size: 28),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'FAM Tracking',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.textLight(context),
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Icon(statusIcon, size: 14, color: statusColor),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      statusText,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: AppTheme.textDark(context),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Log BBT & Mucus for medical-grade precision',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textLight(context),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.add_rounded, color: statusColor, size: 20),
-              ),
-            ],
-          ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 // ENHANCED CYCLE RING PAINTER - STATIC BACKGROUND
@@ -3143,4 +2066,1319 @@ class _IntelligencePoint {
     required this.title,
     required this.desc,
   });
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  CUSTOM OPTIMIZED WIDGETS
+// ═══════════════════════════════════════════════════════════════════
+
+class CycleRingWidget extends StatelessWidget {
+  final Animation<double> breathingAnimation;
+  final VoidCallback onTap;
+
+  const CycleRingWidget({
+    super.key,
+    required this.breathingAnimation,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final currentCycleDay = context.select<CycleProvider, int>((p) => p.currentCycleDay);
+    final cycleLength = context.select<CycleProvider, int>((p) => p.cycleLength);
+    final currentPhase = context.select<CycleProvider, String>((p) => p.currentPhase);
+
+    return CycleRingCard(
+      currentCycleDay: currentCycleDay,
+      cycleLength: cycleLength,
+      currentPhase: currentPhase,
+      breathingAnimation: breathingAnimation,
+      onTap: onTap,
+    );
+  }
+}
+
+class CycleRingCard extends StatelessWidget {
+  final int currentCycleDay;
+  final int cycleLength;
+  final String currentPhase;
+  final Animation<double> breathingAnimation;
+  final VoidCallback onTap;
+
+  const CycleRingCard({
+    super.key,
+    required this.currentCycleDay,
+    required this.cycleLength,
+    required this.currentPhase,
+    required this.breathingAnimation,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: Container(
+          height: 250,
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.cardColor(context).withOpacity(0.35),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(
+              color: AppTheme.cardColor(context).withOpacity(0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: AnimatedBuilder(
+            animation: breathingAnimation,
+            builder: (context, child) {
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Animated glow effect
+                  Container(
+                    width: 200 + (breathingAnimation.value * 15),
+                    height: 200 + (breathingAnimation.value * 15),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          LunaraColors.primary.withOpacity(
+                              0.1 * breathingAnimation.value),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Ring
+                  SizedBox(
+                    width: 200,
+                    height: 200,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        RepaintBoundary(
+                          child: CustomPaint(
+                            size: const Size(200, 200),
+                            painter: StaticBackgroundRingPainter(
+                              progress: currentCycleDay / cycleLength,
+                            ),
+                          ),
+                        ),
+                        RepaintBoundary(
+                          child: CustomPaint(
+                            size: const Size(200, 200),
+                            painter: AnimatedForegroundRingPainter(
+                              progress: currentCycleDay / cycleLength,
+                              breathAnimation: breathingAnimation.value,
+                            ),
+                          ),
+                        ),
+                        // Center info
+                        Container(
+                          width: 130,
+                          height: 130,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppTheme.cardColor(context).withOpacity(0.8),
+                            border: Border.all(
+                              color: AppTheme.cardColor(context).withOpacity(0.6),
+                              width: 2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 15,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      LunaraColors.primary,
+                                      LunaraColors.primaryDark
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  currentPhase.toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  ShaderMask(
+                                    shaderCallback: (bounds) =>
+                                        const LinearGradient(
+                                      colors: [
+                                        LunaraColors.textDark,
+                                        LunaraColors.primary
+                                      ],
+                                    ).createShader(bounds),
+                                    child: Text(
+                                      '$currentCycleDay',
+                                      style: const TextStyle(
+                                        fontSize: 44,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.white,
+                                        height: 1,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    '/$cycleLength',
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.secondaryText(context),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'cycle days',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.secondaryText(context),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class StatsRowWidget extends StatelessWidget {
+  final Function(String) onShowEditStatDialog;
+
+  const StatsRowWidget({
+    super.key,
+    required this.onShowEditStatDialog,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sleepHours = context.select<CycleProvider, double>((p) => p.sleepHours);
+    final waterGlasses = context.select<CycleProvider, int>((p) => p.waterGlasses);
+    final dailySteps = context.select<CycleProvider, int>((p) => p.dailySteps);
+    final provider = Provider.of<CycleProvider>(context, listen: false);
+
+    return Row(
+      children: [
+        Expanded(
+          child: InteractiveStat(
+            label: 'Sleep',
+            icon: Icons.nightlight_rounded,
+            color: const Color(0xFFB39DDB),
+            value: '${sleepHours}h',
+            delay: 0,
+            onTap: () => onShowEditStatDialog('Sleep'),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: InteractiveStat(
+            label: 'Water',
+            icon: Icons.water_drop_rounded,
+            color: LunaraColors.ovulationBlue,
+            value: '$waterGlasses',
+            delay: 50,
+            onTap: () {
+              HapticFeedback.lightImpact();
+              provider.incrementWater();
+            },
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: InteractiveStat(
+            label: 'Steps',
+            icon: Icons.directions_walk_rounded,
+            color: LunaraColors.fertileGreen,
+            value: '$dailySteps',
+            delay: 100,
+            onTap: () => onShowEditStatDialog('Steps'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class InteractiveStat extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final String value;
+  final int delay;
+  final VoidCallback? onTap;
+
+  const InteractiveStat({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.value,
+    required this.delay,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      duration: Duration(milliseconds: 600 + delay),
+      curve: Curves.easeOutBack,
+      tween: Tween(begin: 0.0, end: 1.0),
+      child: GestureDetector(
+        onTapDown: (_) => HapticFeedback.lightImpact(),
+        onTap: onTap,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+            decoration: BoxDecoration(
+              color: AppTheme.cardColor(context).withOpacity(0.4),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: color.withOpacity(0.25), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.15),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        color.withOpacity(0.2),
+                        color.withOpacity(0.1)
+                      ],
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 22),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.secondaryText(context),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      builder: (context, animation, child) {
+        return Transform.scale(
+          scale: animation,
+          child: child,
+        );
+      },
+    );
+  }
+}
+
+class PremiumAICard extends StatelessWidget {
+  final String text;
+  final IconData icon;
+  final Gradient gradient;
+  final String prompt;
+  final int delay;
+
+  const PremiumAICard({
+    super.key,
+    required this.text,
+    required this.icon,
+    required this.gradient,
+    required this.prompt,
+    required this.delay,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      duration: Duration(milliseconds: 600 + delay),
+      curve: Curves.easeOutBack,
+      tween: Tween(begin: 0.0, end: 1.0),
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.mediumImpact();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AIChatScreen(initialPrompt: prompt),
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: gradient,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.25),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.35),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.5),
+                    width: 2,
+                  ),
+                ),
+                child: Icon(icon, size: 30, color: Colors.white),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                text,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: 0.3,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.4),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.auto_awesome_rounded,
+                        size: 13, color: Colors.white),
+                    SizedBox(width: 5),
+                    Text(
+                      'AI Powered',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      builder: (context, animation, child) {
+        return Transform.scale(
+          scale: animation,
+          child: child,
+        );
+      },
+    );
+  }
+}
+
+class PredictionsWidget extends StatelessWidget {
+  final List<String> predictions;
+  final Function(String) onLogSymptom;
+
+  const PredictionsWidget({
+    super.key,
+    required this.predictions,
+    required this.onLogSymptom,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeSlideIn(
+      delay: const Duration(milliseconds: 200),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppTheme.primary(context).withOpacity(0.12),
+              AppTheme.cardColor(context).withOpacity(0.3),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppTheme.primary(context).withOpacity(0.2),
+            width: 1.5,
+          ),
+          boxShadow: AppTheme.softShadow(context),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.auto_awesome_rounded,
+                  color: AppTheme.primary(context),
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  "Today's Predictions",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textDark(context),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              "Based on your past cycles, you might experience:",
+              style: TextStyle(
+                fontSize: 13,
+                color: AppTheme.textLight(context),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: predictions.map((symptom) {
+                return ActionChip(
+                  backgroundColor:
+                      AppTheme.primaryGradient(context).colors.first,
+                  side: BorderSide.none,
+                  labelStyle: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.add_circle,
+                          color: Colors.white, size: 14),
+                      const SizedBox(width: 4),
+                      Text("Log $symptom"),
+                    ],
+                  ),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    onLogSymptom(symptom);
+                  },
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class InsightsCardWidget extends StatelessWidget {
+  const InsightsCardWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final cycleOwnerName = context.select<CycleProvider, String>((p) => p.cycleOwnerName);
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const InsightsScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.05),
+                    end: Offset.zero,
+                  ).animate(CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  )),
+                  child: child,
+                ),
+              );
+            },
+            transitionDuration: const Duration(milliseconds: 350),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              LunaraColors.textDark.withOpacity(0.85),
+              const Color(0xFF5D4037).withOpacity(0.85),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.1),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: LunaraColors.textDark.withOpacity(0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.insights_rounded,
+                  color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$cycleOwnerName Insights',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Charts, trends & cycle patterns',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class WellnessPlanCardWidget extends StatelessWidget {
+  const WellnessPlanCardWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const WellnessPlanScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.05),
+                    end: Offset.zero,
+                  ).animate(CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  )),
+                  child: child,
+                ),
+              );
+            },
+            transitionDuration: const Duration(milliseconds: 350),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFF6C63FF).withOpacity(0.85),
+              const Color(0xFF5B52CC).withOpacity(0.85),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.1),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6C63FF).withOpacity(0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.health_and_safety_rounded,
+                  color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'AI Wellness Plan',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'PRO',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Personalized nutrition, sleep & stress plans',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded,
+                color: Colors.white54, size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class FamTrackingWidget extends StatelessWidget {
+  const FamTrackingWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final confidence = context.select<CycleProvider, OvulationConfidence>((p) => p.ovulationConfidence);
+
+    Color statusColor;
+    String statusText;
+    IconData statusIcon;
+
+    switch (confidence) {
+      case OvulationConfidence.confirmed:
+        statusColor = LunaraColors.fertileGreen;
+        statusText = 'Ovulation Confirmed';
+        statusIcon = Icons.verified_rounded;
+        break;
+      case OvulationConfidence.probable:
+        statusColor = LunaraColors.ovulationBlue;
+        statusText = 'Ovulation Probable';
+        statusIcon = Icons.hourglass_top_rounded;
+        break;
+      case OvulationConfidence.unconfirmed:
+        statusColor = AppTheme.textLight(context);
+        statusText = 'Ovulation Unconfirmed';
+        statusIcon = Icons.help_outline_rounded;
+        break;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.mediumImpact();
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const BbtLogScreen()),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppTheme.cardColor(context).withOpacity(0.4),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: statusColor.withOpacity(0.2),
+              width: 1.5,
+            ),
+            boxShadow: AppTheme.softShadow(context),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.device_thermostat_rounded,
+                    color: statusColor, size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'FAM Tracking',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.textLight(context),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Icon(statusIcon, size: 14, color: statusColor),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      statusText,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: AppTheme.textDark(context),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Log BBT & Mucus for medical-grade precision',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textLight(context),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.add_rounded, color: statusColor, size: 20),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class RegularActionsRowWidget extends StatelessWidget {
+  const RegularActionsRowWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final symptomPromptName = context.select<CycleProvider, String>((p) => p.symptomPromptName);
+
+    return Row(
+      children: [
+        Expanded(
+          child: ModernActionCard(
+            text: symptomPromptName,
+            icon: Icons.edit_note_rounded,
+            bgColor: LunaraColors.primaryLight,
+            accentColor: LunaraColors.primary,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const SymptomLogScreen()),
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ModernActionCard(
+            text: 'Add Note',
+            icon: Icons.note_add_rounded,
+            bgColor: const Color(0xFFE1BEE7),
+            accentColor: const Color(0xFFB39DDB),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const NoteScreen()),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class ModernActionCard extends StatelessWidget {
+  final String text;
+  final IconData icon;
+  final Color bgColor;
+  final Color accentColor;
+  final VoidCallback onTap;
+
+  const ModernActionCard({
+    super.key,
+    required this.text,
+    required this.icon,
+    required this.bgColor,
+    required this.accentColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveBg = isDark ? accentColor.withOpacity(0.12) : bgColor;
+    final effectiveTextColor = isDark ? accentColor : const Color(0xFF2D2D2D);
+    final iconBgColor = isDark
+        ? accentColor.withOpacity(0.2)
+        : AppTheme.cardColor(context).withOpacity(0.85);
+
+    return AnimatedPressableCard(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 14),
+          decoration: BoxDecoration(
+            color: effectiveBg.withOpacity(isDark ? 0.3 : 0.5),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isDark
+                  ? accentColor.withOpacity(0.2)
+                  : accentColor.withOpacity(0.15),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: accentColor.withOpacity(isDark ? 0.05 : 0.1),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: iconBgColor,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 28, color: accentColor),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                text,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: effectiveTextColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class PremiumUpgradeBannerWidget extends StatelessWidget {
+  const PremiumUpgradeBannerWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PremiumScreen()),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF2D1B4E).withOpacity(0.85),
+              const Color(0xFF44206E).withOpacity(0.85)
+            ],
+          ),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.08),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF44206E).withOpacity(0.3),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.workspace_premium_rounded,
+                color: Colors.amber,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Upgrade to Premium',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Unlock unlimited AI, 90-day trends & more',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 16,
+              color: Colors.white.withOpacity(0.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class IrregularPeriodWidget extends StatelessWidget {
+  final GlobalKey irregularButtonKey;
+  final VoidCallback onToggleIrregular;
+
+  const IrregularPeriodWidget({
+    super.key,
+    required this.irregularButtonKey,
+    required this.onToggleIrregular,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isIrregular = context.select<CycleProvider, bool>((p) => p.isIrregular);
+
+    return Column(
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isIrregular
+                ? const Color(0xFFFF8566).withOpacity(0.08)
+                : AppTheme.subtleBackground(context).withOpacity(0.4),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: isIrregular
+                  ? const Color(0xFFFF8566).withOpacity(0.25)
+                  : AppTheme.primary(context).withOpacity(0.15),
+              width: 2,
+            ),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  TweenAnimationBuilder<double>(
+                    duration: const Duration(milliseconds: 400),
+                    tween: Tween<double>(
+                      begin: isIrregular ? 0.0 : 1.0,
+                      end: isIrregular ? 1.0 : 0.0,
+                    ),
+                    builder: (context, value, child) {
+                      final color = Color.lerp(
+                        AppTheme.primary(context),
+                        const Color(0xFFFF8566),
+                        value,
+                      )!;
+                      return Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: Icon(
+                            isIrregular
+                                ? Icons.event_busy_rounded
+                                : Icons.event_available_rounded,
+                            key: ValueKey<bool>(isIrregular),
+                            color: color,
+                            size: 26,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 18),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          transitionBuilder: (child, animation) {
+                            return FadeTransition(opacity: animation, child: child);
+                          },
+                          child: Text(
+                            isIrregular
+                                ? 'Period is Irregular'
+                                : 'Period is Regular',
+                            key: ValueKey<bool>(isIrregular),
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: AppTheme.textDark(context),
+                            ),
+                          ),
+                        ),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          transitionBuilder: (child, animation) {
+                            return FadeTransition(opacity: animation, child: child);
+                          },
+                          child: Text(
+                            isIrregular
+                                ? 'Predictions are adjusted for variability'
+                                : 'Predictions follow a steady pattern',
+                            key: ValueKey<bool>(isIrregular),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppTheme.textLight(context),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                key: irregularButtonKey,
+                width: double.infinity,
+                height: 56,
+                child: TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 400),
+                  tween: Tween<double>(
+                    begin: isIrregular ? 0.0 : 1.0,
+                    end: isIrregular ? 1.0 : 0.0,
+                  ),
+                  builder: (context, value, child) {
+                    final color = Color.lerp(
+                      AppTheme.primary(context),
+                      const Color(0xFFFF8566),
+                      value,
+                    )!;
+                    return ElevatedButton(
+                      onPressed: onToggleIrregular,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: color,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      child: child,
+                    );
+                  },
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(opacity: animation, child: child);
+                    },
+                    child: Text(
+                      isIrregular
+                          ? 'Mark as Regular'
+                          : 'Mark as Irregular',
+                      key: ValueKey<bool>(isIrregular),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          'This helps Lunara adapt to your body',
+          style: TextStyle(
+            fontSize: 12,
+            color: AppTheme.textLight(context).withOpacity(0.7),
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
+    );
+  }
 }
