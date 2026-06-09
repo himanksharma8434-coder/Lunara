@@ -734,6 +734,8 @@ class CycleProvider extends ChangeNotifier {
         'symptoms': entry?['symptoms'] != null
             ? List<String>.from(entry!['symptoms'])
             : <String>[],
+        'bbt': entry?['bbt'],
+        'cervicalMucus': entry?['cervicalMucus'],
       });
     }
     return result;
