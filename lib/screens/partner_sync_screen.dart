@@ -1,11 +1,9 @@
 // lib/screens/partner_sync_screen.dart
 
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/cycle_provider.dart';
-import '../services/database_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_toast.dart';
 
@@ -24,53 +22,17 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
   bool _isAccepting = false;
   String? _errorMessage;
 
-  // Partner View data
-  Map<String, dynamic>? _partnerProfile;
-  List<Map<String, dynamic>> _partnerCycles = [];
-  StreamSubscription? _assessmentSub;
-  List<Map<String, dynamic>> _partnerAssessments = [];
-
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-
-    // If linked as partner, load partner data
-    final cp = context.read<CycleProvider>();
-    if (cp.isPartnerLinked && cp.partnerLinkRole == 'partner') {
-      _loadPartnerData(cp.linkedPartnerUid!);
-    }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _codeController.dispose();
-    _assessmentSub?.cancel();
     super.dispose();
-  }
-
-  Future<void> _loadPartnerData(String trackerUid) async {
-    final db = DatabaseService();
-    final profile = await db.getPartnerProfile(trackerUid);
-    final cycles = await db.getPartnerCycles(trackerUid);
-
-    if (mounted) {
-      setState(() {
-        _partnerProfile = profile;
-        _partnerCycles = cycles;
-      });
-    }
-
-    // Subscribe to real-time assessments
-    _assessmentSub?.cancel();
-    _assessmentSub = db.streamPartnerAssessments(trackerUid).listen((data) {
-      if (mounted) {
-        setState(() {
-          _partnerAssessments = data;
-        });
-      }
-    });
   }
 
   @override
@@ -521,10 +483,6 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
                             setState(() => _isAccepting = false);
                             if (success) {
                               CustomToast.show(context, message: 'Partner linked successfully! 🎉', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
-                              // Load partner data
-                              if (cp.linkedPartnerUid != null) {
-                                _loadPartnerData(cp.linkedPartnerUid!);
-                              }
                             } else {
                               setState(() => _errorMessage =
                                   'Invalid or expired code. Try again.');
@@ -561,18 +519,18 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
   }
 
   Widget _buildPartnerView(CycleProvider cp) {
-    final name = _partnerProfile?['name'] ?? cp.linkedPartnerName ?? 'Partner';
-    final cycleLength = _partnerProfile?['cycle_length'] ?? 28;
-    final periodDuration = _partnerProfile?['period_duration'] ?? 5;
+    final name = cp.partnerProfile?['name'] ?? cp.linkedPartnerName ?? 'Partner';
+    final cycleLength = cp.partnerProfile?['cycle_length'] ?? 28;
+    final periodDuration = cp.partnerProfile?['period_duration'] ?? 5;
 
     // Calculate partner's current cycle day
     int cycleDay = 0;
     String phase = 'Unknown';
     Color phaseColor = Colors.grey;
 
-    if (_partnerCycles.isNotEmpty) {
+    if (cp.partnerCycles.isNotEmpty) {
       final latestStart =
-          DateTime.parse(_partnerCycles.first['start_date'] as String);
+          DateTime.parse(cp.partnerCycles.first['start_date'] as String);
       cycleDay = DateTime.now().difference(latestStart).inDays + 1;
 
       if (cycleDay <= periodDuration) {
@@ -592,10 +550,11 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
 
     // Get latest assessment
     Map<String, dynamic>? latestAssessment;
-    if (_partnerAssessments.isNotEmpty) {
-      _partnerAssessments
+    if (cp.partnerAssessments.isNotEmpty) {
+      final assessments = List<Map<String, dynamic>>.from(cp.partnerAssessments);
+      assessments
           .sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
-      latestAssessment = _partnerAssessments.first;
+      latestAssessment = assessments.first;
     }
 
     return Column(
@@ -855,13 +814,7 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
             onPressed: () async {
               Navigator.pop(ctx);
               await cp.revokePartnerLink();
-              _assessmentSub?.cancel();
               if (mounted) {
-                setState(() {
-                  _partnerProfile = null;
-                  _partnerCycles = [];
-                  _partnerAssessments = [];
-                });
                 CustomToast.show(context, message: 'Partner disconnected', icon: Icons.error_outline, backgroundColor: Colors.red[400]);
               }
             },
