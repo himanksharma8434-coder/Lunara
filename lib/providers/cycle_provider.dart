@@ -81,6 +81,12 @@ class CycleProvider extends ChangeNotifier {
   String? _linkedPartnerUid;
   String? _activeInviteCode;
 
+  // Partner View data (global state)
+  Map<String, dynamic>? _partnerProfile;
+  List<Map<String, dynamic>> _partnerCycles = [];
+  StreamSubscription? _assessmentSub;
+  List<Map<String, dynamic>> _partnerAssessments = [];
+
   // Constructor - Automatically loads data on startup
   CycleProvider(this._prefs) {
     _loadFromPrefs();
@@ -90,6 +96,7 @@ class CycleProvider extends ChangeNotifier {
   @override
   void dispose() {
     _syncTimer?.cancel();
+    _assessmentSub?.cancel();
     super.dispose();
   }
 
@@ -620,6 +627,10 @@ class CycleProvider extends ChangeNotifier {
   bool get isPartnerLinked =>
       _partnerLinkId != null && _partnerLinkRole != null;
 
+  Map<String, dynamic>? get partnerProfile => _partnerProfile;
+  List<Map<String, dynamic>> get partnerCycles => _partnerCycles;
+  List<Map<String, dynamic>> get partnerAssessments => _partnerAssessments;
+
   /// Load partner link from Supabase on startup.
   Future<void> _loadPartnerLink() async {
     try {
@@ -640,12 +651,35 @@ class CycleProvider extends ChangeNotifier {
           _linkedPartnerUid = otherUid;
           final profile = await db.getPartnerProfile(otherUid);
           _linkedPartnerName = profile?['name'] ?? 'Partner';
+          
+          if (_partnerLinkRole == 'partner') {
+            await _subscribeToPartnerData(otherUid);
+          }
         }
         notifyListeners();
       }
     } catch (e) {
       debugPrint('Load partner link error: $e');
     }
+  }
+
+  Future<void> _subscribeToPartnerData(String trackerUid) async {
+    final db = DatabaseService();
+    _partnerProfile = await db.getPartnerProfile(trackerUid);
+    _partnerCycles = await db.getPartnerCycles(trackerUid);
+    
+    // Subscribe to real-time assessments
+    await _assessmentSub?.cancel();
+    _assessmentSub = db.streamPartnerAssessments(trackerUid).listen((data) {
+      _partnerAssessments = data;
+      // Trigger widget updates with partner details
+      _updateHomeWidget();
+      notifyListeners();
+    });
+    
+    // Trigger widget update with partner details
+    await _updateHomeWidget();
+    notifyListeners();
   }
 
   /// Generate a 6-digit invite code for partner linking.
@@ -699,6 +733,14 @@ class CycleProvider extends ChangeNotifier {
       _linkedPartnerName = null;
       _linkedPartnerUid = null;
       _activeInviteCode = null;
+      _partnerProfile = null;
+      _partnerCycles = [];
+      _partnerAssessments = [];
+      _assessmentSub?.cancel();
+      _assessmentSub = null;
+      
+      // Update native widget (revert to user cycle data)
+      _updateHomeWidget();
       notifyListeners();
     } catch (e) {
       debugPrint('Revoke partner error: $e');
@@ -1552,12 +1594,61 @@ class CycleProvider extends ChangeNotifier {
   /// Update home screen widget using the home_widget package bridge.
   Future<void> _updateHomeWidget() async {
     try {
-      final phase = currentPhase;
-      final day = currentCycleDay;
-      final total = cycleLength;
-      final fertility = isOnPeriod
-          ? "Menstruation"
-          : (isInFertileWindow ? "High Fertility" : "Low Fertility");
+      // Determine if we should update with partner's cycle data
+      final usePartner = _partnerLinkRole == 'partner' && _partnerCycles.isNotEmpty;
+      
+      final String phase;
+      final int day;
+      final int total;
+      final String fertility;
+      final int lastPeriodDateMs;
+      final int cycleLen;
+      final int periodDuration;
+      final int ovulationDay;
+
+      if (usePartner) {
+        final cycleLength = _partnerProfile?['cycle_length'] ?? 28;
+        final duration = _partnerProfile?['period_duration'] ?? 5;
+        final latestStart = DateTime.parse(_partnerCycles.first['start_date'] as String);
+        final cycleDay = DateTime.now().difference(latestStart).inDays + 1;
+        
+        final ovDay = cycleLength - 14;
+        
+        String pPhase = 'Unknown';
+        if (cycleDay <= duration) {
+          pPhase = 'Menstrual';
+        } else if (cycleDay <= ovDay - 2) {
+          pPhase = 'Follicular';
+        } else if (cycleDay <= ovDay + 1) {
+          pPhase = 'Ovulation';
+        } else {
+          pPhase = 'Luteal';
+        }
+
+        final pFertility = cycleDay <= duration
+            ? "Menstruation"
+            : ((cycleDay >= ovDay - 5 && cycleDay <= ovDay) ? "High Fertility" : "Low Fertility");
+
+        phase = pPhase;
+        day = cycleDay;
+        total = cycleLength;
+        fertility = pFertility;
+        lastPeriodDateMs = latestStart.millisecondsSinceEpoch;
+        cycleLen = cycleLength;
+        periodDuration = duration;
+        ovulationDay = ovDay;
+      } else {
+        phase = currentPhase;
+        day = currentCycleDay;
+        total = cycleLength;
+        fertility = isOnPeriod
+            ? "Menstruation"
+            : (isInFertileWindow ? "High Fertility" : "Low Fertility");
+        lastPeriodDateMs = _lastPeriodDate != null ? _lastPeriodDate!.millisecondsSinceEpoch : 0;
+        cycleLen = effectiveCycleLength;
+        periodDuration = _periodDuration;
+        ovulationDay = _ovulationDay;
+      }
 
       // Save widget keys (shared with Android remote views)
       await HomeWidget.saveWidgetData<String>('cycle_phase', '$phase Phase');
@@ -1565,15 +1656,10 @@ class CycleProvider extends ChangeNotifier {
       await HomeWidget.saveWidgetData<String>('fertility_status', fertility);
 
       // Save raw widget configuration for native-side dynamic calculations
-      if (_lastPeriodDate != null) {
-        await HomeWidget.saveWidgetData<int>(
-            'last_period_date_ms', _lastPeriodDate!.millisecondsSinceEpoch);
-      } else {
-        await HomeWidget.saveWidgetData<int>('last_period_date_ms', 0);
-      }
-      await HomeWidget.saveWidgetData<int>('cycle_length', effectiveCycleLength);
-      await HomeWidget.saveWidgetData<int>('period_duration', _periodDuration);
-      await HomeWidget.saveWidgetData<int>('ovulation_day', _ovulationDay);
+      await HomeWidget.saveWidgetData<int>('last_period_date_ms', lastPeriodDateMs);
+      await HomeWidget.saveWidgetData<int>('cycle_length', cycleLen);
+      await HomeWidget.saveWidgetData<int>('period_duration', periodDuration);
+      await HomeWidget.saveWidgetData<int>('ovulation_day', ovulationDay);
 
       // Request launcher database refresh
       await HomeWidget.updateWidget(
