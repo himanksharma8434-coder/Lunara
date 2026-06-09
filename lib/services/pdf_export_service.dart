@@ -152,6 +152,9 @@ class PdfExportService {
         ? DateFormat('MMM d, yyyy').format(provider.nextPeriodDate!)
         : 'Unknown';
 
+    final classification = provider.cycleClassification.name;
+    final regularityLabel = classification[0].toUpperCase() + classification.substring(1);
+
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -167,6 +170,56 @@ class PdfExportService {
             pw.SizedBox(width: 10),
             _buildMetricCard('Next Predicted', nextPeriod),
           ],
+        ),
+        pw.SizedBox(height: 12),
+        pw.Container(
+          padding: const pw.EdgeInsets.all(10),
+          decoration: pw.BoxDecoration(
+            color: const PdfColor.fromInt(0xFFFFF8E1),
+            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+            border: pw.Border.all(color: const PdfColor.fromInt(0xFFFFE082)),
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                'CYCLE REGULARITY & VARIATION ANALYSIS',
+                style: pw.TextStyle(
+                  fontSize: 9,
+                  fontWeight: pw.FontWeight.bold,
+                  color: const PdfColor.fromInt(0xFF5D4037),
+                  letterSpacing: 0.5,
+                ),
+              ),
+              pw.SizedBox(height: 6),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildAnalysisDetail('Regularity Status', regularityLabel),
+                  _buildAnalysisDetail('Variation (Std Dev)', '${provider.cycleStdDev.toStringAsFixed(1)} Days'),
+                  _buildAnalysisDetail('Shortest Cycle', '${provider.shortestCycle} Days'),
+                  _buildAnalysisDetail('Longest Cycle', '${provider.longestCycle} Days'),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _buildAnalysisDetail(String label, String value) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          label.toUpperCase(),
+          style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700),
+        ),
+        pw.SizedBox(height: 2),
+        pw.Text(
+          value,
+          style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: const PdfColor.fromInt(0xFF3E2723)),
         ),
       ],
     );
@@ -245,6 +298,8 @@ class PdfExportService {
         .where((day) =>
             day['water'] > 0 ||
             day['steps'] > 0 ||
+            day['bbt'] != null ||
+            day['cervicalMucus'] != null ||
             (day['symptoms'] as List).isNotEmpty)
         .toList();
 
@@ -264,18 +319,22 @@ class PdfExportService {
                 fontSize: 10),
             headerDecoration:
                 const pw.BoxDecoration(color: PdfColor.fromInt(0xFF3E2723)),
-            cellStyle: const pw.TextStyle(fontSize: 9),
-            cellPadding: const pw.EdgeInsets.all(6),
+            cellStyle: const pw.TextStyle(fontSize: 8),
+            cellPadding: const pw.EdgeInsets.all(5),
             border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
-            headers: ['Date', 'Symptoms', 'Mood', 'Sleep', 'Water', 'Steps'],
+            headers: ['Date', 'Symptoms', 'Mood', 'BBT', 'Mucus', 'Sleep', 'Water', 'Steps'],
             data: logDays.map((day) {
               final date = day['date'] as DateTime;
               final symptoms =
                   (day['symptoms'] as List).join(', ').replaceAll('_', ' ');
+              final bbtStr = day['bbt'] != null ? '${(day['bbt'] as num).toStringAsFixed(2)}°C' : '-';
+              final cmStr = day['cervicalMucus'] ?? '-';
               return [
                 DateFormat('MMM d').format(date),
                 symptoms.isEmpty ? '-' : symptoms,
                 day['mood'],
+                bbtStr,
+                cmStr,
                 '${day['sleep']}h',
                 '${day['water']} gls',
                 '${day['steps']}st',
