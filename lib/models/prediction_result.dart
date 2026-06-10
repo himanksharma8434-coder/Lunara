@@ -94,6 +94,9 @@ class PredictionResult {
   /// Last day of fertile cervical mucus (Egg White / Watery).
   final DateTime? cmPeakDay;
 
+  /// Chronological wellness forecasts for the cycle.
+  final List<WellnessForecast> wellnessForecasts;
+
   const PredictionResult({
     this.predictedNextPeriod,
     this.windowStart,
@@ -111,6 +114,7 @@ class PredictionResult {
     this.ovulationConfidence = OvulationConfidence.unconfirmed,
     this.bbtConfirmedOvulation,
     this.cmPeakDay,
+    this.wellnessForecasts = const [],
   });
 
   /// Rounded effective cycle length for use in day-count arithmetic.
@@ -142,5 +146,22 @@ class PredictionResult {
       '[$confidenceLabel], cycle: ${effectiveCycleLength.toStringAsFixed(1)}d, '
       'luteal: ${lutealPhaseLength}d, '
       'classification: ${cycleClassification.name}, '
-      'ovulation: ${ovulationConfidence.name})';
+      'ovulation: ${ovulationConfidence.name}, '
+      'forecasts: ${wellnessForecasts.length})';
 }
+
+/// Chronological forecasting class modeling upcoming hormonal and symptom milestones.
+class WellnessForecast {
+  final DateTime date;
+  final String title;
+  final String description;
+  final String type; // 'energy_peak' | 'fertility_peak' | 'mood_dip' | 'pms_warning' | 'menstrual_rest'
+
+  const WellnessForecast({
+    required this.date,
+    required this.title,
+    required this.description,
+    required this.type,
+  });
+}
+
