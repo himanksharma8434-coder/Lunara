@@ -101,6 +101,13 @@ class MenstrualIntelligenceService {
       final nextPeriod = anchor?.add(Duration(days: userSetCycleLength));
       final ovulation =
           anchor?.add(Duration(days: userSetCycleLength - luteal));
+      final forecasts = _generateWellnessForecasts(
+        anchor: anchor,
+        predictedNextPeriod: nextPeriod,
+        cycleLength: userSetCycleLength,
+        periodDuration: periodDuration,
+        ovulationDay: userSetCycleLength - luteal,
+      );
       return PredictionResult(
         predictedNextPeriod: nextPeriod,
         windowStart: nextPeriod?.subtract(const Duration(days: 3)),
@@ -114,6 +121,7 @@ class MenstrualIntelligenceService {
         adjustmentFactors: [
           'Only ${sorted.length} cycle(s) recorded — using user-set length of $userSetCycleLength days',
         ],
+        wellnessForecasts: forecasts,
       );
     }
 
@@ -294,6 +302,14 @@ class MenstrualIntelligenceService {
       classification: classification,
     );
 
+    final forecasts = _generateWellnessForecasts(
+      anchor: anchor,
+      predictedNextPeriod: basePrediction,
+      cycleLength: cycleLenRounded,
+      periodDuration: periodDuration,
+      ovulationDay: ovDay,
+    );
+
     return PredictionResult(
       predictedNextPeriod: basePrediction,
       windowStart: windowStart,
@@ -311,6 +327,7 @@ class MenstrualIntelligenceService {
       ovulationConfidence: ovulationConf,
       bbtConfirmedOvulation: bbtConfirmed,
       cmPeakDay: cmPeak,
+      wellnessForecasts: forecasts,
     );
   }
 
@@ -671,5 +688,110 @@ class MenstrualIntelligenceService {
     }
 
     return null;
+  }
+
+  // ── Private: Wellness Forecast Generation ────────────────────────────
+
+  List<WellnessForecast> _generateWellnessForecasts({
+    required DateTime? anchor,
+    required DateTime? predictedNextPeriod,
+    required int cycleLength,
+    required int periodDuration,
+    required int ovulationDay,
+  }) {
+    final forecasts = <WellnessForecast>[];
+    if (anchor == null) return forecasts;
+
+    // Helper to add forecasts for a cycle starting at a given startDate
+    void addForecastsForCycle(DateTime startDate, int cycleLen) {
+      final ovDay = cycleLen - 14;
+      
+      // 1. Menstrual Rest Window (Day 1)
+      forecasts.add(WellnessForecast(
+        date: startDate,
+        title: 'Menstrual Rest Window',
+        description: 'Estrogen and progesterone are at their lowest. Focus on rest, hydration, and warm, iron-rich meals.',
+        type: 'menstrual_rest',
+      ));
+
+      // 2. Estrogen Ascent (Day periodDuration + 1)
+      forecasts.add(WellnessForecast(
+        date: startDate.add(Duration(days: periodDuration)),
+        title: 'Estrogen Ascent',
+        description: 'Rising estrogen boosts energy, mood, and mental clarity. A great time for planning and starting projects.',
+        type: 'energy_peak',
+      ));
+
+      // 3. Peak Fertility (Day ovDay - 2)
+      forecasts.add(WellnessForecast(
+        date: startDate.add(Duration(days: (ovDay - 2).clamp(0, cycleLen))),
+        title: 'Peak Fertility Window',
+        description: 'High estrogen prepares your body for ovulation. You may notice increased energy and hydration markers.',
+        type: 'fertility_peak',
+      ));
+
+      // 4. Ovulation Day (Day ovDay)
+      forecasts.add(WellnessForecast(
+        date: startDate.add(Duration(days: (ovDay - 1).clamp(0, cycleLen))),
+        title: 'Ovulation Day',
+        description: 'An egg is released. High estrogen levels support peak confidence, social energy, and physical vitality.',
+        type: 'fertility_peak',
+      ));
+
+      // 5. Progesterone Nesting (Day ovDay + 4)
+      forecasts.add(WellnessForecast(
+        date: startDate.add(Duration(days: (ovDay + 3).clamp(0, cycleLen))),
+        title: 'Progesterone Nesting',
+        description: 'Rising progesterone shifts your body into nesting mode. Cozy activities and light stretching are ideal.',
+        type: 'energy_peak',
+      ));
+
+      // 6. PMS Support Window (Day cycleLen - 5)
+      forecasts.add(WellnessForecast(
+        date: startDate.add(Duration(days: (cycleLen - 5).clamp(0, cycleLen))),
+        title: 'PMS Support Window',
+        description: 'Estrogen and progesterone drop. Mood swings or bloating might occur. Prioritize self-care and calm environments.',
+        type: 'pms_warning',
+      ));
+
+      // 7. Hormonal Dip Alert (Day cycleLen - 2)
+      forecasts.add(WellnessForecast(
+        date: startDate.add(Duration(days: (cycleLen - 2).clamp(0, cycleLen))),
+        title: 'Hormonal Dip Alert',
+        description: 'Hormones dip to baseline. Be extra gentle with yourself; mild fatigue or sensitivity is normal.',
+        type: 'mood_dip',
+      ));
+    }
+
+    // Generate for current cycle
+    addForecastsForCycle(anchor, cycleLength);
+
+    // Generate for next cycle
+    if (predictedNextPeriod != null) {
+      addForecastsForCycle(predictedNextPeriod, cycleLength);
+    }
+
+    // Sort chronologically
+    forecasts.sort((a, b) => a.date.compareTo(b.date));
+
+    // Filter to only include forecasts from today onwards (with a 1-day buffer for "Yesterday" or "Today")
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final cutoff = today.subtract(const Duration(days: 1));
+
+    // Keep unique dates if any overlap occurs
+    final seenDates = <String>{};
+    final uniqueForecasts = <WellnessForecast>[];
+    for (final f in forecasts) {
+      final dateNorm = DateTime(f.date.year, f.date.month, f.date.day);
+      if (dateNorm.isBefore(cutoff)) continue;
+      final key = '${dateNorm.year}-${dateNorm.month}-${dateNorm.day}-${f.type}';
+      if (!seenDates.contains(key)) {
+        seenDates.add(key);
+        uniqueForecasts.add(f);
+      }
+    }
+
+    return uniqueForecasts;
   }
 }
