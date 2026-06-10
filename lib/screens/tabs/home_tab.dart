@@ -16,6 +16,7 @@ import '../assessment_screen.dart';
 import '../bbt_log_screen.dart';
 import '../../widgets/animations.dart';
 import '../../widgets/custom_toast.dart';
+import '../../widgets/wellness_forecast_timeline.dart';
 import '../../models/prediction_result.dart';
 import '../../services/plus_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -208,6 +209,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
     final shouldShowPeriodConfirmation = context.select<CycleProvider, bool>((p) => p.shouldShowPeriodConfirmation);
     final predictiveInsight = context.select<CycleProvider, String?>((p) => p.predictiveInsight);
     final currentPredictions = context.select<CycleProvider, List<String>>((p) => p.currentPredictions);
+    final forecasts = context.select<CycleProvider, List<WellnessForecast>>((p) => p.latestPrediction.wellnessForecasts);
     final textColor = Theme.of(context).colorScheme.onSurface;
     final showDeferredBanner = authProvider.hasDeferredAssessment &&
         isOnPeriod &&
@@ -1091,6 +1093,13 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
             // FAM / Clinical Tracking Card
             const SliverToBoxAdapter(
               child: FamTrackingWidget(),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 12)),
+
+            // Chronological Wellness Forecast Timeline
+            SliverToBoxAdapter(
+              child: WellnessForecastTimeline(forecasts: forecasts),
             ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
