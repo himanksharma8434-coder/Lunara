@@ -2,18 +2,20 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
-import 'dart:async';
-import 'dart:math' as math;
 import 'package:provider/provider.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'dart:math' as math;
+import 'dart:async';
+import 'dart:convert';
+import 'package:google_generative_ai/google_generative_ai.dart';
+import '../theme/app_theme.dart';
 import '../providers/cycle_provider.dart';
 import '../config/app_config.dart';
-import '../theme/app_theme.dart';
-import 'dart:convert';
+import '../widgets/custom_toast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/groq_service.dart';
 import '../services/ai_rate_limit_service.dart';
-import '../services/premium_service.dart';
+import '../services/plus_service.dart';
  
 class AIChatScreen extends StatefulWidget {
   final String? initialPrompt;
@@ -49,7 +51,7 @@ class _AIChatScreenState extends State<AIChatScreen>
   late Animation<double> _introBadgeAnim;
   late Animation<double> _introFeaturesAnim;
   final List<String> _suggestedSymptoms = [];
-  int _remainingRequests = PremiumService.freeDailyLimit;
+  int _remainingRequests = PlusService.freeDailyLimit;
   final String _apiKey = AppConfig.groqApiKey;
 
   final List<Map<String, dynamic>> _quickActions = [
@@ -254,8 +256,8 @@ class _AIChatScreenState extends State<AIChatScreen>
     String today = now.toString().split(' ')[0];
     String time = TimeOfDay.now().format(context);
 
-    // List of models to try — tier-aware (premium gets 70b, free gets 8b)
-    final List<String> potentialModels = PremiumService.instance.availableModels;
+    // List of models to try — tier-aware (Plus gets 70b, free gets 8b)
+    final List<String> potentialModels = PlusService.instance.availableModels;
 
     // Filter out excluded models
     final filteredModels = potentialModels.where((m) => !excludeModels.contains(m)).toList();
@@ -456,7 +458,7 @@ class _AIChatScreenState extends State<AIChatScreen>
                   TextButton(
                     onPressed: () async {
                       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      await PremiumService.instance.setPremium(true);
+                      await PlusService.instance.setPlus(true);
                       await _updateRemainingRequests();
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -484,7 +486,7 @@ class _AIChatScreenState extends State<AIChatScreen>
                                   const SizedBox(width: 12),
                                   const Expanded(
                                     child: Text(
-                                      'Premium unlocked! Enjoy unlimited messages.',
+                                      'Plus unlocked! Enjoy unlimited messages.',
                                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                                     ),
                                   ),
@@ -522,11 +524,11 @@ class _AIChatScreenState extends State<AIChatScreen>
 
     if (text.length > 500) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Message is too long (max 500 characters).'),
-            backgroundColor: LunaraColors.primaryDark,
-          ),
+        CustomToast.show(
+          context,
+          message: 'Message is too long (max 500 characters, current: ${text.length})',
+          icon: Icons.error_outline,
+          backgroundColor: Colors.red[400],
         );
       }
       return;
@@ -778,12 +780,12 @@ class _AIChatScreenState extends State<AIChatScreen>
             opacity: _fadeAnimation,
             child: Column(
               children: [
-                _buildPremiumHeader(),
+                _buildPlusHeader(),
                 Expanded(child: _buildMessageArea()),
                 if (_messages.isEmpty && widget.initialPrompt == null)
                   _buildQuickActions(),
                 if (_isTyping) _buildTypingIndicator(),
-                _buildPremiumInput(),
+                _buildPlusInput(),
               ],
             ),
           ),
@@ -792,7 +794,7 @@ class _AIChatScreenState extends State<AIChatScreen>
     );
   }
 
-  Widget _buildPremiumHeader() {
+  Widget _buildPlusHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       decoration: BoxDecoration(
@@ -850,22 +852,22 @@ class _AIChatScreenState extends State<AIChatScreen>
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: PremiumService.instance.isPremium
+                        color: PlusService.instance.isPlus
                             ? LunaraColors.warning.withOpacity(0.15)
                             : AppTheme.subtleBackground(context),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: PremiumService.instance.isPremium
+                          color: PlusService.instance.isPlus
                               ? LunaraColors.warning.withOpacity(0.4)
                               : AppTheme.divider(context),
                         ),
                       ),
                       child: Text(
-                        PremiumService.instance.isPremium ? '💎 PRO' : 'FREE',
+                        PlusService.instance.isPlus ? '💎 PLUS' : 'FREE',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
-                          color: PremiumService.instance.isPremium
+                          color: PlusService.instance.isPlus
                               ? LunaraColors.warning
                               : AppTheme.textLight(context),
                         ),
@@ -875,7 +877,7 @@ class _AIChatScreenState extends State<AIChatScreen>
                 ),
                 Text(
                   _remainingRequests == -1
-                      ? 'Unlimited questions · Premium'
+                      ? 'Unlimited questions · Plus'
                       : '$_remainingRequests questions left today',
                   style: TextStyle(
                     fontSize: 12,
@@ -1498,7 +1500,7 @@ class _AIChatScreenState extends State<AIChatScreen>
     );
   }
 
-  Widget _buildPremiumInput() {
+  Widget _buildPlusInput() {
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).padding.bottom + 12,
@@ -1549,12 +1551,11 @@ class _AIChatScreenState extends State<AIChatScreen>
                         setState(() {
                           _suggestedSymptoms.remove(symptom);
                         });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('$symptom logged for today'),
-                            backgroundColor: AppTheme.primary(context),
-                            duration: const Duration(seconds: 2),
-                          ),
+                        CustomToast.show(
+                          context,
+                          message: '$symptom logged for today',
+                          icon: Icons.check_circle_rounded,
+                          backgroundColor: AppTheme.primary(context),
                         );
                       },
                     ),

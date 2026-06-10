@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/cycle_provider.dart';
+import '../widgets/custom_toast.dart';
 import '../main.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -605,22 +606,7 @@ class _SignupScreenState extends State<SignupScreen>
 
         // Show success message
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.white),
-                  SizedBox(width: 10),
-                  Text('Account created successfully! 🎉'),
-                ],
-              ),
-              backgroundColor: const Color(0xFF4CAF50),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15)),
-              margin: const EdgeInsets.all(20),
-            ),
-          );
+          CustomToast.show(context, message: 'Account created successfully! 🎉', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
         }
 
         // Navigate to main app (InitialRouter handles assessment)
@@ -656,20 +642,6 @@ class _SignupScreenState extends State<SignupScreen>
 
   void _showError(String message) {
     HapticFeedback.heavyImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 10),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: const Color(0xFFE57373),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        margin: const EdgeInsets.all(20),
-      ),
-    );
+    CustomToast.show(context, message: message, icon: Icons.error_outline, backgroundColor: Colors.red[400]);
   }
 }

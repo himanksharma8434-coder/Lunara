@@ -133,7 +133,7 @@ class _SleepAssessmentScreenState extends State<SleepAssessmentScreen>
                       horizontal: 24.0, vertical: 20),
                   child: Column(
                     children: [
-                      // Premium Header
+                      // Plus Header
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -333,7 +333,7 @@ class _SleepAssessmentScreenState extends State<SleepAssessmentScreen>
 
                       const SizedBox(height: 40),
 
-                      // Premium Slider Section
+                      // Plus Slider Section
                       Expanded(
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -459,7 +459,7 @@ class _SleepAssessmentScreenState extends State<SleepAssessmentScreen>
                                             ),
                                           ),
 
-                                          // Premium Knob
+                                          // Plus Knob
                                           AnimatedPositioned(
                                             duration: const Duration(
                                                 milliseconds: 500),

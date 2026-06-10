@@ -14,10 +14,13 @@ import 'legal_screen.dart';
 import 'login_screen.dart';
 import 'partner_sync_screen.dart';
 import 'help_support_screen.dart';
+import 'plus_screen.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import '../services/database_service.dart';
-import '../services/premium_service.dart';
+import '../services/plus_service.dart';
+import '../widgets/custom_toast.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -68,34 +71,59 @@ class _ProfileHeaderState extends State<_ProfileHeader> {
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 75,
+        imageQuality: 100,
       );
 
       if (image == null) return;
 
+      final CroppedFile? croppedFile = await ImageCropper().cropImage(
+        sourcePath: image.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop & Rotate',
+            toolbarColor: AppTheme.primary(context),
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+            hideBottomControls: false,
+          ),
+          IOSUiSettings(
+            title: 'Crop & Rotate',
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
+          ),
+        ],
+      );
+
+      if (croppedFile == null) return;
+
       setState(() => _isUploading = true);
 
-      final file = File(image.path);
+      final file = File(croppedFile.path);
       final newUrl = await _dbService.uploadAvatar(authProvider.userId, file);
 
       if (newUrl != null) {
         authProvider.updateUserAvatar(newUrl);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile picture updated successfully!')),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to upload image. Please try again.')),
+          CustomToast.show(
+            context,
+            message: 'Profile picture updated successfully!',
+            icon: Icons.check_circle,
+            backgroundColor: const Color(0xFF4CAF50),
           );
         }
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
+      if (mounted) {
+        CustomToast.show(
+          context,
+          message: 'Upload failed: ${e.toString().replaceAll('Exception: ', '')}',
+          icon: Icons.error_outline,
+          backgroundColor: Colors.red[400],
+        );
+      }
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
@@ -141,6 +169,14 @@ class _ProfileHeaderState extends State<_ProfileHeader> {
                             ? Image.network(
                                 avatarUrl,
                                 fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  debugPrint('Image load error: $error');
+                                  return Icon(
+                                    Icons.error_outline,
+                                    color: Colors.red[400],
+                                    size: 40,
+                                  );
+                                },
                               )
                             : Icon(
                                 Icons.person,
@@ -189,22 +225,22 @@ class _ProfileHeaderState extends State<_ProfileHeader> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
-              color: PremiumService.instance.isPremium
+              color: PlusService.instance.isPlus
                   ? LunaraColors.warning.withOpacity(0.15)
                   : AppTheme.subtleBackground(context),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: PremiumService.instance.isPremium
+                color: PlusService.instance.isPlus
                     ? LunaraColors.warning.withOpacity(0.4)
                     : AppTheme.divider(context),
               ),
             ),
             child: Text(
-              PremiumService.instance.isPremium ? '💎 Premium Member' : 'Free Plan',
+              PlusService.instance.isPlus ? '💎 Plus Member' : 'Free Plan',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: PremiumService.instance.isPremium
+                color: PlusService.instance.isPlus
                     ? LunaraColors.warning
                     : AppTheme.textLight(context),
               ),
@@ -298,6 +334,7 @@ class _SettingsSection extends StatelessWidget {
               ),
             ),
           ),
+          const _PlusAdvantagesItem(),
           const _DarkModeToggle(),
           const _NotificationToggles(),
           const _ExportReportItem(),
@@ -374,12 +411,7 @@ class _ExportReportItem extends StatelessWidget {
       'Share data with your doctor',
       () async {
         HapticFeedback.mediumImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Generating Health Report...'),
-            backgroundColor: AppTheme.textDark(context),
-            duration: const Duration(seconds: 2),
-          ),
+        CustomToast.show(context, message: 'Generating Health Report...',
         );
         final cycleProvider = context.read<CycleProvider>();
         await PdfExportService.generateAndShareDoctorReport(cycleProvider);
@@ -407,6 +439,115 @@ class _AccountSettingsItem extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _PlusAdvantagesItem extends StatelessWidget {
+  const _PlusAdvantagesItem();
+
+  @override
+  Widget build(BuildContext context) {
+    final isPlus = context.watch<PlusService>().isPlus;
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const PlusScreen(),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF2D1B4E), Color(0xFF44206E)],
+          ),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(
+            color: Colors.amber.withOpacity(isPlus ? 0.2 : 0.5),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF44206E).withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.workspace_premium_rounded, color: Colors.amber, size: 22),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Lunara Plus',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isPlus ? 'Manage your Plus plan' : 'Unlock all features',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withOpacity(0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (!isPlus)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Colors.amber, Color(0xFFFFD54F)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'UPGRADE',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF2D1B4E),
+                  ),
+                ),
+              ),
+            if (isPlus)
+              const Text(
+                'ACTIVE',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.amber,
+                ),
+              ),
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right, color: Colors.amber),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -515,12 +656,11 @@ class _GoogleFitConnectionCard extends StatelessWidget {
                   if (value) {
                     final error = await cycleProvider.connectHealth();
                     if (error != null && context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(error),
-                          backgroundColor: Colors.orange,
-                          duration: const Duration(seconds: 4),
-                        ),
+                      CustomToast.show(
+                        context,
+                        message: error,
+                        icon: Icons.error_outline,
+                        backgroundColor: Colors.red[400],
                       );
                     }
                   } else {

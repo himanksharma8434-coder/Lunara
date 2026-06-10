@@ -1,4 +1,4 @@
-// lib/screens/insights_screen.dart — Premium Cycle Analytics
+// lib/screens/insights_screen.dart — Plus Cycle Analytics
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,10 +8,11 @@ import 'package:intl/intl.dart';
 import '../providers/cycle_provider.dart';
 import '../theme/app_theme.dart';
 import '../services/pdf_export_service.dart';
-import '../services/premium_service.dart';
+import '../services/plus_service.dart';
 import '../services/groq_service.dart';
 import '../config/app_config.dart';
 import '../widgets/shimmer_loading.dart';
+import '../widgets/custom_toast.dart';
 
 class InsightsScreen extends StatefulWidget {
   const InsightsScreen({super.key});
@@ -73,7 +74,7 @@ class _InsightsScreenState extends State<InsightsScreen>
               physics: const BouncingScrollPhysics(),
               slivers: [
                 _buildHeader(context),
-                // Time Range Selector (Premium unlocks extended)
+                // Time Range Selector (Plus unlocks extended)
                 SliverToBoxAdapter(
                   child: _buildTimeRangeBar(provider),
                 ),
@@ -84,7 +85,7 @@ class _InsightsScreenState extends State<InsightsScreen>
                     child: const _CyclePhaseCard(),
                   ),
                 ),
-                // AI Predictive Trends (Premium)
+                // AI Predictive Trends (Plus)
                 SliverToBoxAdapter(
                   child: _buildAnimatedCard(
                     delay: 50,
@@ -217,12 +218,7 @@ class _InsightsScreenState extends State<InsightsScreen>
         onPressed: () async {
           HapticFeedback.mediumImpact();
           // Provide visual feedback while generating
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Generating medical report...'),
-              duration: Duration(seconds: 1),
-            ),
-          );
+          CustomToast.show(context, message: 'Generating medical report...', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
           await PdfExportService.generateAndShareDoctorReport(provider);
         },
         style: ElevatedButton.styleFrom(
@@ -270,13 +266,13 @@ class _InsightsScreenState extends State<InsightsScreen>
 
   // ─── Time Range Bar ───────────────────────────────
   Widget _buildTimeRangeBar(CycleProvider provider) {
-    final isPremium = PremiumService.instance.isPremium;
+    final isPlus = PlusService.instance.isPlus;
     final ranges = [
       {'days': 7, 'label': '7D'},
       {'days': 14, 'label': '14D'},
-      {'days': 30, 'label': '30D', 'premium': true},
-      {'days': 60, 'label': '60D', 'premium': true},
-      {'days': 90, 'label': '90D', 'premium': true},
+      {'days': 30, 'label': '30D', 'plus': true},
+      {'days': 60, 'label': '60D', 'plus': true},
+      {'days': 90, 'label': '90D', 'plus': true},
     ];
 
     return Container(
@@ -291,15 +287,15 @@ class _InsightsScreenState extends State<InsightsScreen>
         children: ranges.map((r) {
           final days = r['days'] as int;
           final label = r['label'] as String;
-          final needsPremium = r['premium'] == true;
+          final needsPlus = r['plus'] == true;
           final isSelected = _selectedRange == days;
-          final isLocked = needsPremium && !isPremium;
+          final isLocked = needsPlus && !isPlus;
 
           return Expanded(
             child: GestureDetector(
               onTap: () {
                 if (isLocked) {
-                  _showPremiumRangeToast();
+                  _showPlusRangeToast();
                   return;
                 }
                 HapticFeedback.lightImpact();
@@ -347,7 +343,7 @@ class _InsightsScreenState extends State<InsightsScreen>
     );
   }
 
-  void _showPremiumRangeToast() {
+  void _showPlusRangeToast() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: Colors.transparent,
@@ -370,7 +366,7 @@ class _InsightsScreenState extends State<InsightsScreen>
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Extended history is a Premium feature',
+                  'Extended history is a Plus feature',
                   style: TextStyle(
                     color: AppTheme.cardColor(context),
                     fontWeight: FontWeight.w700,
@@ -381,7 +377,7 @@ class _InsightsScreenState extends State<InsightsScreen>
               GestureDetector(
                 onTap: () async {
                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  await PremiumService.instance.setPremium(true);
+                  await PlusService.instance.setPlus(true);
                   if (mounted) setState(() {});
                 },
                 child: Container(
@@ -409,22 +405,22 @@ class _InsightsScreenState extends State<InsightsScreen>
 
   // ─── AI Predictive Card ───────────────────────────
   Widget _buildAIPredictiveCard(CycleProvider provider) {
-    final isPremium = PremiumService.instance.isPremium;
+    final isPlus = PlusService.instance.isPlus;
 
     return Container(
       margin: EdgeInsets.fromLTRB(20, 6, 20, 6),
       padding: EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: isPremium
+        gradient: isPlus
             ? LinearGradient(
                 colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
             : null,
-        color: isPremium ? null : Colors.white,
+        color: isPlus ? null : Colors.white,
         borderRadius: BorderRadius.circular(LunaraRadius.lg),
-        boxShadow: isPremium
+        boxShadow: isPlus
             ? [
                 BoxShadow(
                   color: Color(0xFF6C63FF).withOpacity(0.2),
@@ -459,7 +455,7 @@ class _InsightsScreenState extends State<InsightsScreen>
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: isPremium
+                          color: isPlus
                               ? Colors.white54
                               : AppTheme.textDark(context).withOpacity(0.6),
                           letterSpacing: 0.5,
@@ -469,13 +465,13 @@ class _InsightsScreenState extends State<InsightsScreen>
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
-                        color: isPremium ? Colors.white : AppTheme.textDark(context),
+                        color: isPlus ? Colors.white : AppTheme.textDark(context),
                       ),
                     ),
                   ],
                 ),
               ),
-              if (!isPremium)
+              if (!isPlus)
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
@@ -500,7 +496,7 @@ class _InsightsScreenState extends State<InsightsScreen>
             ],
           ),
           SizedBox(height: 16),
-          if (!isPremium) ...[
+          if (!isPlus) ...[
             // Locked state — show blurred preview
             Container(
               padding: EdgeInsets.all(16),
@@ -535,7 +531,7 @@ class _InsightsScreenState extends State<InsightsScreen>
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () async {
-                  await PremiumService.instance.setPremium(true);
+                  await PlusService.instance.setPlus(true);
                   if (mounted) setState(() {});
                 },
                 style: ElevatedButton.styleFrom(
@@ -560,7 +556,7 @@ class _InsightsScreenState extends State<InsightsScreen>
               ),
             ),
           ] else ...[
-            // Premium unlocked — show AI insights
+            // Plus unlocked — show AI insights
             if (_aiInsights != null)
               ..._buildAIInsightCards()
             else
@@ -692,7 +688,7 @@ Do NOT use markdown formatting. Keep each insight EXTREMELY short (1 sentence ma
 ''';
 
       final model = GroqModel(
-        model: PremiumService.premiumModels.first,
+        model: PlusService.plusModels.first,
         apiKey: AppConfig.groqApiKey,
         systemInstruction:
             'You are a women\'s health data analyst. Find non-obvious correlations in wellness data. Be specific and reference actual data points.',
@@ -711,9 +707,7 @@ Do NOT use markdown formatting. Keep each insight EXTREMELY short (1 sentence ma
     } catch (e) {
       if (mounted) {
         setState(() => _isGeneratingAI = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to generate insights. Try again.')),
-        );
+        CustomToast.show(context, message: 'Failed to generate insights. Try again.', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
       }
     }
   }

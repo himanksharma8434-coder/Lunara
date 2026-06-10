@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/cycle_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/custom_toast.dart';
 
 class AccountSettingsScreen extends StatefulWidget {
   const AccountSettingsScreen({super.key});
@@ -94,22 +95,12 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Profile updated successfully'),
-            backgroundColor: AppTheme.primary(context),
-          ),
-        );
+        CustomToast.show(context, message: 'Profile updated successfully', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to update profile'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        CustomToast.show(context, message: 'Failed to update profile', icon: Icons.error_outline, backgroundColor: Colors.red[400]);
       }
     } finally {
       if (mounted) {

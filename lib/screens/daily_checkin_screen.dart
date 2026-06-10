@@ -24,7 +24,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
-  // Premium 5-Level Mood System
+  // Plus 5-Level Mood System
   final List<Map<String, dynamic>> _moods = [
     {
       'label': "Terrible",
@@ -182,7 +182,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                   position: _slideAnimation,
                   child: Column(
                     children: [
-                      // Premium Header
+                      // Plus Header
                       Padding(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 24.0, vertical: 20),
@@ -284,7 +284,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
 
                       const Spacer(flex: 1),
 
-                      // Premium Emoji Container
+                      // Plus Emoji Container
                       ScaleTransition(
                         scale: _bounceAnimation,
                         child: Container(
@@ -415,7 +415,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                   constraints.maxHeight,
                                 ),
                                 child: CustomPaint(
-                                  painter: PremiumArcPainter(
+                                  painter: PlusArcPainter(
                                     value: _sliderValue,
                                     moodColors: _moods
                                         .map((m) => m['color'] as Color)
@@ -542,12 +542,12 @@ class _AssessmentScreenState extends State<AssessmentScreen>
   }
 }
 
-// Premium Arc Painter
-class PremiumArcPainter extends CustomPainter {
+// Plus Arc Painter
+class PlusArcPainter extends CustomPainter {
   final double value;
   final List<Color> moodColors;
 
-  PremiumArcPainter({required this.value, required this.moodColors});
+  PlusArcPainter({required this.value, required this.moodColors});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -590,7 +590,7 @@ class PremiumArcPainter extends CustomPainter {
 
     canvas.drawArc(rect, math.pi, math.pi * value, false, activePaint);
 
-    // 3. Premium Knob
+    // 3. Plus Knob
     double angle = math.pi + (value * math.pi);
     double knobX = center.dx + radius * math.cos(angle);
     double knobY = center.dy + radius * math.sin(angle);
@@ -645,5 +645,5 @@ class PremiumArcPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant PremiumArcPainter oldDelegate) => true;
+  bool shouldRepaint(covariant PlusArcPainter oldDelegate) => true;
 }

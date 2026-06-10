@@ -81,7 +81,7 @@ class _ExpressionAnalysisScreenState extends State<ExpressionAnalysisScreen>
                     const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
                 child: Column(
                   children: [
-                    // Premium Header
+                    // Plus Header
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -230,7 +230,7 @@ class _ExpressionAnalysisScreenState extends State<ExpressionAnalysisScreen>
 
                     const SizedBox(height: 30),
 
-                    // Premium Text Input Card
+                    // Plus Text Input Card
                     Expanded(
                       child: ScaleTransition(
                         scale: _scaleAnimation,

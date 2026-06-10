@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/nearby_doctor.dart';
 import '../services/nearby_doctor_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/custom_toast.dart';
 
 class AppointmentScreen extends StatefulWidget {
   const AppointmentScreen({super.key});
@@ -831,13 +832,7 @@ class _AppointmentScreenState extends State<AppointmentScreen>
       await launchUrl(uri);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not open dialer for ${doctor.phone}'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red[400],
-          ),
-        );
+        CustomToast.show(context, message: 'Could not open dialer for ${doctor.phone}', icon: Icons.error_outline, backgroundColor: Colors.red[400]);
       }
     }
   }
@@ -851,12 +846,7 @@ class _AppointmentScreenState extends State<AppointmentScreen>
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not open browser for search'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        CustomToast.show(context, message: 'Could not open browser for search', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
       }
     }
   }
@@ -865,13 +855,7 @@ class _AppointmentScreenState extends State<AppointmentScreen>
     // Fallback data has (0,0) — can't give real directions
     if (doctor.latitude == 0 && doctor.longitude == 0) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Location not available for this facility. Enable GPS and refresh to get real results.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        CustomToast.show(context, message: 'Location not available for this facility. Enable GPS and refresh to get real results.', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
       }
       return;
     }
@@ -883,13 +867,7 @@ class _AppointmentScreenState extends State<AppointmentScreen>
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Could not open maps for directions'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red[400],
-          ),
-        );
+        CustomToast.show(context, message: 'Could not open maps for directions', icon: Icons.error_outline, backgroundColor: Colors.red[400]);
       }
     }
   }

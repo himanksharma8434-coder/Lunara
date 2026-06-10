@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import 'otp_verification_screen.dart';
+import '../widgets/custom_toast.dart';
 
 class PhoneLoginScreen extends StatefulWidget {
   const PhoneLoginScreen({super.key});
@@ -21,12 +22,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   }
 
   void _showError(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: LunaraColors.primaryDark,
-      ),
-    );
+    CustomToast.show(context, message: message, icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
   }
 
   Future<void> _submitPhone() async {

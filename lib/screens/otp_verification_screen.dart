@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../main.dart';
+import '../widgets/custom_toast.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String phone;
@@ -23,12 +24,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   }
 
   void _showError(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: LunaraColors.primaryDark,
-      ),
-    );
+    CustomToast.show(context, message: message, icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
   }
 
   Future<void> _verifyOtp() async {

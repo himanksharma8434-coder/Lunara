@@ -168,6 +168,37 @@ class CycleProvider extends ChangeNotifier {
     _loadPartnerLink();
 
     _isIrregular = _prefs.getBool('is_irregular') ?? false;
+
+    // Check if it's a new day to reset daily trackers
+    checkNewDay();
+  }
+
+  /// Checks if the date has changed since the last time metrics were modified/loaded.
+  /// If it's a new day, resets all daily trackers (water, sleep, symptoms, etc.) to their default states.
+  void checkNewDay() {
+    final now = DateTime.now();
+    final todayStr = "${now.year}-${now.month}-${now.day}";
+    final lastDateStr = _prefs.getString('last_daily_metrics_date');
+
+    if (lastDateStr != todayStr) {
+      // It's a new day! Reset daily trackers
+      _dailySteps = 0;
+      _waterGlasses = 0;
+      _sleepHours = 0.0;
+      _currentMood = 'Good';
+      _todaySymptoms.clear();
+      _todayBbt = null;
+      _todayCervicalMucus = null;
+
+      // Update prefs immediately
+      _prefs.setInt('daily_steps', 0);
+      _prefs.setInt('water_glasses', 0);
+      _prefs.setDouble('sleep_hours', 0.0);
+      _prefs.setString('last_daily_metrics_date', todayStr);
+
+      notifyListeners();
+      debugPrint('Daily metrics reset for new day: $todayStr');
+    }
   }
 
   Future<void> _fetchCloudHistory() async {
@@ -726,6 +757,10 @@ class CycleProvider extends ChangeNotifier {
     };
 
     _wellnessHistory[key] = snapshot;
+
+    // Update the last_daily_metrics_date so we don't accidentally reset later today
+    final todayStr = "${today.year}-${today.month}-${today.day}";
+    _prefs.setString('last_daily_metrics_date', todayStr);
 
     // Sync daily assessment to cloud
     _syncDailySnapshotToCloud(key);

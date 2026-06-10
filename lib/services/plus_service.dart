@@ -2,21 +2,21 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Singleton service to manage premium subscription status.
+/// Singleton service to manage plus subscription status.
 ///
 /// For now this is a local flag stored in SharedPreferences + synced
 /// to the `users` table column `is_premium`.  When you integrate a
 /// payment provider (Google Play Billing / RevenueCat / Stripe) you
-/// only need to call [setPremium] from the purchase callback.
-class PremiumService extends ChangeNotifier {
+/// only need to call [setPlus] from the purchase callback.
+class PlusService extends ChangeNotifier {
   static const String _keyIsPremium = 'is_premium';
 
-  PremiumService._();
-  static final PremiumService instance = PremiumService._();
+  PlusService._();
+  static final PlusService instance = PlusService._();
 
-  bool _isPremium = false;
+  bool _isPlus = false;
 
-  bool get isPremium => _isPremium;
+  bool get isPlus => _isPlus;
 
   // ─── Free-tier AI limits ───────────────────────────
   /// Daily AI message cap for free users.
@@ -29,25 +29,25 @@ class PremiumService extends ChangeNotifier {
     'mixtral-8x7b-32768',
   ];
 
-  /// Models available to premium users (powerful reasoning).
-  static const List<String> premiumModels = [
+  /// Models available to Plus users (powerful reasoning).
+  static const List<String> plusModels = [
     'llama-3.3-70b-versatile',
     'llama-3.1-8b-instant',
     'mixtral-8x7b-32768',
   ];
 
   /// Returns the ordered model list for the current tier.
-  List<String> get availableModels => _isPremium ? premiumModels : freeModels;
+  List<String> get availableModels => _isPlus ? plusModels : freeModels;
 
   /// The daily AI request limit for the current tier.
-  /// Returns -1 for unlimited (premium).
-  int get dailyLimit => _isPremium ? -1 : freeDailyLimit;
+  /// Returns -1 for unlimited (Plus).
+  int get dailyLimit => _isPlus ? -1 : freeDailyLimit;
 
   // ─── Initialisation ───────────────────────────────
-  /// Load the cached premium flag. Call once on app start.
+  /// Load the cached plus flag. Call once on app start.
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
-    _isPremium = prefs.getBool(_keyIsPremium) ?? false;
+    _isPlus = prefs.getBool(_keyIsPremium) ?? false;
     notifyListeners();
 
     // Also try to fetch from Supabase if logged in
@@ -55,9 +55,9 @@ class PremiumService extends ChangeNotifier {
   }
 
   // ─── Mutation ─────────────────────────────────────
-  /// Set premium status (called from purchase flow or admin toggle).
-  Future<void> setPremium(bool value) async {
-    _isPremium = value;
+  /// Set plus status (called from purchase flow or admin toggle).
+  Future<void> setPlus(bool value) async {
+    _isPlus = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyIsPremium, value);
     notifyListeners();
@@ -79,13 +79,13 @@ class PremiumService extends ChangeNotifier {
           .maybeSingle();
 
       if (row != null && row['is_premium'] == true) {
-        _isPremium = true;
+        _isPlus = true;
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(_keyIsPremium, true);
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('PremiumService: cloud sync read error: $e');
+      debugPrint('PlusService: cloud sync read error: $e');
     }
   }
 
@@ -98,7 +98,7 @@ class PremiumService extends ChangeNotifier {
           .from('users')
           .update({'is_premium': value}).eq('uid', uid);
     } catch (e) {
-      debugPrint('PremiumService: cloud sync write error: $e');
+      debugPrint('PlusService: cloud sync write error: $e');
     }
   }
 }

@@ -21,7 +21,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late AnimationController _buttonAnimationController;
   late Animation<double> _buttonScaleAnimation;
 
-  // Premium Onboarding Data
+  // Plus Onboarding Data
   final List<Map<String, String>> _onboardingData = [
     {
       "title": "Welcome to Lunara",

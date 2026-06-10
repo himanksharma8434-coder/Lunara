@@ -8,8 +8,9 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../services/groq_service.dart';
-import '../services/premium_service.dart';
+import '../services/plus_service.dart';
 import '../config/app_config.dart';
+import '../widgets/custom_toast.dart';
 
 class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
@@ -60,12 +61,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   void _submitFeedback() async {
     final feedback = _feedbackController.text.trim();
     if (feedback.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please enter your question or feedback message.'),
-          backgroundColor: LunaraColors.primaryDark,
-        ),
-      );
+      CustomToast.show(context, message: 'Please enter your question or feedback message.', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
       return;
     }
 
@@ -129,11 +125,11 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
 
       // ─── INSERT INTO SUPABASE ───
       final supabase = Supabase.instance.client;
-      final isPremium = PremiumService.instance.isPremium;
+      final isPlus = PlusService.instance.isPlus;
       final phone = supabase.auth.currentUser?.phone ?? '';
 
       String finalMessage = feedback;
-      if (isPremium) {
+      if (isPlus) {
         finalMessage += '\n\n[PRIORITY: HIGH]';
         if (phone.isNotEmpty) {
           finalMessage += '\n[USER_PHONE: $phone]';
@@ -164,13 +160,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         setState(() {
           _isSubmitting = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to submit ticket: $e. Did you run the SQL migration on Supabase?'),
-            backgroundColor: Colors.redAccent,
-            duration: const Duration(seconds: 5),
-          ),
-        );
+        CustomToast.show(context, message: 'Failed to submit ticket: $e. Did you run the SQL migration on Supabase?', icon: Icons.error_outline, backgroundColor: Colors.red[400]);
       }
     }
   }

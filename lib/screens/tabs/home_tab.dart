@@ -11,13 +11,13 @@ import '../ai_chat_screen.dart';
 import '../note_screen.dart';
 import '../insights_screen.dart';
 import '../wellness_plan_screen.dart';
-import '../premium_screen.dart';
+import '../plus_screen.dart';
 import '../assessment_screen.dart';
 import '../bbt_log_screen.dart';
 import '../../widgets/animations.dart';
 import '../../widgets/custom_toast.dart';
 import '../../models/prediction_result.dart';
-import '../../services/premium_service.dart';
+import '../../services/plus_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/database_service.dart';
 import '../notifications_screen.dart';
@@ -106,7 +106,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  /// Plays the premium irregular-toggle animation:
+  /// Plays the plus irregular-toggle animation:
   /// 1. Glowing orb with particle trail rises from the button to the top header.
   /// 2. Glassmorphism info card drops in explaining what Lunara Intelligence adapts.
   void _showIrregularAnimation(CycleProvider provider) {
@@ -1022,14 +1022,14 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
               const SliverToBoxAdapter(child: SizedBox(height: 14)),
             ],
 
-            // Premium AI Cards with animation
+            // Plus AI Cards with animation
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   children: [
                     Expanded(
-                      child: PremiumAICard(
+                      child: PlusAICard(
                         text: 'Diet Plan',
                         icon: Icons.restaurant_menu_rounded,
                         gradient: const LinearGradient(
@@ -1046,7 +1046,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: PremiumAICard(
+                      child: PlusAICard(
                         text: 'Workout',
                         icon: Icons.fitness_center_rounded,
                         gradient: const LinearGradient(
@@ -1103,17 +1103,17 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
               ),
             ),
 
-            // ─── Premium Upgrade Banner ───
-            if (!PremiumService.instance.isPremium)
+            // ─── Plus Upgrade Banner ───
+            if (!PlusService.instance.isPlus)
               const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
-                  child: PremiumUpgradeBannerWidget(),
+                  child: PlusUpgradeBannerWidget(),
                 ),
               ),
 
             // Bottom spacing for nav bar
-// Irregular Period Section - Premium Design
+// Irregular Period Section - Plus Design
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
               sliver: SliverToBoxAdapter(
@@ -1494,7 +1494,7 @@ class AnimatedForegroundRingPainter extends CustomPainter {
 
 // ═══════════════════════════════════════════════════════════════════
 //  IRREGULAR ANIMATION OVERLAY
-//  A premium orb-rise + info card animation for irregular toggle.
+//  A plus orb-rise + info card animation for irregular toggle.
 // ═══════════════════════════════════════════════════════════════════
 
 class _IrregularAnimationOverlay extends StatefulWidget {
@@ -2189,7 +2189,7 @@ class CycleRingCard extends StatelessWidget {
               return Stack(
                 alignment: Alignment.center,
                 children: [
-                  // 1. Premium background breathing glow (Restored RadialGradient)
+                  // 1. Plus background breathing glow (Restored RadialGradient)
                   // Wrapped in Transform.scale so it doesn't repaint!
                   Transform.scale(
                     scale: 1.0 + (breathingAnimation.value * 0.06),
@@ -2233,7 +2233,7 @@ class CycleRingCard extends StatelessWidget {
                     ),
                   ),
 
-                  // 3. Premium Glowing Marker (Restored shadows and gradients)
+                  // 3. Plus Glowing Marker (Restored shadows and gradients)
                   // Translated and scaled via GPU compositor, zero repaint cost!
                   Transform.translate(
                     offset: Offset(radiusX, radiusY),
@@ -2420,14 +2420,14 @@ class InteractiveStat extends StatelessWidget {
   }
 }
 
-class PremiumAICard extends StatelessWidget {
+class PlusAICard extends StatelessWidget {
   final String text;
   final IconData icon;
   final Gradient gradient;
   final String prompt;
   final int delay;
 
-  const PremiumAICard({
+  const PlusAICard({
     super.key,
     required this.text,
     required this.icon,
@@ -3101,8 +3101,8 @@ class ModernActionCard extends StatelessWidget {
   }
 }
 
-class PremiumUpgradeBannerWidget extends StatelessWidget {
-  const PremiumUpgradeBannerWidget({super.key});
+class PlusUpgradeBannerWidget extends StatelessWidget {
+  const PlusUpgradeBannerWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -3111,7 +3111,7 @@ class PremiumUpgradeBannerWidget extends StatelessWidget {
         HapticFeedback.mediumImpact();
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const PremiumScreen()),
+          MaterialPageRoute(builder: (_) => const PlusScreen()),
         );
       },
       child: Container(
@@ -3158,7 +3158,7 @@ class PremiumUpgradeBannerWidget extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Upgrade to Premium',
+                    'Upgrade to Plus',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,

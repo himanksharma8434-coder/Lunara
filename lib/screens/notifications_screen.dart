@@ -9,6 +9,7 @@ import '../providers/auth_provider.dart';
 import '../services/database_service.dart';
 import '../theme/app_theme.dart';
 import 'community_screen.dart';
+import '../widgets/custom_toast.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -60,22 +61,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           builder: (context) => CommentsSheetContent(post: post),
         );
       } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to load post. It may have been deleted.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        CustomToast.show(context, message: 'Failed to load post. It may have been deleted.', icon: Icons.error_outline, backgroundColor: Colors.red[400]);
       }
     } catch (e) {
       setState(() => _isOpeningPost = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        CustomToast.show(context, message: 'Error: $e', icon: Icons.error_outline, backgroundColor: Colors.red[400]);
       }
     }
   }

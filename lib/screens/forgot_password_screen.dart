@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 
 import '../theme/app_theme.dart';
+import '../widgets/custom_toast.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -140,12 +141,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final email = _emailController.text.trim();
 
     if (email.isEmpty || !email.contains('@')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid email address'),
-          backgroundColor: Color(0xFFE57373),
-        ),
-      );
+      CustomToast.show(context, message: 'Please enter a valid email address', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
       return;
     }
 
@@ -167,27 +163,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (error == null) {
       // Success
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                const Text('Password reset link sent! Check your email 📧'),
-            backgroundColor: const Color(0xFF4CAF50),
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        CustomToast.show(context, message: 'Password reset link sent! Check your email 📧', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
         Navigator.pop(context); // go back to login
       }
     } else {
       // Error
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error),
-            backgroundColor: const Color(0xFFE57373),
-          ),
-        );
+        CustomToast.show(context, message: error, icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
       }
     }
   }

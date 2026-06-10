@@ -123,17 +123,17 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background(context),
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          gradient: RadialGradient(
+            center: const Alignment(0, -0.5),
+            radius: 1.2,
             colors: [
-              const Color(0xFFFFF8E1).withOpacity(0.6),
-              const Color(0xFFF3E5F5).withOpacity(0.6),
-              const Color(0xFFFFEBEE).withOpacity(0.6),
+              LunaraColors.primary.withOpacity(0.08),
+              AppTheme.background(context),
             ],
           ),
         ),
@@ -149,7 +149,7 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
                     hasScrollBody: false,
                     child: Column(
                       children: [
-                  // Premium Header
+                  // Plus Header
                   Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24.0, vertical: 20),
@@ -164,7 +164,7 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
                           child: Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppTheme.cardColor(context),
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
@@ -174,19 +174,19 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.arrow_back_ios_new,
                               size: 18,
-                              color: LunaraColors.textDark,
+                              color: AppTheme.textDark(context),
                             ),
                           ),
                         ),
-                        const Text(
+                        Text(
                           "Daily Check-in",
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
-                            color: LunaraColors.textDark,
+                            color: AppTheme.textDark(context),
                             letterSpacing: 0.3,
                           ),
                         ),
@@ -253,15 +253,15 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
                         ),
                       ),
                       const SizedBox(height: 25),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 30),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 30),
                         child: Text(
                           "How do you feel about\nyour period today?",
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w900,
-                            color: LunaraColors.textDark,
+                            color: AppTheme.textDark(context),
                             height: 1.2,
                             letterSpacing: -0.5,
                           ),
@@ -272,7 +272,7 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
                         "Tap a card to learn more",
                         style: TextStyle(
                           fontSize: 15,
-                          color: Colors.grey[600],
+                          color: AppTheme.secondaryText(context),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -320,7 +320,7 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
                                     border: Border.all(
                                       color: Color.lerp(
                                         Colors.transparent,
-                                        Colors.white,
+                                        AppTheme.primary(context),
                                         value,
                                       )!,
                                       width: 3,
@@ -388,7 +388,7 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
                             margin: const EdgeInsets.symmetric(horizontal: 24),
                             padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppTheme.cardColor(context),
                               borderRadius: BorderRadius.circular(25),
                               border: Border.all(
                                 color: _feelings[_selectedIndex]['color']
@@ -445,7 +445,7 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
                                   _feelings[_selectedIndex]['description'],
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.grey[700],
+                                    color: AppTheme.secondaryText(context),
                                     height: 1.6,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -468,7 +468,7 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
                             _selectedIndex == -1 ? null : _handleContinue,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _selectedIndex == -1
-                              ? Colors.grey.shade300
+                              ? AppTheme.subtleBackground(context)
                               : _feelings[_selectedIndex]['color'],
                           foregroundColor: Colors.white,
                           elevation: _selectedIndex == -1 ? 0 : 8,
@@ -492,7 +492,7 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 0.5,
                                 color: _selectedIndex == -1
-                                    ? Colors.grey[500]
+                                    ? AppTheme.textLight(context)
                                     : Colors.white,
                               ),
                             ),

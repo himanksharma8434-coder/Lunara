@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:lunara/services/premium_service.dart';
+import 'package:lunara/services/plus_service.dart';
 
 // local files
 import 'config/app_config.dart';
@@ -46,9 +46,11 @@ void main() {
       FlutterError.presentError(details);
     };
 
+    // Fire and forget non-critical services so they don't block startup
     try {
-      await AppNotificationService().init();
-      await AppNotificationService().scheduleDailyGuidance(); // 9AM & 8PM Daily alerts
+      AppNotificationService().init().then((_) {
+        AppNotificationService().scheduleDailyGuidance();
+      });
     } catch (e, st) {
       log.error('Notification Service Startup Failed (non-fatal)',
           error: e, stackTrace: st, tag: 'Notifications');
@@ -74,18 +76,18 @@ void main() {
           error: e, stackTrace: st, tag: 'GhostMode');
     }
 
-    // Initialize health service (silent config)
+    // Initialize health service (silent config) in the background
     try {
       final healthService = HealthService();
-      await healthService.configure();
+      healthService.configure(); // Fire and forget
       log.info('Health service configured', tag: 'Health');
     } catch (e, st) {
       log.error('Health startup config error (non-fatal)',
           error: e, stackTrace: st, tag: 'Health');
     }
 
-    // Initialize Premium Service (reads cached status + cloud sync)
-    await PremiumService.instance.init();
+    // Initialize Plus Service (reads cached status + cloud sync)
+    await PlusService.instance.init();
 
     runApp(MyApp(prefs: prefs));
   }, (error, stack) {
@@ -133,6 +135,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       _privacyProvider.lock();
     } else if (state == AppLifecycleState.resumed) {
       _privacyProvider.onAppLifecycleChanged(true);
+      
+      // If the app was left open overnight, ensure daily metrics (sleep, water) reset
+      if (mounted) {
+        try {
+          Provider.of<CycleProvider>(context, listen: false).checkNewDay();
+        } catch (_) {}
+      }
     }
   }
 
@@ -144,7 +153,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ChangeNotifierProvider(create: (_) => ThemeProvider(widget.prefs)),
         ChangeNotifierProvider(create: (_) => AuthProvider(widget.prefs)),
         ChangeNotifierProvider(create: (_) => CycleProvider(widget.prefs)),
-        ChangeNotifierProvider.value(value: PremiumService.instance),
+        ChangeNotifierProvider.value(value: PlusService.instance),
         ChangeNotifierProvider.value(value: _privacyProvider),
       ],
       child: Builder(

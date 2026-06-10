@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/cycle_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/custom_toast.dart';
 
 /// Quick-log screen for Basal Body Temperature and Cervical Mucus.
 ///
@@ -335,12 +336,11 @@ class _BbtLogScreenState extends State<BbtLogScreen> {
                           parts.add('CM: $_selectedCm');
                         }
 
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Logged ${parts.join(', ')}'),
-                            backgroundColor:
-                                LunaraColors.fertileGreen,
-                          ),
+                        CustomToast.show(
+                          context,
+                          message: 'Logged ${parts.join(', ')}',
+                          icon: Icons.check_circle_rounded,
+                          backgroundColor: LunaraColors.fertileGreen,
                         );
                         Navigator.pop(context);
                       }

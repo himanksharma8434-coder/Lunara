@@ -75,7 +75,7 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                     const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
                 child: Column(
                   children: [
-                    // Premium Header
+                    // Plus Header
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -87,7 +87,7 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                           child: Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppTheme.cardColor(context),
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
@@ -97,19 +97,19 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.arrow_back_ios_new,
                               size: 18,
-                              color: LunaraColors.textDark,
+                              color: AppTheme.textDark(context),
                             ),
                           ),
                         ),
-                        const Text(
+                        Text(
                           "Daily Check-in",
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
-                            color: LunaraColors.textDark,
+                            color: AppTheme.textDark(context),
                             letterSpacing: 0.3,
                           ),
                         ),
@@ -175,13 +175,13 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                           ),
                         ),
                         const SizedBox(height: 25),
-                        const Text(
+                        Text(
                           "Are your periods\nregular or not?",
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.w900,
-                            color: LunaraColors.textDark,
+                            color: AppTheme.textDark(context),
                             height: 1.2,
                             letterSpacing: -0.5,
                           ),
@@ -192,7 +192,7 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 15,
-                            color: Colors.grey[600],
+                            color: AppTheme.secondaryText(context),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -201,11 +201,11 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
 
                     const SizedBox(height: 50),
 
-                    // Premium Option Cards
+                    // Plus Option Cards
                     Row(
                       children: [
                         Expanded(
-                          child: _buildPremiumOptionCard(
+                          child: _buildPlusOptionCard(
                             label: "Yes, Regular",
                             icon: Icons.check_circle_outline_rounded,
                             description: "Cycles come at predictable times",
@@ -219,7 +219,7 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                         ),
                         const SizedBox(width: 20),
                         Expanded(
-                          child: _buildPremiumOptionCard(
+                          child: _buildPlusOptionCard(
                             label: "No, Irregular",
                             icon: Icons.event_busy_rounded,
                             description: "Cycles vary or are unpredictable",
@@ -245,7 +245,7 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                           margin: const EdgeInsets.only(bottom: 20),
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppTheme.cardColor(context),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
                               color: (_isRegular == true
@@ -289,7 +289,7 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                                       : "No worries! We'll help you identify patterns over time",
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: Colors.grey[700],
+                                    color: AppTheme.secondaryText(context),
                                     fontWeight: FontWeight.w600,
                                     height: 1.4,
                                   ),
@@ -336,7 +336,7 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                               },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _isRegular == null
-                              ? Colors.grey.shade300
+                              ? AppTheme.subtleBackground(context)
                               : LunaraColors.primary,
                           foregroundColor: Colors.white,
                           elevation: _isRegular == null ? 0 : 8,
@@ -357,7 +357,7 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 0.5,
                                 color: _isRegular == null
-                                    ? Colors.grey[500]
+                                    ? AppTheme.textLight(context)
                                     : Colors.white,
                               ),
                             ),
@@ -381,7 +381,7 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
     );
   }
 
-  Widget _buildPremiumOptionCard({
+  Widget _buildPlusOptionCard({
     required String label,
     required IconData icon,
     required String description,
@@ -409,10 +409,10 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                       ],
                     )
                   : null,
-              color: value == 0 ? Colors.white : null,
+              color: value == 0 ? AppTheme.cardColor(context) : null,
               borderRadius: BorderRadius.circular(25),
               border: Border.all(
-                color: Color.lerp(Colors.grey.shade200, color, value)!,
+                color: Color.lerp(AppTheme.primary(context).withOpacity(0.1), color, value)!,
                 width: 2 + (0.5 * value),
               ),
               boxShadow: [
@@ -437,13 +437,13 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                     gradient: value > 0
                         ? RadialGradient(
                             colors: [
-                              Color.lerp(Colors.grey.shade100, color, value)!,
-                              Color.lerp(Colors.grey.shade100,
+                              Color.lerp(AppTheme.subtleBackground(context), color, value)!,
+                              Color.lerp(AppTheme.subtleBackground(context),
                                   color.withOpacity(0.8), value)!,
                             ],
                           )
                         : null,
-                    color: value == 0 ? Colors.grey.shade100 : null,
+                    color: value == 0 ? AppTheme.subtleBackground(context) : null,
                     shape: BoxShape.circle,
                     boxShadow: value > 0
                         ? [
@@ -458,7 +458,7 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                   child: Icon(
                     icon,
                     size: 36,
-                    color: Color.lerp(Colors.grey[400]!, Colors.white, value),
+                    color: Color.lerp(AppTheme.textLight(context), AppTheme.cardColor(context), value),
                   ),
                 ),
 
@@ -471,7 +471,7 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color.lerp(LunaraColors.textDark, color, value),
+                    color: Color.lerp(AppTheme.textDark(context), color, value),
                     letterSpacing: 0.3,
                   ),
                 ),
@@ -484,7 +484,7 @@ class _PeriodRegularityScreenState extends State<PeriodRegularityScreen>
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[600],
+                    color: AppTheme.secondaryText(context),
                     fontWeight: FontWeight.w500,
                     height: 1.4,
                   ),

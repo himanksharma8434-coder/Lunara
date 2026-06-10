@@ -7,6 +7,7 @@ import '../providers/cycle_provider.dart';
 import 'package:intl/intl.dart';
 
 import '../theme/app_theme.dart';
+import '../widgets/custom_toast.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -76,7 +77,7 @@ class _CalendarScreenState extends State<CalendarScreen>
             position: _slideAnimation,
             child: Column(
               children: [
-                // Premium Header
+                // Plus Header
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 20, 24, 10),
                   child: Row(
@@ -454,12 +455,7 @@ class _CalendarScreenState extends State<CalendarScreen>
             ElevatedButton(
               onPressed: () {
                 // Save symptoms logic here
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('${selectedSymptoms.length} symptoms logged'),
-                    backgroundColor: const Color(0xFF06D6A0),
-                  ),
-                );
+                CustomToast.show(context, message: '${selectedSymptoms.length} symptoms logged', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
                 Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(
@@ -495,12 +491,7 @@ class _CalendarScreenState extends State<CalendarScreen>
           ElevatedButton(
             onPressed: () {
               if (noteController.text.trim().isNotEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Note saved successfully'),
-                    backgroundColor: Color(0xFF06D6A0),
-                  ),
-                );
+                CustomToast.show(context, message: 'Note saved successfully', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
                 Navigator.pop(context);
               }
             },

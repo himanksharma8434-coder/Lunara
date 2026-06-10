@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/privacy_provider.dart';
+import '../../../../widgets/custom_toast.dart';
 
 /// Privacy & Ghost Mode settings screen.
 ///
@@ -59,17 +60,7 @@ class PrivacySettingsScreen extends StatelessWidget {
                   ? (value) async {
                       final success = await privacy.toggleBiometric(value);
                       if (!success && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text(
-                              'Biometrics unavailable or not enrolled on this device.',
-                            ),
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        );
+                        CustomToast.show(context, message: 'Biometrics unavailable or not enrolled on this device.', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
                       }
                     }
                   : null, // Disabled when Ghost Mode is off
@@ -473,15 +464,7 @@ class PrivacySettingsScreen extends StatelessWidget {
               Navigator.pop(ctx);
               await privacy.wipeAllData();
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('All local data has been wiped.'),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                );
+                CustomToast.show(context, message: 'All local data has been wiped.', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
               }
             },
             style: ElevatedButton.styleFrom(

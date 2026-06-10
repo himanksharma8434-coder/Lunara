@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../providers/cycle_provider.dart';
 import '../services/database_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/custom_toast.dart';
 
 class PartnerSyncScreen extends StatefulWidget {
   const PartnerSyncScreen({super.key});
@@ -321,13 +322,7 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
                       Clipboard.setData(
                           ClipboardData(text: cp.activeInviteCode!));
                       HapticFeedback.lightImpact();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Code copied! 📋'),
-                          backgroundColor: AppTheme.primary(context),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
+                      CustomToast.show(context, message: 'Code copied! 📋', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
                     },
                     icon: Icon(Icons.copy_rounded,
                         color: AppTheme.primary(context)),
@@ -525,13 +520,7 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
                           if (mounted) {
                             setState(() => _isAccepting = false);
                             if (success) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content:
-                                      Text('Partner linked successfully! 🎉'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
+                              CustomToast.show(context, message: 'Partner linked successfully! 🎉', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
                               // Load partner data
                               if (cp.linkedPartnerUid != null) {
                                 _loadPartnerData(cp.linkedPartnerUid!);
@@ -873,12 +862,7 @@ class _PartnerSyncScreenState extends State<PartnerSyncScreen>
                   _partnerCycles = [];
                   _partnerAssessments = [];
                 });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Partner disconnected'),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
+                CustomToast.show(context, message: 'Partner disconnected', icon: Icons.error_outline, backgroundColor: Colors.red[400]);
               }
             },
             child: const Text('Disconnect',

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/custom_toast.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
@@ -362,22 +363,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
     if (error == null) {
       // Success
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 10),
-                Text('Password updated successfully! 🎉'),
-              ],
-            ),
-            backgroundColor: const Color(0xFF4CAF50),
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-            margin: const EdgeInsets.all(20),
-          ),
-        );
+        CustomToast.show(context, message: 'Password updated successfully!', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
 
         // Sign out so they log in with the new password
         await Provider.of<AuthProvider>(context, listen: false).logout();
@@ -389,21 +375,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
 
   void _showError(String message) {
     HapticFeedback.heavyImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 10),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: const Color(0xFFE57373),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        margin: const EdgeInsets.all(20),
-      ),
-    );
+    CustomToast.show(context, message: message, icon: Icons.error_outline, backgroundColor: Colors.red[400]);
   }
 }
 

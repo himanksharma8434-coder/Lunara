@@ -8,7 +8,7 @@ import '../providers/cycle_provider.dart';
 import '../config/app_config.dart';
 import '../theme/app_theme.dart';
 import '../services/groq_service.dart';
-import '../services/premium_service.dart';
+import '../services/plus_service.dart';
 
 class WellnessPlanScreen extends StatefulWidget {
   const WellnessPlanScreen({super.key});
@@ -65,8 +65,8 @@ class _WellnessPlanScreenState extends State<WellnessPlanScreen>
   }
 
   Future<void> _generateWellnessPlan() async {
-    final isPremium = PremiumService.instance.isPremium;
-    if (!isPremium) {
+    final isPlus = PlusService.instance.isPlus;
+    if (!isPlus) {
       _showUpgradeDialog();
       return;
     }
@@ -154,7 +154,7 @@ Keep the tone warm, supportive, and empowering. Use emojis sparingly. Be specifi
 ''';
 
       final model = GroqModel(
-        model: PremiumService.premiumModels.first,
+        model: PlusService.plusModels.first,
         apiKey: AppConfig.groqApiKey,
         systemInstruction:
             'You are Lunara AI, a compassionate women\'s health wellness advisor. Provide evidence-based, personalized wellness plans. Be warm but professional. Format your response with clear sections using markdown headers and bullet points.',
@@ -254,7 +254,7 @@ Keep the tone warm, supportive, and empowering. Use emojis sparingly. Be specifi
               child: ElevatedButton(
                 onPressed: () async {
                   Navigator.pop(ctx);
-                  await PremiumService.instance.setPremium(true);
+                  await PlusService.instance.setPlus(true);
                   if (mounted) {
                     setState(() {});
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -277,7 +277,7 @@ Keep the tone warm, supportive, and empowering. Use emojis sparingly. Be specifi
                               SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  'Premium unlocked! Generate your wellness plan.',
+                                  'Plus unlocked! Generate your wellness plan.',
                                   style: TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold),
@@ -299,7 +299,7 @@ Keep the tone warm, supportive, and empowering. Use emojis sparingly. Be specifi
                   elevation: 0,
                 ),
                 child: const Text(
-                  'Upgrade to Premium',
+                  'Upgrade to Plus',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -399,11 +399,11 @@ Keep the tone warm, supportive, and empowering. Use emojis sparingly. Be specifi
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    gradient: PremiumService.instance.isPremium
+                    gradient: PlusService.instance.isPlus
                         ? const LinearGradient(
                             colors: [Color(0xFFFFB74D), Color(0xFFFF9800)])
                         : null,
-                    color: PremiumService.instance.isPremium
+                    color: PlusService.instance.isPlus
                         ? null
                         : AppTheme.subtleBackground(context),
                     borderRadius: BorderRadius.circular(12),
@@ -412,21 +412,21 @@ Keep the tone warm, supportive, and empowering. Use emojis sparingly. Be specifi
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        PremiumService.instance.isPremium
+                        PlusService.instance.isPlus
                             ? Icons.workspace_premium_rounded
                             : Icons.lock_outline_rounded,
                         size: 14,
-                        color: PremiumService.instance.isPremium
+                        color: PlusService.instance.isPlus
                             ? Colors.white
                             : AppTheme.textLight(context),
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        PremiumService.instance.isPremium ? 'PRO' : 'FREE',
+                        PlusService.instance.isPlus ? 'PRO' : 'FREE',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
-                          color: PremiumService.instance.isPremium
+                          color: PlusService.instance.isPlus
                               ? Colors.white
                               : AppTheme.textLight(context),
                         ),
@@ -1156,7 +1156,7 @@ Keep the tone warm, supportive, and empowering. Use emojis sparingly. Be specifi
                     letterSpacing: 0.3,
                   ),
                 ),
-                if (!PremiumService.instance.isPremium) ...[
+                if (!PlusService.instance.isPlus) ...[
                   const SizedBox(width: 8),
                   Container(
                     padding:

@@ -19,7 +19,7 @@ class DatabaseService {
       await _db.storage.from('avatars').upload(
             filePath,
             imageFile,
-            fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+            fileOptions: const FileOptions(cacheControl: '3600'),
           );
 
       final imageUrl = _db.storage.from('avatars').getPublicUrl(filePath);
@@ -28,9 +28,12 @@ class DatabaseService {
       await _db.from('users').update({'avatar_url': imageUrl}).eq('uid', uid);
       
       return imageUrl;
+    } on StorageException catch (e) {
+      debugPrint('Storage error uploading avatar: ${e.message}');
+      throw Exception(e.message);
     } catch (e) {
       debugPrint('Error uploading avatar: $e');
-      return null;
+      throw Exception('An unexpected error occurred during upload.');
     }
   }
 

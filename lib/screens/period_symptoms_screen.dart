@@ -175,15 +175,15 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background(context),
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+          gradient: RadialGradient(
+            center: const Alignment(0, -0.5),
+            radius: 1.2,
             colors: [
-              LunaraColors.primaryLight.withOpacity(0.6),
-              LunaraColors.backgroundPink.withOpacity(0.6),
-              const Color(0xFFE1BEE7).withOpacity(0.6),
+              LunaraColors.primary.withOpacity(0.08),
+              AppTheme.background(context),
             ],
           ),
         ),
@@ -194,7 +194,7 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
               position: _slideAnimation,
               child: Column(
                 children: [
-                  // Premium Header
+                  // Plus Header
                   Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24.0, vertical: 20),
@@ -209,7 +209,7 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                           child: Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppTheme.cardColor(context),
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
@@ -219,19 +219,19 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.arrow_back_ios_new,
                               size: 18,
-                              color: LunaraColors.textDark,
+                              color: AppTheme.textDark(context),
                             ),
                           ),
                         ),
-                        const Text(
+                        Text(
                           "Daily Check-in",
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
-                            color: LunaraColors.textDark,
+                            color: AppTheme.textDark(context),
                             letterSpacing: 0.3,
                           ),
                         ),
@@ -300,13 +300,13 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
 
                         const SizedBox(height: 20),
 
-                        const Text(
+                        Text(
                           'Which symptoms are\nyou experiencing?',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w900,
-                            color: LunaraColors.textDark,
+                            color: AppTheme.textDark(context),
                             height: 1.2,
                             letterSpacing: -0.5,
                           ),
@@ -318,7 +318,7 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                           'Tap to learn more, select to track',
                           style: TextStyle(
                             fontSize: 15,
-                            color: Colors.grey[600],
+                            color: AppTheme.secondaryText(context),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -396,13 +396,13 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                                               ],
                                             )
                                           : null,
-                                      color: value == 0 ? Colors.white : null,
+                                      color: value == 0 ? AppTheme.cardColor(context) : null,
                                       borderRadius: BorderRadius.circular(
                                         isExpanded ? 20 : 25,
                                       ),
                                       border: Border.all(
                                         color: Color.lerp(
-                                          Colors.grey.shade200,
+                                          AppTheme.primary(context).withOpacity(0.1),
                                           symptom['color'],
                                           value,
                                         )!,
@@ -448,7 +448,7 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                                               fontSize: 17,
                                               fontWeight: FontWeight.bold,
                                               color: Color.lerp(
-                                                LunaraColors.textDark,
+                                                AppTheme.textDark(context),
                                                 symptom['color'],
                                                 value,
                                               ),
@@ -487,10 +487,10 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                                                     : Colors.transparent,
                                               ),
                                               child: isSelected
-                                                  ? const Icon(
+                                                  ? Icon(
                                                       Icons.check_rounded,
                                                       size: 16,
-                                                      color: Colors.white,
+                                                      color: AppTheme.cardColor(context),
                                                     )
                                                   : null,
                                             ),
@@ -513,7 +513,7 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                                           top: 8, bottom: 12),
                                       padding: const EdgeInsets.all(20),
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
+                                        color: AppTheme.cardColor(context),
                                         borderRadius: BorderRadius.circular(20),
                                         border: Border.all(
                                           color:
@@ -538,7 +538,7 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                                             symptom['description'],
                                             style: TextStyle(
                                               fontSize: 14,
-                                              color: Colors.grey[700],
+                                              color: AppTheme.secondaryText(context),
                                               height: 1.6,
                                               fontWeight: FontWeight.w500,
                                             ),
@@ -587,8 +587,7 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                                                         symptom['tips'],
                                                         style: TextStyle(
                                                           fontSize: 13,
-                                                          color:
-                                                              Colors.grey[700],
+                                                          color: AppTheme.secondaryText(context),
                                                           height: 1.5,
                                                         ),
                                                       ),
@@ -621,10 +620,10 @@ class _PeriodSymptomsScreenState extends State<PeriodSymptomsScreen>
                                               },
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor: isSelected
-                                                    ? Colors.grey[300]
+                                                    ? AppTheme.subtleBackground(context)
                                                     : symptom['color'],
                                                 foregroundColor: isSelected
-                                                    ? Colors.grey[700]
+                                                    ? AppTheme.textDark(context)
                                                     : Colors.white,
                                                 elevation: isSelected ? 0 : 3,
                                                 shape: RoundedRectangleBorder(

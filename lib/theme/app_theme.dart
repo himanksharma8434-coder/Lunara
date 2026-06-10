@@ -202,7 +202,7 @@ class AppTheme {
   static ThemeData get darkTheme {
     const primary = Color(0xFFFF7A8A); // Slightly brighter for dark mode
     const primaryDark = Color(0xFFC2185B);
-    const background = Color(0xFF121212); // Deep premium slate
+    const background = Color(0xFF121212); // Deep plus slate
     const cardColor = Color(0xFF1E1E1E);
 
     return ThemeData(

@@ -8,6 +8,7 @@ import '../main.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
 import 'phone_login_screen.dart';
+import '../widgets/custom_toast.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -332,12 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           icon: Icons.apple,
                           label: "Apple",
                           onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Apple Sign-In coming soon!'),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
+                            CustomToast.show(context, message: 'Apple Sign-In coming soon!', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
                           },
                         ),
                       ),
@@ -407,12 +403,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // Helper for Error Snackbars
   void _showError(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: LunaraColors.primaryDark,
-      ),
-    );
+    CustomToast.show(context, message: message, icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
   }
 
   Widget _buildInputField({

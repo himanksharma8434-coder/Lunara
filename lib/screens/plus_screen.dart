@@ -1,19 +1,22 @@
-// lib/screens/premium_screen.dart
+// lib/screens/plus_screen.dart
 
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
-import '../services/premium_service.dart';
+import '../services/plus_service.dart';
+import '../services/razorpay_service.dart';
+import '../widgets/custom_toast.dart';
 
-class PremiumScreen extends StatefulWidget {
-  const PremiumScreen({super.key});
+class PlusScreen extends StatefulWidget {
+  const PlusScreen({super.key});
 
   @override
-  State<PremiumScreen> createState() => _PremiumScreenState();
+  State<PlusScreen> createState() => _PlusScreenState();
 }
 
-class _PremiumScreenState extends State<PremiumScreen>
+class _PlusScreenState extends State<PlusScreen>
     with TickerProviderStateMixin {
   late final AnimationController _shimmerController;
   late final AnimationController _pulseController;
@@ -35,7 +38,21 @@ class _PremiumScreenState extends State<PremiumScreen>
       vsync: this,
       duration: const Duration(seconds: 4),
     )..repeat(reverse: true);
+
+    RazorpayService.instance.init();
+    RazorpayService.instance.setCompletionCallback((success) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        if (success) {
+          CustomToast.show(context, message: 'Welcome to Lunara Plus! 🎉', icon: Icons.workspace_premium, backgroundColor: const Color(0xFF4CAF50));
+        } else {
+          CustomToast.show(context, message: 'Payment failed or was cancelled.', icon: Icons.error_outline, backgroundColor: Colors.orange[800]);
+        }
+      }
+    });
   }
+
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -48,7 +65,7 @@ class _PremiumScreenState extends State<PremiumScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = AppTheme.isDark(context);
-    final isPremium = PremiumService.instance.isPremium;
+    final isPlus = context.watch<PlusService>().isPlus;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0A0A0F) : const Color(0xFFFDF8F4),
@@ -56,14 +73,14 @@ class _PremiumScreenState extends State<PremiumScreen>
         physics: const BouncingScrollPhysics(),
         slivers: [
           // ─── HERO HEADER ───
-          SliverToBoxAdapter(child: _buildHeroHeader(isDark, isPremium)),
+          SliverToBoxAdapter(child: _buildHeroHeader(isDark, isPlus)),
 
           // ─── PLAN TOGGLE ───
-          if (!isPremium)
+          if (!isPlus)
             SliverToBoxAdapter(child: _buildPlanToggle(isDark)),
 
           // ─── PRICING CARDS ───
-          if (!isPremium)
+          if (!isPlus)
             SliverToBoxAdapter(child: _buildPricingCards(isDark)),
 
           // ─── FEATURE COMPARISON ───
@@ -87,7 +104,7 @@ class _PremiumScreenState extends State<PremiumScreen>
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 30, 20, 12),
               child: Text(
-                'Why Go Premium?',
+                'Why Go Plus?',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -96,15 +113,15 @@ class _PremiumScreenState extends State<PremiumScreen>
               ),
             ),
           ),
-          SliverToBoxAdapter(child: _buildWhyPremiumCards(isDark)),
+          SliverToBoxAdapter(child: _buildWhyPlusCards(isDark)),
 
           // ─── CTA BUTTON ───
-          if (!isPremium)
+          if (!isPlus)
             SliverToBoxAdapter(child: _buildCTAButton(isDark)),
 
           // ─── ALREADY PREMIUM BADGE ───
-          if (isPremium)
-            SliverToBoxAdapter(child: _buildAlreadyPremiumBadge(isDark)),
+          if (isPlus)
+            SliverToBoxAdapter(child: _buildAlreadyPlusBadge(isDark)),
 
           const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
@@ -115,7 +132,7 @@ class _PremiumScreenState extends State<PremiumScreen>
   // ═══════════════════════════════════════════════════════════════════
   //  HERO HEADER — Animated gradient + floating crown
   // ═══════════════════════════════════════════════════════════════════
-  Widget _buildHeroHeader(bool isDark, bool isPremium) {
+  Widget _buildHeroHeader(bool isDark, bool isPlus) {
     return Stack(
       children: [
         // Background gradient
@@ -200,7 +217,7 @@ class _PremiumScreenState extends State<PremiumScreen>
                       ),
                     ),
                     const Spacer(),
-                    if (isPremium)
+                    if (isPlus)
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 6),
@@ -272,7 +289,7 @@ class _PremiumScreenState extends State<PremiumScreen>
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'Lunara Premium',
+                  'Lunara Plus',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
@@ -282,8 +299,8 @@ class _PremiumScreenState extends State<PremiumScreen>
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  isPremium
-                      ? 'You\'re enjoying all premium benefits ✨'
+                  isPlus
+                      ? 'You\'re enjoying all Plus benefits ✨'
                       : 'Unlock the full power of your health journey',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -397,7 +414,7 @@ class _PremiumScreenState extends State<PremiumScreen>
   }
 
   // ═══════════════════════════════════════════════════════════════════
-  //  PRICING CARDS — Free vs Premium side-by-side
+  //  PRICING CARDS — Free vs Plus side-by-side
   // ═══════════════════════════════════════════════════════════════════
   Widget _buildPricingCards(bool isDark) {
     return Padding(
@@ -478,7 +495,7 @@ class _PremiumScreenState extends State<PremiumScreen>
           ),
           const SizedBox(width: 12),
 
-          // Premium card
+          // Plus card
           Expanded(
             child: Container(
               padding: const EdgeInsets.all(20),
@@ -529,8 +546,8 @@ class _PremiumScreenState extends State<PremiumScreen>
                         size: 24, color: Colors.amber),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Premium',
+                  Text(
+                    _isYearly ? 'Plus' : 'Plus',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -538,16 +555,23 @@ class _PremiumScreenState extends State<PremiumScreen>
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    _isYearly ? '₹149' : '₹249',
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.amber,
-                    ),
+                  Builder(
+                    builder: (context) {
+                      final monthlyPrice = '₹99';
+                      final annualPrice = '₹799';
+                      
+                      return Text(
+                        _isYearly ? annualPrice : monthlyPrice,
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.amber,
+                        ),
+                      );
+                    }
                   ),
                   Text(
-                    _isYearly ? '/month, billed yearly' : '/month',
+                    _isYearly ? '/year' : '/month',
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.white.withOpacity(0.5),
@@ -676,7 +700,7 @@ class _PremiumScreenState extends State<PremiumScreen>
                       shaderCallback: (bounds) => const LinearGradient(
                         colors: [Colors.amber, Color(0xFFFFD54F)],
                       ).createShader(bounds),
-                      child: const Text('Premium',
+                      child: const Text('Plus',
                           style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
@@ -701,7 +725,7 @@ class _PremiumScreenState extends State<PremiumScreen>
   Widget _buildFeatureRow(_FeatureRow f, bool isDark, bool isLast) {
     final isFreeCheck = f.free == '✓';
     final isFreeCross = f.free == '✗';
-    final isPremCheck = f.premium == '✓';
+    final isPremCheck = f.plus == '✓';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
@@ -758,14 +782,14 @@ class _PremiumScreenState extends State<PremiumScreen>
                               color: isDark ? Colors.white54 : Colors.grey[600])),
             ),
           ),
-          // Premium column
+          // Plus column
           Expanded(
             flex: 2,
             child: Center(
               child: isPremCheck
                   ? const Icon(Icons.check_circle_rounded,
                       size: 18, color: Colors.amber)
-                  : Text(f.premium,
+                  : Text(f.plus,
                       style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -780,12 +804,12 @@ class _PremiumScreenState extends State<PremiumScreen>
   // ═══════════════════════════════════════════════════════════════════
   //  WHY PREMIUM CARDS
   // ═══════════════════════════════════════════════════════════════════
-  Widget _buildWhyPremiumCards(bool isDark) {
+  Widget _buildWhyPlusCards(bool isDark) {
     final items = [
       _WhyItem(
         Icons.auto_awesome_rounded,
         'Smarter AI',
-        'Premium unlocks 70B-parameter models for deeper, more accurate health insights.',
+        'Plus unlocks 70B-parameter models for deeper, more accurate health insights.',
         const Color(0xFF7C4DFF),
       ),
       _WhyItem(
@@ -880,9 +904,11 @@ class _PremiumScreenState extends State<PremiumScreen>
   //  CTA BUTTON
   // ═══════════════════════════════════════════════════════════════════
   Widget _buildCTAButton(bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-      child: AnimatedBuilder(
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+          child: AnimatedBuilder(
         animation: _pulseController,
         builder: (_, __) {
           final glow = 0.2 + _pulseController.value * 0.15;
@@ -901,20 +927,28 @@ class _PremiumScreenState extends State<PremiumScreen>
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(18),
-                onTap: () {
+                onTap: _isLoading ? null : () async {
                   HapticFeedback.heavyImpact();
-                  // TODO: Hook up to your payment provider
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text(
-                          'Payment integration coming soon! 🚀'),
-                      backgroundColor:
-                          isDark ? const Color(0xFF2D1B4E) : const Color(0xFFD8405B),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
+                  setState(() => _isLoading = true);
+                  
+                  // Razorpay requires amount in smallest currency unit (paise)
+                  final amountInPaise = _isYearly ? 79900 : 9900;
+                  
+                  final success = await RazorpayService.instance.startPayment(
+                    amountInPaise: amountInPaise,
+                    name: 'Lunara Plus',
+                    description: _isYearly ? 'Yearly Subscription' : 'Monthly Subscription',
+                    contact: '9999999999', // User's actual phone would go here
+                    email: 'test@example.com', // User's actual email
                   );
+                  
+                  if (!success) {
+                    if (mounted) {
+                      setState(() => _isLoading = false);
+                      CustomToast.show(context, message: 'Unable to open payment gateway.', icon: Icons.error_outline, backgroundColor: Colors.red[400]);
+                    }
+                  }
+                  // Success is handled by Razorpay callbacks initialized in initState
                 },
                 child: Container(
                   width: double.infinity,
@@ -928,19 +962,32 @@ class _PremiumScreenState extends State<PremiumScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.workspace_premium_rounded,
-                          color: Colors.white, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        _isYearly
-                            ? 'Start Premium — ₹1,788/year'
-                            : 'Start Premium — ₹249/month',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
+                      if (_isLoading)
+                        const SizedBox(
+                          width: 20, height: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      else ...[
+                        const Icon(Icons.workspace_premium_rounded,
+                            color: Colors.white, size: 20),
+                        const SizedBox(width: 8),
+                        Builder(
+                          builder: (context) {
+                            final monthlyPrice = '₹99';
+                            final annualPrice = '₹799';
+                            return Text(
+                              _isYearly
+                                  ? 'Start Plus — $annualPrice/year'
+                                  : 'Start Plus — $monthlyPrice/month',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            );
+                          }
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -949,13 +996,44 @@ class _PremiumScreenState extends State<PremiumScreen>
           );
         },
       ),
+        ),
+      // Restore purchases button
+      const SizedBox(height: 12),
+      Center(
+        child: TextButton(
+          onPressed: () async {
+            setState(() => _isLoading = true);
+            await PlusService.instance.init();
+            
+            if (mounted) {
+              setState(() => _isLoading = false);
+              final isPlus = Provider.of<PlusService>(context, listen: false).isPlus;
+              if (isPlus) {
+                CustomToast.show(context, message: 'Purchases restored! 🎉', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
+              } else {
+                CustomToast.show(context, message: 'No active subscription found.', icon: Icons.error_outline, backgroundColor: Colors.orange[800]);
+              }
+            }
+          },
+          child: Text(
+            'Restore Purchases',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white54 : Colors.grey[600],
+              decoration: TextDecoration.underline,
+            ),
+          ),
+        ),
+      ),
+      ],
     );
   }
 
   // ═══════════════════════════════════════════════════════════════════
   //  ALREADY PREMIUM BADGE
   // ═══════════════════════════════════════════════════════════════════
-  Widget _buildAlreadyPremiumBadge(bool isDark) {
+  Widget _buildAlreadyPlusBadge(bool isDark) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
       child: Container(
@@ -990,7 +1068,7 @@ class _PremiumScreenState extends State<PremiumScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'You\'re Premium! 🎉',
+                    'You\'re Plus! 🎉',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
@@ -999,7 +1077,7 @@ class _PremiumScreenState extends State<PremiumScreen>
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    'Thank you for supporting Lunara. All premium features are active.',
+                    'Thank you for supporting Lunara. All plus features are active.',
                     style: TextStyle(
                       fontSize: 12,
                       color: isDark ? Colors.white54 : Colors.grey[600],
@@ -1021,9 +1099,9 @@ class _PremiumScreenState extends State<PremiumScreen>
 class _FeatureRow {
   final String label;
   final String free;
-  final String premium;
+  final String plus;
   final IconData icon;
-  const _FeatureRow(this.label, this.free, this.premium, this.icon);
+  const _FeatureRow(this.label, this.free, this.plus, this.icon);
 }
 
 class _WhyItem {
