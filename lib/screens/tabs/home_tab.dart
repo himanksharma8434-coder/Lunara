@@ -210,6 +210,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
     final predictiveInsight = context.select<CycleProvider, String?>((p) => p.predictiveInsight);
     final currentPredictions = context.select<CycleProvider, List<String>>((p) => p.currentPredictions);
     final forecasts = context.select<CycleProvider, List<WellnessForecast>>((p) => p.latestPrediction.wellnessForecasts);
+    final isPlus = context.watch<PlusService>().isPlus;
     final textColor = Theme.of(context).colorScheme.onSurface;
     final showDeferredBanner = authProvider.hasDeferredAssessment &&
         isOnPeriod &&
@@ -1099,7 +1100,10 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
 
             // Chronological Wellness Forecast Timeline
             SliverToBoxAdapter(
-              child: WellnessForecastTimeline(forecasts: forecasts),
+              child: WellnessForecastTimeline(
+                forecasts: forecasts,
+                isPlus: isPlus,
+              ),
             ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 12)),

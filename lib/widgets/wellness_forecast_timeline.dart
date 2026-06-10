@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/prediction_result.dart';
+import '../screens/plus_screen.dart';
 import '../theme/app_theme.dart';
 
 class WellnessForecastTimeline extends StatelessWidget {
   final List<WellnessForecast> forecasts;
+  final bool isPlus;
 
   const WellnessForecastTimeline({
     super.key,
     required this.forecasts,
+    required this.isPlus,
   });
 
   @override
@@ -78,22 +82,109 @@ class WellnessForecastTimeline extends StatelessWidget {
             ],
           ),
         ),
-        SizedBox(
-          height: 155,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: forecasts.length,
-            itemBuilder: (context, index) {
-              final forecast = forecasts[index];
-              return _buildForecastCard(context, forecast, isDark);
-            },
+        if (!isPlus)
+          _buildLockedTeaser(context)
+        else
+          SizedBox(
+            height: 155,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: forecasts.length,
+              itemBuilder: (context, index) {
+                final forecast = forecasts[index];
+                return _buildForecastCard(context, forecast, isDark);
+              },
+            ),
           ),
-        ),
         const SizedBox(height: 10),
       ],
     );
   }
+
+  Widget _buildLockedTeaser(BuildContext context) {
+    final isDark = AppTheme.isDark(context);
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PlusScreen()),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+        padding: const EdgeInsets.all(18),
+        height: 125,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isDark
+                ? [const Color(0xFF2A1525), const Color(0xFF1A1A1A)]
+                : [const Color(0xFFFFF3E0), const Color(0xFFFCE4EC)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: AppTheme.softShadow(context),
+          border: Border.all(
+            color: const Color(0xFFFF8989).withOpacity(0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF8989).withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.lock_outline_rounded,
+                color: Color(0xFFFF8989),
+                size: 26,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Unlock Hormonal Forecasting',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textDark(context),
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Get day-by-day cycle surges, PMS warnings, and clinical symptom insights.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.textLight(context),
+                      height: 1.35,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: AppTheme.textLight(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   Widget _buildForecastCard(
       BuildContext context, WellnessForecast forecast, bool isDark) {
