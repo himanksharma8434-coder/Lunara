@@ -59,28 +59,46 @@ class _AppointmentScreenState extends State<AppointmentScreen>
       _locationDenied = false;
     });
 
-    // Check location permission first for UX
-    final permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.deniedForever) {
+    try {
+      final doctors = await NearbyDoctorService.fetchNearbyDoctors();
+
+      if (!mounted) return;
+
+      // Check location permission and status AFTER potential user permission prompts
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      final permission = await Geolocator.checkPermission();
+      final isPermissionDenied = permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever;
+
+      final isFallback = doctors.isNotEmpty && doctors.first.latitude == 0;
+
       setState(() {
-        _locationDenied = true;
+        _doctors = doctors;
         _isLoading = false;
+        // Only block the screen if permissions are denied or service is disabled
+        _locationDenied = !serviceEnabled || isPermissionDenied;
       });
-      return;
+
+      if (!mounted) return;
+
+      // If we couldn't get a real position but services are enabled/allowed (e.g. GPS timeout / API fail),
+      // show fallback list and warn the user.
+      if (isFallback && serviceEnabled && !isPermissionDenied) {
+        CustomToast.show(
+          context,
+          message: 'GPS signal weak or API offline. Showing default healthcare facilities.',
+          icon: Icons.location_off_rounded,
+          backgroundColor: Colors.orange[400],
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _locationDenied = true;
+        });
+      }
     }
-
-    final doctors = await NearbyDoctorService.fetchNearbyDoctors();
-
-    if (!mounted) return;
-
-    // Check if we got fallback data (location was denied at runtime)
-    final pos = await NearbyDoctorService.getCurrentPosition();
-
-    setState(() {
-      _doctors = doctors;
-      _isLoading = false;
-      _locationDenied = pos == null;
-    });
   }
 
   List<NearbyDoctor> get _filteredDoctors {
