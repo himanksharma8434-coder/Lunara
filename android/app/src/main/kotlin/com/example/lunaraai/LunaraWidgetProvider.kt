@@ -21,15 +21,36 @@ class LunaraWidgetProvider : HomeWidgetProvider() {
             val cyclePhase: String
             val cycleDay: String
             val fertilityStatus: String
+            val phaseName: String
 
             if (lastPeriodMs == 0L) {
                 cyclePhase = widgetData.getString("cycle_phase", "Follicular Phase") ?: "Follicular Phase"
                 cycleDay = widgetData.getString("cycle_day", "Day 1") ?: "Day 1"
                 fertilityStatus = widgetData.getString("fertility_status", "Low Fertility") ?: "Low Fertility"
+                phaseName = when {
+                    cyclePhase.contains("Menstrual", ignoreCase = true) || cyclePhase.contains("Period", ignoreCase = true) -> "Menstrual"
+                    cyclePhase.contains("Follicular", ignoreCase = true) -> "Follicular"
+                    cyclePhase.contains("Ovulation", ignoreCase = true) -> "Ovulation"
+                    else -> "Luteal"
+                }
             } else {
-                val cycleLength = widgetData.getInt("cycle_length", 28)
-                val periodDuration = widgetData.getInt("period_duration", 5)
-                val ovulationDay = widgetData.getInt("ovulation_day", 14)
+                val cycleLength = try {
+                    widgetData.getInt("cycle_length", 28)
+                } catch (e: Exception) {
+                    widgetData.getLong("cycle_length", 28L).toInt()
+                }
+
+                val periodDuration = try {
+                    widgetData.getInt("period_duration", 5)
+                } catch (e: Exception) {
+                    widgetData.getLong("period_duration", 5L).toInt()
+                }
+
+                val ovulationDay = try {
+                    widgetData.getInt("ovulation_day", 14)
+                } catch (e: Exception) {
+                    widgetData.getLong("ovulation_day", 14L).toInt()
+                }
 
                 val today = java.util.Calendar.getInstance()
                 val lastPeriod = java.util.Calendar.getInstance().apply {
@@ -66,6 +87,7 @@ class LunaraWidgetProvider : HomeWidgetProvider() {
                     else -> "Luteal"
                 }
                 cyclePhase = "$phase Phase"
+                phaseName = phase
                 
                 fertilityStatus = when {
                     currentDay <= periodDuration -> "Menstruation"
@@ -74,11 +96,43 @@ class LunaraWidgetProvider : HomeWidgetProvider() {
                 }
             }
 
+            val backgroundResId = when (phaseName) {
+                "Menstrual" -> R.drawable.widget_background_menstrual
+                "Follicular" -> R.drawable.widget_background_follicular
+                "Ovulation" -> R.drawable.widget_background_ovulation
+                else -> R.drawable.widget_background_luteal
+            }
+
+            val phaseColorStr = when (phaseName) {
+                "Menstrual" -> "#FF8989"
+                "Follicular" -> "#4DB6AC"
+                "Ovulation" -> "#64B5F6"
+                else -> "#CE93D8"
+            }
+
+            val fertilityColorStr = when (fertilityStatus) {
+                "Menstruation" -> "#FF8989"
+                "High Fertility" -> "#64B5F6"
+                else -> "#81C784"
+            }
+
+            val fertilityBgResId = when (fertilityStatus) {
+                "Menstruation" -> R.drawable.fertility_pill_bg_menstrual
+                "High Fertility" -> R.drawable.fertility_pill_bg_high
+                else -> R.drawable.fertility_pill_bg_low
+            }
+
             // Update the UI RemoteViews
             val views = RemoteViews(context.packageName, R.layout.lunara_widget).apply {
                 setTextViewText(R.id.widget_cycle_phase, cyclePhase)
+                setTextColor(R.id.widget_cycle_phase, android.graphics.Color.parseColor(phaseColorStr))
                 setTextViewText(R.id.widget_cycle_day, cycleDay)
+                
                 setTextViewText(R.id.widget_fertility_status, fertilityStatus)
+                setTextColor(R.id.widget_fertility_status, android.graphics.Color.parseColor(fertilityColorStr))
+                setInt(R.id.widget_fertility_status, "setBackgroundResource", fertilityBgResId)
+                
+                setInt(R.id.widget_root, "setBackgroundResource", backgroundResId)
             }
             
             appWidgetManager.updateAppWidget(appWidgetId, views)
