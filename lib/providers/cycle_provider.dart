@@ -7,6 +7,7 @@ import '../services/app_notification_service.dart';
 import '../services/database_service.dart';
 import '../services/health_service.dart';
 import '../services/menstrual_intelligence_service.dart';
+import '../services/plus_service.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:io';
@@ -91,13 +92,25 @@ class CycleProvider extends ChangeNotifier {
   CycleProvider(this._prefs) {
     _loadFromPrefs();
     _setupAutoSync();
+    PlusService.instance.addListener(_onPlusStatusChanged);
+    AppNotificationService().addListener(_onNotificationPrefsChanged);
   }
 
   @override
   void dispose() {
     _syncTimer?.cancel();
     _assessmentSub?.cancel();
+    PlusService.instance.removeListener(_onPlusStatusChanged);
+    AppNotificationService().removeListener(_onNotificationPrefsChanged);
     super.dispose();
+  }
+
+  void _onPlusStatusChanged() {
+    _updateReminders();
+  }
+
+  void _onNotificationPrefsChanged() {
+    _updateReminders();
   }
 
   void _setupAutoSync() {
@@ -297,6 +310,7 @@ class CycleProvider extends ChangeNotifier {
         }
         _calculatePredictions();
         await _saveToPrefs();
+        _updateReminders();
       }
 
       // Restore assessments (wellness history) from cloud
@@ -1640,7 +1654,7 @@ class CycleProvider extends ChangeNotifier {
       } else {
         phase = currentPhase;
         day = currentCycleDay;
-        total = cycleLength;
+        total = effectiveCycleLength;
         fertility = isOnPeriod
             ? "Menstruation"
             : (isInFertileWindow ? "High Fertility" : "Low Fertility");
@@ -1696,6 +1710,13 @@ class CycleProvider extends ChangeNotifier {
 
     // Reschedule Daily Reminder (to ensure strings are updated)
     appNs.scheduleDailyReminder(
+      isTrackingForSomeoneElse: _isTrackingForSomeoneElse,
+      trackedPersonName: _trackedPersonName,
+    );
+
+    // Schedule Wellness Forecast Reminders
+    appNs.scheduleWellnessForecastReminders(
+      _latestPrediction.wellnessForecasts,
       isTrackingForSomeoneElse: _isTrackingForSomeoneElse,
       trackedPersonName: _trackedPersonName,
     );
