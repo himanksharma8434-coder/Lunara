@@ -2,6 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../providers/cycle_provider.dart';
 import '../theme/app_theme.dart';
 import 'period_regularity_screen.dart';
 
@@ -60,9 +62,31 @@ class _SleepAssessmentScreenState extends State<SleepAssessmentScreen>
     },
   ];
 
+  int _mapHoursToIndex(double hours) {
+    if (hours <= 0) return 2; // Default to "Fair" (index 2)
+    if (hours < 3.0) return 0;
+    if (hours < 5.0) return 1;
+    if (hours < 6.0) return 2;
+    if (hours < 8.0) return 3;
+    return 4;
+  }
+
   @override
   void initState() {
     super.initState();
+
+    // Load initial sleep selection from provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final cycleProvider = Provider.of<CycleProvider>(context, listen: false);
+        final initialHours = cycleProvider.sleepHours;
+        if (initialHours > 0) {
+          setState(() {
+            _selectedIndex = _mapHoursToIndex(initialHours);
+          });
+        }
+      }
+    });
 
     // Entry animation
     _entryController = AnimationController(
@@ -597,6 +621,13 @@ class _SleepAssessmentScreenState extends State<SleepAssessmentScreen>
                         child: ElevatedButton(
                           onPressed: () {
                             HapticFeedback.mediumImpact();
+
+                            // Save sleep hours to CycleProvider
+                            final cycleProvider =
+                                Provider.of<CycleProvider>(context, listen: false);
+                            final hours = [2.0, 3.5, 5.0, 6.5, 8.0][_selectedIndex];
+                            cycleProvider.updateSleep(hours);
+
                             Navigator.push(
                               context,
                               PageRouteBuilder(
