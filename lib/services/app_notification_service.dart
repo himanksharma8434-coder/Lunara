@@ -4,6 +4,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
+import '../models/prediction_result.dart';
+import 'plus_service.dart';
 
 class AppNotificationService extends ChangeNotifier {
   static final AppNotificationService _instance =
@@ -129,6 +131,7 @@ class AppNotificationService extends ChangeNotifier {
     if (!enable) {
       await _notifications.cancel(id: _periodReminderId);
       await _notifications.cancel(id: _ovulationReminderId);
+      await cancelWellnessForecastReminders();
     }
     notifyListeners();
   }
@@ -168,6 +171,7 @@ class AppNotificationService extends ChangeNotifier {
           'Daily Reminders',
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
+          largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
         ),
         iOS: DarwinNotificationDetails(),
       ),
@@ -189,7 +193,11 @@ class AppNotificationService extends ChangeNotifier {
       body: _getRandomFact(),
       scheduledDate: morningDate,
       notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails('guidance_channel', 'Daily Health Insights'),
+        android: AndroidNotificationDetails(
+          'guidance_channel',
+          'Daily Health Insights',
+          largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+        ),
         iOS: DarwinNotificationDetails(),
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -206,7 +214,11 @@ class AppNotificationService extends ChangeNotifier {
       body: _getRandomFact(),
       scheduledDate: eveningDate,
       notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails('guidance_channel', 'Daily Health Insights'),
+        android: AndroidNotificationDetails(
+          'guidance_channel',
+          'Daily Health Insights',
+          largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+        ),
         iOS: DarwinNotificationDetails(),
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -260,6 +272,7 @@ class AppNotificationService extends ChangeNotifier {
           'Period Reminders',
           importance: Importance.max,
           priority: Priority.high,
+          largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
           actions: [
             if (!isTrackingForSomeoneElse) ...[
               const AndroidNotificationAction(
@@ -275,7 +288,7 @@ class AppNotificationService extends ChangeNotifier {
             ]
           ],
         ),
-        iOS: DarwinNotificationDetails(
+        iOS: const DarwinNotificationDetails(
           categoryIdentifier: 'period_reminder',
         ),
       ),
@@ -328,10 +341,127 @@ class AppNotificationService extends ChangeNotifier {
           'Fertility Reminders',
           importance: Importance.high,
           priority: Priority.high,
+          largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
         ),
         iOS: DarwinNotificationDetails(),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
+  }
+
+  Future<void> cancelWellnessForecastReminders() async {
+    for (int id = 300; id < 350; id++) {
+      await _notifications.cancel(id: id);
+    }
+  }
+
+  Future<void> scheduleWellnessForecastReminders(
+    List<WellnessForecast> forecasts, {
+    bool isTrackingForSomeoneElse = false,
+    String trackedPersonName = '',
+  }) async {
+    // 1. Clear existing wellness forecast alerts
+    await cancelWellnessForecastReminders();
+
+    // 2. Return early if cycle reminders are disabled or user is not a Plus subscriber
+    if (!_cycleEnabled || !PlusService.instance.isPlus) return;
+
+    final now = tz.TZDateTime.now(tz.local);
+    int currentId = 300;
+
+    for (final forecast in forecasts) {
+      if (currentId >= 350) break; // Limit scheduled counts to defined range
+
+      // Force wellness notification to fire at 9:00 AM local time on the forecast date
+      final scheduledDate = tz.TZDateTime(
+        tz.local,
+        forecast.date.year,
+        forecast.date.month,
+        forecast.date.day,
+        9,
+        0,
+      );
+
+      // Skip past dates
+      if (scheduledDate.isBefore(now)) continue;
+
+      String title;
+      String body;
+
+      if (isTrackingForSomeoneElse) {
+        final partnerName = trackedPersonName.isNotEmpty ? trackedPersonName : "Partner";
+        switch (forecast.type) {
+          case 'menstrual_rest':
+            title = "$partnerName's Menstrual Rest Window 🌸";
+            body = "$partnerName is in their Menstrual Rest Window today. Make sure they get plenty of rest and warm, iron-rich meals.";
+            break;
+          case 'energy_peak':
+            title = "$partnerName's ${forecast.title} ⚡";
+            body = "$partnerName is in a high-energy phase today. ${forecast.description}";
+            break;
+          case 'fertility_peak':
+            title = "$partnerName's ${forecast.title} ✨";
+            body = "$partnerName's fertility window is active today. ${forecast.description}";
+            break;
+          case 'pms_warning':
+            title = "$partnerName's PMS Support Window 💜";
+            body = "$partnerName is entering their PMS phase. Time to be extra supportive and create a calm environment.";
+            break;
+          case 'mood_dip':
+            title = "$partnerName's Hormonal Dip Alert 🍃";
+            body = "$partnerName is experiencing a hormonal dip today. Be extra gentle and understanding.";
+            break;
+          default:
+            title = "$partnerName's Cycle Insight 🌸";
+            body = "${forecast.title}: ${forecast.description}";
+        }
+      } else {
+        switch (forecast.type) {
+          case 'menstrual_rest':
+            title = "Menstrual Rest Window 🌸";
+            body = "Your hormones are at baseline. Prioritize rest, stay hydrated, and eat warm, iron-rich meals today.";
+            break;
+          case 'energy_peak':
+            title = "${forecast.title} ⚡";
+            body = "Rising estrogen boosts energy and mental clarity! Great day for focus and workouts.";
+            break;
+          case 'fertility_peak':
+            title = "${forecast.title} ✨";
+            body = "Estrogen is high. Your body is approaching ovulation—expect peak vitality and energy!";
+            break;
+          case 'pms_warning':
+            title = "PMS Support Window 💜";
+            body = "Hormones are shifting. Prioritize self-care, keep a calm environment, and stay kind to yourself.";
+            break;
+          case 'mood_dip':
+            title = "Hormonal Dip Alert 🍃";
+            body = "Hormones are dropping to baseline. A little fatigue or sensitivity is normal today—rest up!";
+            break;
+          default:
+            title = "${forecast.title} 🌸";
+            body = forecast.description;
+        }
+      }
+
+      await _notifications.zonedSchedule(
+        id: currentId,
+        title: title,
+        body: body,
+        scheduledDate: scheduledDate,
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'guidance_channel',
+            'Daily Health Insights',
+            importance: Importance.defaultImportance,
+            priority: Priority.defaultPriority,
+            largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          ),
+          iOS: DarwinNotificationDetails(),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+
+      currentId++;
+    }
   }
 }
