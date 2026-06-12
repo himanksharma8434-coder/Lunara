@@ -9,113 +9,176 @@ import '../models/nearby_doctor.dart';
 /// Service to discover real nearby healthcare facilities using
 /// the user's GPS location + OpenStreetMap Overpass API.
 class NearbyDoctorService {
-  static const double _defaultRadiusMeters = 10000; // 10 km
+  static const double _defaultRadiusMeters = 3000; // 3 km
 
   /// Get the user's current GPS position.
   /// Returns null if permissions are denied or location services are off.
   static Future<Position?> getCurrentPosition() async {
-    // Check if location services are enabled
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return null;
-
-    // Check permission
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return null;
-    }
-
-    if (permission == LocationPermission.deniedForever) return null;
-
-    // Fast path: Try to get the last known position first to save 5-10 seconds of GPS lock time.
     try {
-      final lastPosition = await Geolocator.getLastKnownPosition();
-      if (lastPosition != null) {
-        return lastPosition;
-      }
-    } catch (_) {}
+      // Check if location services are enabled
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      print("NearbyDoctorService: Location services enabled status: $serviceEnabled");
+      if (!serviceEnabled) return null;
 
-    // Fallback: Get new position with lower accuracy for drastically faster response indoors
-    return await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.low,
-        timeLimit: Duration(seconds: 5),
-      ),
-    );
+      // Check permission
+      var permission = await Geolocator.checkPermission();
+      print("NearbyDoctorService: Check permission result: $permission");
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        print("NearbyDoctorService: Request permission result: $permission");
+        if (permission == LocationPermission.denied) return null;
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        print("NearbyDoctorService: Permission denied forever");
+        return null;
+      }
+
+      // Fast path: Try to get the last known position first to save 5-10 seconds of GPS lock time.
+      try {
+        final lastPosition = await Geolocator.getLastKnownPosition();
+        if (lastPosition != null) {
+          print("NearbyDoctorService: Found last known position: ${lastPosition.latitude}, ${lastPosition.longitude}");
+          return lastPosition;
+        }
+      } catch (e) {
+        print("NearbyDoctorService: Error getting last known position: $e");
+      }
+
+      // Fallback: Get new position with lower accuracy for drastically faster response indoors
+      print("NearbyDoctorService: Requesting current position (accuracy low, 5s limit)...");
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.low,
+          timeLimit: Duration(seconds: 5),
+        ),
+      );
+      print("NearbyDoctorService: Current position obtained: ${position.latitude}, ${position.longitude}");
+      return position;
+    } catch (e) {
+      print("NearbyDoctorService: Exception in getCurrentPosition: $e");
+      return null;
+    }
   }
+
+  static const List<String> _overpassEndpoints = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://api.openstreetmap.fr/oapi/interpreter',
+  ];
 
   /// Fetch nearby healthcare facilities from the Overpass API.
   static Future<List<NearbyDoctor>> fetchNearbyDoctors({
     Position? position,
-    double radiusMeters = _defaultRadiusMeters,
+    double? radiusMeters,
   }) async {
     // If no position provided, try to get it
+    print("NearbyDoctorService: fetchNearbyDoctors called. Position parameter: $position");
     position ??= await getCurrentPosition();
-    if (position == null) return _getFallbackDoctors();
+    if (position == null) {
+      print("NearbyDoctorService: Final position is null, returning fallback doctors");
+      return _getFallbackDoctors();
+    }
+
+    final queryRadius = radiusMeters ?? _defaultRadiusMeters;
 
     try {
-      final query = _buildOverpassQuery(
-        position.latitude,
-        position.longitude,
-        radiusMeters,
-      );
+      var doctors = await _fetchFromOverpass(position, queryRadius);
 
-      final response = await http.post(
-        Uri.parse('https://overpass-api.de/api/interpreter'),
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: {'data': query},
-      ).timeout(const Duration(seconds: 8));
-
-      if (response.statusCode != 200) {
-        return _getFallbackDoctors();
+      // Adaptive widening: If we found 0 results and no custom radius was specified, try 8km
+      if (doctors.isEmpty && radiusMeters == null) {
+        print("NearbyDoctorService: 0 results at ${queryRadius}m. Trying adaptive widening search to 8000m...");
+        doctors = await _fetchFromOverpass(position, 8000);
       }
-
-      final data = json.decode(response.body);
-      final elements = data['elements'] as List<dynamic>? ?? [];
-
-      final doctors = <NearbyDoctor>[];
-      for (final element in elements) {
-        final tags = element['tags'] as Map<String, dynamic>? ?? {};
-        final name = tags['name'] as String?;
-        if (name == null || name.isEmpty) continue; // Skip unnamed facilities
-
-        final lat = (element['lat'] as num?)?.toDouble() ??
-            (element['center']?['lat'] as num?)?.toDouble();
-        final lon = (element['lon'] as num?)?.toDouble() ??
-            (element['center']?['lon'] as num?)?.toDouble();
-
-        if (lat == null || lon == null) continue;
-
-        final distanceKm = _calculateDistance(
-          position.latitude,
-          position.longitude,
-          lat,
-          lon,
-        );
-
-        final facilityType = _determineFacilityType(tags);
-        final specialty = _determineSpecialty(tags, facilityType);
-
-        doctors.add(NearbyDoctor(
-          name: name,
-          specialty: specialty,
-          address: _buildAddress(tags),
-          latitude: lat,
-          longitude: lon,
-          distanceKm: distanceKm,
-          phone: tags['phone'] as String? ?? tags['contact:phone'] as String?,
-          isOpen: true, // OSM doesn't reliably give real-time open/closed
-          facilityType: facilityType,
-        ));
-      }
-
-      // Sort by distance
-      doctors.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
 
       return doctors.isEmpty ? _getFallbackDoctors() : doctors;
     } catch (e) {
+      print("NearbyDoctorService: Exception in fetchNearbyDoctors: $e");
       return _getFallbackDoctors();
     }
+  }
+
+  /// Helper to make HTTP POST request to Overpass API and parse results.
+  static Future<List<NearbyDoctor>> _fetchFromOverpass(
+    Position position,
+    double radiusMeters,
+  ) async {
+    final query = _buildOverpassQuery(
+      position.latitude,
+      position.longitude,
+      radiusMeters,
+    );
+    print("NearbyDoctorService: Querying Overpass with radius ${radiusMeters}m:\n$query");
+
+    http.Response? response;
+    for (final endpoint in _overpassEndpoints) {
+      try {
+        print("NearbyDoctorService: Querying endpoint: $endpoint");
+        response = await http.post(
+          Uri.parse(endpoint),
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'LunaraApp/1.0 (com.example.lunaraai; support@lunara.ai)',
+          },
+          body: {'data': query},
+        ).timeout(const Duration(seconds: 4));
+        print("NearbyDoctorService: Endpoint $endpoint response status: ${response.statusCode}");
+        if (response.statusCode == 200) {
+          break; // Success!
+        }
+      } catch (e) {
+        print("NearbyDoctorService: Error querying endpoint $endpoint: $e");
+      }
+    }
+
+    if (response == null || response.statusCode != 200) {
+      print("NearbyDoctorService: Failed to get successful Overpass response.");
+      return [];
+    }
+
+    final data = json.decode(response.body);
+    final elements = data['elements'] as List<dynamic>? ?? [];
+    print("NearbyDoctorService: Parsed ${elements.length} elements from response.");
+
+    final doctors = <NearbyDoctor>[];
+    for (final element in elements) {
+      final tags = element['tags'] as Map<String, dynamic>? ?? {};
+      final name = tags['name'] as String?;
+      if (name == null || name.isEmpty) continue; // Skip unnamed facilities
+
+      final lat = (element['lat'] as num?)?.toDouble() ??
+          (element['center']?['lat'] as num?)?.toDouble();
+      final lon = (element['lon'] as num?)?.toDouble() ??
+          (element['center']?['lon'] as num?)?.toDouble();
+
+      if (lat == null || lon == null) continue;
+
+      final distanceKm = _calculateDistance(
+        position.latitude,
+        position.longitude,
+        lat,
+        lon,
+      );
+
+      final facilityType = _determineFacilityType(tags);
+      final specialty = _determineSpecialty(tags, facilityType);
+
+      doctors.add(NearbyDoctor(
+        name: name,
+        specialty: specialty,
+        address: _buildAddress(tags),
+        latitude: lat,
+        longitude: lon,
+        distanceKm: distanceKm,
+        phone: tags['phone'] as String? ?? tags['contact:phone'] as String?,
+        isOpen: true,
+        facilityType: facilityType,
+      ));
+    }
+
+    // Sort by distance
+    doctors.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
+    return doctors;
   }
 
   /// Build the Overpass QL query to find healthcare facilities nearby.
@@ -133,8 +196,18 @@ class NearbyDoctorService {
   node["amenity"="pharmacy"](around:$radiusMeters,$lat,$lon);
   node["amenity"="dentist"](around:$radiusMeters,$lat,$lon);
   node["healthcare"](around:$radiusMeters,$lat,$lon);
+  
   way["amenity"="hospital"](around:$radiusMeters,$lat,$lon);
   way["amenity"="clinic"](around:$radiusMeters,$lat,$lon);
+  way["amenity"="doctors"](around:$radiusMeters,$lat,$lon);
+  way["amenity"="pharmacy"](around:$radiusMeters,$lat,$lon);
+  way["amenity"="dentist"](around:$radiusMeters,$lat,$lon);
+  way["healthcare"](around:$radiusMeters,$lat,$lon);
+
+  relation["amenity"="hospital"](around:$radiusMeters,$lat,$lon);
+  relation["amenity"="clinic"](around:$radiusMeters,$lat,$lon);
+  relation["amenity"="doctors"](around:$radiusMeters,$lat,$lon);
+  relation["healthcare"](around:$radiusMeters,$lat,$lon);
 );
 out center;
 ''';
@@ -165,8 +238,11 @@ out center;
   static String _determineFacilityType(Map<String, dynamic> tags) {
     final amenity = tags['amenity'] as String? ?? '';
     final healthcare = tags['healthcare'] as String? ?? '';
+    final building = tags['building'] as String? ?? '';
 
-    if (amenity == 'hospital') return 'hospital';
+    if (amenity == 'hospital' || healthcare == 'hospital' || building == 'hospital') {
+      return 'hospital';
+    }
     if (amenity == 'doctors' || healthcare == 'doctor') return 'doctors';
     if (amenity == 'dentist' || healthcare == 'dentist') return 'dentist';
     if (amenity == 'pharmacy') return 'pharmacy';
