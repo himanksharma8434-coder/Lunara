@@ -641,5 +641,57 @@ class DatabaseService {
       return [];
     }
   }
+
+  // ─── CUSTOM NOTIFICATIONS ──────────────────────────
+
+  /// Fetch all custom notifications for the user.
+  Future<List<Map<String, dynamic>>> fetchCustomNotifications(String userId) async {
+    try {
+      // Clean up notifications older than 1 day
+      final oneDayAgo = DateTime.now().subtract(const Duration(days: 1)).toUtc().toIso8601String();
+      try {
+        await _db
+            .from('custom_notifications')
+            .delete()
+            .eq('user_id', userId)
+            .lt('created_at', oneDayAgo);
+      } catch (e) {
+        debugPrint('Warning: Client-side custom notifications cleanup failed: $e');
+      }
+
+      final response = await _db
+          .from('custom_notifications')
+          .select()
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching custom notifications: $e');
+      return [];
+    }
+  }
+
+  /// Insert a new custom notification.
+  Future<void> addCustomNotification(String userId, String content) async {
+    try {
+      await _db.from('custom_notifications').insert({
+        'user_id': userId,
+        'content': content,
+      });
+    } catch (e) {
+      debugPrint('Error adding custom notification: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete a custom notification by ID.
+  Future<void> deleteCustomNotification(int id) async {
+    try {
+      await _db.from('custom_notifications').delete().eq('id', id);
+    } catch (e) {
+      debugPrint('Error deleting custom notification: $e');
+      rethrow;
+    }
+  }
 }
 
