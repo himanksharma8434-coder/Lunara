@@ -2,9 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 import '../models/prediction_result.dart';
+import 'database_service.dart';
 import 'plus_service.dart';
 
 class AppNotificationService extends ChangeNotifier {
@@ -15,6 +17,8 @@ class AppNotificationService extends ChangeNotifier {
 
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
+
+  RealtimeChannel? _realtimeChannel;
 
   // Stream for handling notification actions tapped by the user
   final StreamController<String> actionStream = StreamController<String>.broadcast();
@@ -63,10 +67,7 @@ class AppNotificationService extends ChangeNotifier {
     "Regularly logging symptoms not only helps you—it provides vital data for your doctor if needed."
   ];
 
-  String _getRandomFact() {
-    final list = _guidanceFacts.toList()..shuffle();
-    return list.first;
-  }
+
 
   Future<void> init() async {
     tz_data.initializeTimeZones(); // Use the correct alias
@@ -101,6 +102,55 @@ class AppNotificationService extends ChangeNotifier {
     }
   }
 
+  void setupRealtimeListener() {
+    _realtimeChannel?.unsubscribe();
+
+    _realtimeChannel = Supabase.instance.client
+        .channel('custom_notifications_realtime')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'custom_notifications',
+          callback: (payload) {
+            final content = payload.newRecord['content'] as String?;
+            final recordUserId = payload.newRecord['user_id'] as String?;
+            final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+
+            if (content != null && recordUserId == currentUserId) {
+              showInstantNotification(
+                title: 'New Health Insight 🌸',
+                body: content,
+              );
+              // Reschedule 7-day guidance to include the new fact
+              scheduleDailyGuidance();
+            }
+          },
+        );
+    
+    _realtimeChannel!.subscribe();
+  }
+
+  Future<void> showInstantNotification({
+    required String title,
+    required String body,
+  }) async {
+    await _notifications.show(
+      id: 999, // Unique ID for instant alerts
+      title: title,
+      body: body,
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'instant_channel',
+          'Instant Alerts',
+          importance: Importance.max,
+          priority: Priority.high,
+          largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+    );
+  }
+
   Future<void> requestPermissions() async {
     await _notifications
         .resolvePlatformSpecificImplementation<
@@ -117,10 +167,19 @@ class AppNotificationService extends ChangeNotifier {
 
     if (enable) {
       await scheduleDailyReminder();
+      await scheduleDailyGuidance();
     } else {
       await _notifications.cancel(id: _dailyReminderId);
+      await cancelDailyGuidance();
     }
     notifyListeners();
+  }
+
+  Future<void> cancelDailyGuidance() async {
+    for (int i = 0; i < 7; i++) {
+      await _notifications.cancel(id: 200 + i);
+      await _notifications.cancel(id: 210 + i);
+    }
   }
 
   Future<void> toggleCycleReminders(bool enable) async {
@@ -183,47 +242,85 @@ class AppNotificationService extends ChangeNotifier {
   Future<void> scheduleDailyGuidance() async {
     if (!_dailyEnabled) return;
 
-    // Morning Guidance (9 AM)
-    var morningDate = tz.TZDateTime(tz.local, DateTime.now().year, DateTime.now().month, DateTime.now().day, 9, 0);
-    if (morningDate.isBefore(tz.TZDateTime.now(tz.local))) morningDate = morningDate.add(const Duration(days: 1));
+    // Clear old guidance first
+    await cancelDailyGuidance();
 
-    await _notifications.zonedSchedule(
-      id: 200,
-      title: 'Morning Body Insight 🌸',
-      body: _getRandomFact(),
-      scheduledDate: morningDate,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'guidance_channel',
-          'Daily Health Insights',
-          largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+    List<String> facts = [];
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    if (currentUser != null) {
+      try {
+        final customFacts = await DatabaseService().fetchCustomNotifications(currentUser.id);
+        if (customFacts.isNotEmpty) {
+          facts = customFacts.map((e) => e['content'] as String).toList();
+        }
+      } catch (e) {
+        debugPrint('Error loading custom notifications from Supabase, falling back to local: $e');
+      }
+    }
+
+    // Fallback to local facts if database is empty/failed
+    if (facts.isEmpty) {
+      facts = _guidanceFacts;
+    }
+
+    // Shuffle facts to send them randomly
+    final shuffledFacts = List<String>.from(facts)..shuffle();
+
+    final now = tz.TZDateTime.now(tz.local);
+
+    for (int i = 0; i < 7; i++) {
+      // 1. Morning Guidance (9 AM) for day i
+      var morningDate = tz.TZDateTime(tz.local, now.year, now.month, now.day + i, 9, 0);
+      if (morningDate.isBefore(now)) {
+        continue;
+      }
+
+      final morningFact = shuffledFacts[(i * 2) % shuffledFacts.length];
+
+      await _notifications.zonedSchedule(
+        id: 200 + i,
+        title: 'Morning Body Insight 🌸',
+        body: morningFact,
+        scheduledDate: morningDate,
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'guidance_channel',
+            'Daily Health Insights',
+            importance: Importance.defaultImportance,
+            priority: Priority.defaultPriority,
+            largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          ),
+          iOS: DarwinNotificationDetails(),
         ),
-        iOS: DarwinNotificationDetails(),
-      ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
 
-    // Evening Guidance (8 PM)
-    var eveningDate = tz.TZDateTime(tz.local, DateTime.now().year, DateTime.now().month, DateTime.now().day, 20, 0);
-    if (eveningDate.isBefore(tz.TZDateTime.now(tz.local))) eveningDate = eveningDate.add(const Duration(days: 1));
+      // 2. Evening Guidance (8 PM) for day i
+      var eveningDate = tz.TZDateTime(tz.local, now.year, now.month, now.day + i, 20, 0);
+      if (eveningDate.isBefore(now)) {
+        continue;
+      }
 
-    await _notifications.zonedSchedule(
-      id: 201,
-      title: 'Evening Health Check 🌙',
-      body: _getRandomFact(),
-      scheduledDate: eveningDate,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'guidance_channel',
-          'Daily Health Insights',
-          largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+      final eveningFact = shuffledFacts[(i * 2 + 1) % shuffledFacts.length];
+
+      await _notifications.zonedSchedule(
+        id: 210 + i,
+        title: 'Evening Health Check 🌙',
+        body: eveningFact,
+        scheduledDate: eveningDate,
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'guidance_channel',
+            'Daily Health Insights',
+            importance: Importance.defaultImportance,
+            priority: Priority.defaultPriority,
+            largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          ),
+          iOS: DarwinNotificationDetails(),
         ),
-        iOS: DarwinNotificationDetails(),
-      ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+    }
   }
 
   Future<void> schedulePeriodReminder(
