@@ -67,6 +67,9 @@ void main() {
       anonKey: AppConfig.supabaseAnonKey,
     );
 
+    // Initialize real-time listeners for notifications
+    AppNotificationService().setupRealtimeListener();
+
     // Pillar 1: Initialize encrypted local database (Ghost Mode)
     try {
       await HiveService.instance.init();

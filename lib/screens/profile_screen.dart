@@ -10,6 +10,7 @@ import '../services/app_notification_service.dart';
 import '../services/pdf_export_service.dart';
 import '../theme/app_theme.dart';
 import 'account_settings_screen.dart';
+import 'custom_notifications_screen.dart';
 import 'legal_screen.dart';
 import 'login_screen.dart';
 import 'partner_sync_screen.dart';
@@ -337,6 +338,7 @@ class _SettingsSection extends StatelessWidget {
           const _PlusAdvantagesItem(),
           const _DarkModeToggle(),
           const _NotificationToggles(),
+          const _CustomNotificationsItem(),
           const _ExportReportItem(),
           const _AccountSettingsItem(),
           const _PartnerSyncItem(),
@@ -395,6 +397,29 @@ class _NotificationToggles extends StatelessWidget {
           (val) => context.read<AppNotificationService>().toggleCycleReminders(val),
         ),
       ],
+    );
+  }
+}
+
+class _CustomNotificationsItem extends StatelessWidget {
+  const _CustomNotificationsItem();
+
+  @override
+  Widget build(BuildContext context) {
+    return _buildSettingItem(
+      context,
+      Icons.edit_notifications_rounded,
+      'Custom Insights',
+      'Manage custom daily notification content',
+      () {
+        HapticFeedback.lightImpact();
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const CustomNotificationsScreen(),
+          ),
+        );
+      },
     );
   }
 }
