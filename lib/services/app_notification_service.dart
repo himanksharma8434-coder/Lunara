@@ -81,7 +81,7 @@ class AppNotificationService extends ChangeNotifier {
     }
 
     const androidSettings =
-        AndroidInitializationSettings('@drawable/lunara_logo');
+        AndroidInitializationSettings('lunara_logo');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -168,7 +168,7 @@ class AppNotificationService extends ChangeNotifier {
           'Instant Alerts',
           importance: Importance.max,
           priority: Priority.high,
-          largeIcon: DrawableResourceAndroidBitmap('@drawable/lunara_logo'),
+          largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
         ),
         iOS: DarwinNotificationDetails(),
       ),
@@ -258,7 +258,7 @@ class AppNotificationService extends ChangeNotifier {
           'Daily Reminders',
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
-          largeIcon: DrawableResourceAndroidBitmap('@drawable/lunara_logo'),
+          largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
         ),
         iOS: DarwinNotificationDetails(),
       ),
@@ -332,7 +332,7 @@ class AppNotificationService extends ChangeNotifier {
             'Daily Health Insights',
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
-            largeIcon: DrawableResourceAndroidBitmap('@drawable/lunara_logo'),
+            largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
           ),
           iOS: DarwinNotificationDetails(),
         ),
@@ -358,7 +358,7 @@ class AppNotificationService extends ChangeNotifier {
             'Daily Health Insights',
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
-            largeIcon: DrawableResourceAndroidBitmap('@drawable/lunara_logo'),
+            largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
           ),
           iOS: DarwinNotificationDetails(),
         ),
@@ -392,7 +392,7 @@ class AppNotificationService extends ChangeNotifier {
               'Daily Health Insights',
               importance: Importance.high,
               priority: Priority.high,
-              largeIcon: DrawableResourceAndroidBitmap('@drawable/lunara_logo'),
+              largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
             ),
             iOS: DarwinNotificationDetails(),
           ),
@@ -449,7 +449,7 @@ class AppNotificationService extends ChangeNotifier {
           'Period Reminders',
           importance: Importance.max,
           priority: Priority.high,
-          largeIcon: const DrawableResourceAndroidBitmap('@drawable/lunara_logo'),
+          largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
           actions: [
             if (!isTrackingForSomeoneElse) ...[
               const AndroidNotificationAction(
@@ -518,7 +518,7 @@ class AppNotificationService extends ChangeNotifier {
           'Fertility Reminders',
           importance: Importance.high,
           priority: Priority.high,
-          largeIcon: DrawableResourceAndroidBitmap('@drawable/lunara_logo'),
+          largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
         ),
         iOS: DarwinNotificationDetails(),
       ),
@@ -631,7 +631,7 @@ class AppNotificationService extends ChangeNotifier {
             'Daily Health Insights',
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
-            largeIcon: DrawableResourceAndroidBitmap('@drawable/lunara_logo'),
+            largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
           ),
           iOS: DarwinNotificationDetails(),
         ),
