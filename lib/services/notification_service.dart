@@ -54,7 +54,7 @@ class NotificationService {
 
     // Android Initialization
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@drawable/lunara_logo');
 
     // iOS Initialization
     const DarwinInitializationSettings initializationSettingsIOS =
@@ -115,7 +115,7 @@ class NotificationService {
             'Notifications for period and fertility predictions',
         importance: Importance.max,
         priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
+        icon: '@drawable/lunara_logo',
       ),
       iOS: DarwinNotificationDetails(
         presentAlert: true,

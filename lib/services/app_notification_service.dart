@@ -8,6 +8,7 @@ import 'package:timezone/data/latest.dart' as tz_data;
 import '../models/prediction_result.dart';
 import 'database_service.dart';
 import 'plus_service.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 class AppNotificationService extends ChangeNotifier {
   static final AppNotificationService _instance =
@@ -71,9 +72,16 @@ class AppNotificationService extends ChangeNotifier {
 
   Future<void> init() async {
     tz_data.initializeTimeZones(); // Use the correct alias
+    try {
+      final timeZoneInfo = await FlutterTimezone.getLocalTimezone();
+      final String timeZoneName = timeZoneInfo.identifier;
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+    } catch (e) {
+      debugPrint('Error setting local timezone location: $e');
+    }
 
     const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@drawable/lunara_logo');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -100,6 +108,19 @@ class AppNotificationService extends ChangeNotifier {
     if (_dailyEnabled) {
       scheduleDailyReminder();
     }
+
+    // Listen to Auth State changes to subscribe/unsubscribe to Realtime
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final event = data.event;
+      if (event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.initialSession ||
+          event == AuthChangeEvent.tokenRefreshed) {
+        setupRealtimeListener();
+      } else if (event == AuthChangeEvent.signedOut) {
+        _realtimeChannel?.unsubscribe();
+        _realtimeChannel = null;
+      }
+    });
   }
 
   void setupRealtimeListener() {
@@ -117,11 +138,14 @@ class AppNotificationService extends ChangeNotifier {
             final currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
             if (content != null && recordUserId == currentUserId) {
-              showInstantNotification(
-                title: 'New Health Insight 🌸',
-                body: content,
-              );
-              // Reschedule 7-day guidance to include the new fact
+              // Only trigger instant notification for untimed insights
+              if (!content.startsWith('[time:')) {
+                showInstantNotification(
+                  title: 'New Health Insight 🌸',
+                  body: content,
+                );
+              }
+              // Reschedule 7-day guidance to schedule/update timed/untimed notifications
               scheduleDailyGuidance();
             }
           },
@@ -144,7 +168,7 @@ class AppNotificationService extends ChangeNotifier {
           'Instant Alerts',
           importance: Importance.max,
           priority: Priority.high,
-          largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          largeIcon: DrawableResourceAndroidBitmap('@drawable/lunara_logo'),
         ),
         iOS: DarwinNotificationDetails(),
       ),
@@ -179,6 +203,10 @@ class AppNotificationService extends ChangeNotifier {
     for (int i = 0; i < 7; i++) {
       await _notifications.cancel(id: 200 + i);
       await _notifications.cancel(id: 210 + i);
+    }
+    // Cancel timed insights
+    for (int id = 500; id < 600; id++) {
+      await _notifications.cancel(id: id);
     }
   }
 
@@ -230,7 +258,7 @@ class AppNotificationService extends ChangeNotifier {
           'Daily Reminders',
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
-          largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          largeIcon: DrawableResourceAndroidBitmap('@drawable/lunara_logo'),
         ),
         iOS: DarwinNotificationDetails(),
       ),
@@ -246,12 +274,27 @@ class AppNotificationService extends ChangeNotifier {
     await cancelDailyGuidance();
 
     List<String> facts = [];
+    final List<Map<String, dynamic>> timedInsights = [];
     final currentUser = Supabase.instance.client.auth.currentUser;
+
     if (currentUser != null) {
       try {
-        final customFacts = await DatabaseService().fetchCustomNotifications(currentUser.id);
-        if (customFacts.isNotEmpty) {
-          facts = customFacts.map((e) => e['content'] as String).toList();
+        final customNotifications = await DatabaseService().fetchCustomNotifications(currentUser.id);
+        for (final item in customNotifications) {
+          final content = item['content'] as String? ?? '';
+          final timeMatch = RegExp(r'^\[time:(\d{2}):(\d{2})\](.*)$', dotAll: true).firstMatch(content);
+          if (timeMatch != null) {
+            final hour = int.tryParse(timeMatch.group(1)!) ?? 9;
+            final minute = int.tryParse(timeMatch.group(2)!) ?? 0;
+            final cleanContent = timeMatch.group(3)!;
+            timedInsights.add({
+              'hour': hour,
+              'minute': minute,
+              'content': cleanContent,
+            });
+          } else {
+            facts.add(content);
+          }
         }
       } catch (e) {
         debugPrint('Error loading custom notifications from Supabase, falling back to local: $e');
@@ -268,6 +311,7 @@ class AppNotificationService extends ChangeNotifier {
 
     final now = tz.TZDateTime.now(tz.local);
 
+    // Schedule untimed insights (morning/evening)
     for (int i = 0; i < 7; i++) {
       // 1. Morning Guidance (9 AM) for day i
       var morningDate = tz.TZDateTime(tz.local, now.year, now.month, now.day + i, 9, 0);
@@ -288,7 +332,7 @@ class AppNotificationService extends ChangeNotifier {
             'Daily Health Insights',
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
-            largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+            largeIcon: DrawableResourceAndroidBitmap('@drawable/lunara_logo'),
           ),
           iOS: DarwinNotificationDetails(),
         ),
@@ -314,12 +358,48 @@ class AppNotificationService extends ChangeNotifier {
             'Daily Health Insights',
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
-            largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+            largeIcon: DrawableResourceAndroidBitmap('@drawable/lunara_logo'),
           ),
           iOS: DarwinNotificationDetails(),
         ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
+    }
+
+    // Schedule timed insights
+    int timedIdOffset = 500;
+    for (final insight in timedInsights) {
+      final hour = insight['hour'] as int;
+      final minute = insight['minute'] as int;
+      final content = insight['content'] as String;
+
+      for (int i = 0; i < 7; i++) {
+        var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day + i, hour, minute);
+        if (scheduledDate.isBefore(now)) {
+          continue;
+        }
+
+        if (timedIdOffset >= 600) break;
+
+        await _notifications.zonedSchedule(
+          id: timedIdOffset,
+          title: 'New Health Insight 🌸',
+          body: content,
+          scheduledDate: scheduledDate,
+          notificationDetails: const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'guidance_channel',
+              'Daily Health Insights',
+              importance: Importance.high,
+              priority: Priority.high,
+              largeIcon: DrawableResourceAndroidBitmap('@drawable/lunara_logo'),
+            ),
+            iOS: DarwinNotificationDetails(),
+          ),
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        );
+        timedIdOffset++;
+      }
     }
   }
 
@@ -369,7 +449,7 @@ class AppNotificationService extends ChangeNotifier {
           'Period Reminders',
           importance: Importance.max,
           priority: Priority.high,
-          largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          largeIcon: const DrawableResourceAndroidBitmap('@drawable/lunara_logo'),
           actions: [
             if (!isTrackingForSomeoneElse) ...[
               const AndroidNotificationAction(
@@ -438,7 +518,7 @@ class AppNotificationService extends ChangeNotifier {
           'Fertility Reminders',
           importance: Importance.high,
           priority: Priority.high,
-          largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          largeIcon: DrawableResourceAndroidBitmap('@drawable/lunara_logo'),
         ),
         iOS: DarwinNotificationDetails(),
       ),
@@ -551,7 +631,7 @@ class AppNotificationService extends ChangeNotifier {
             'Daily Health Insights',
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
-            largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+            largeIcon: DrawableResourceAndroidBitmap('@drawable/lunara_logo'),
           ),
           iOS: DarwinNotificationDetails(),
         ),

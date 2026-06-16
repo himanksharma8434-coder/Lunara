@@ -20,6 +20,7 @@ class _CustomNotificationsScreenState extends State<CustomNotificationsScreen> {
   late Future<List<Map<String, dynamic>>> _notificationsFuture;
   bool _isAdding = false;
   bool _isDeleting = false;
+  TimeOfDay? _selectedTime;
 
   @override
   void initState() {
@@ -44,17 +45,30 @@ class _CustomNotificationsScreenState extends State<CustomNotificationsScreen> {
     final content = _textController.text.trim();
     if (content.isEmpty) return;
 
+    // Format content with time metadata if selected
+    final String formattedContent;
+    if (_selectedTime != null) {
+      final hourStr = _selectedTime!.hour.toString().padLeft(2, '0');
+      final minuteStr = _selectedTime!.minute.toString().padLeft(2, '0');
+      formattedContent = '[time:$hourStr:$minuteStr]$content';
+    } else {
+      formattedContent = content;
+    }
+
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     setState(() => _isAdding = true);
     HapticFeedback.mediumImpact();
 
     try {
-      await _dbService.addCustomNotification(authProvider.userId, content);
+      await _dbService.addCustomNotification(authProvider.userId, formattedContent);
       
       // Reschedule daily guidance to pick up the new fact
       await AppNotificationService().scheduleDailyGuidance();
 
       _textController.clear();
+      setState(() {
+        _selectedTime = null;
+      });
       _loadCustomNotifications();
 
       if (mounted) {
@@ -244,6 +258,114 @@ class _CustomNotificationsScreenState extends State<CustomNotificationsScreen> {
                       ),
                       const SizedBox(height: 12),
                       Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () async {
+                              HapticFeedback.lightImpact();
+                              final TimeOfDay? picked = await showTimePicker(
+                                context: context,
+                                initialTime: _selectedTime ?? TimeOfDay.now(),
+                                builder: (context, child) {
+                                  final isDark = AppTheme.isDark(context);
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      timePickerTheme: TimePickerThemeData(
+                                        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                                        dialHandColor: AppTheme.primary(context),
+                                        dialBackgroundColor: isDark ? const Color(0xFF2D1B28) : const Color(0xFFFCE4EC),
+                                        dayPeriodTextColor: isDark ? Colors.white : const Color(0xFF3E2723),
+                                        dayPeriodColor: WidgetStateColor.resolveWith((states) {
+                                          if (states.contains(WidgetState.selected)) {
+                                            return AppTheme.primary(context).withOpacity(0.2);
+                                          }
+                                          return Colors.transparent;
+                                        }),
+                                        hourMinuteTextColor: isDark ? Colors.white : const Color(0xFF3E2723),
+                                        dialTextColor: isDark ? Colors.white : const Color(0xFF3E2723),
+                                      ),
+                                      colorScheme: isDark
+                                          ? ColorScheme.dark(
+                                              primary: AppTheme.primary(context),
+                                              onPrimary: Colors.white,
+                                              surface: const Color(0xFF1E1E1E),
+                                              onSurface: Colors.white,
+                                            )
+                                          : ColorScheme.light(
+                                              primary: AppTheme.primary(context),
+                                              onPrimary: Colors.white,
+                                              surface: Colors.white,
+                                              onSurface: const Color(0xFF3E2723),
+                                            ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
+                              );
+                              if (picked != null) {
+                                setState(() {
+                                  _selectedTime = picked;
+                                });
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _selectedTime != null
+                                    ? AppTheme.primary(context).withOpacity(0.12)
+                                    : AppTheme.subtleBackground(context),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _selectedTime != null
+                                      ? AppTheme.primary(context)
+                                      : AppTheme.divider(context),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.access_time_rounded,
+                                    size: 16,
+                                    color: _selectedTime != null
+                                        ? AppTheme.primary(context)
+                                        : AppTheme.textLight(context),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _selectedTime != null
+                                        ? 'Deliver at ${_selectedTime!.format(context)}'
+                                        : 'Set Delivery Time',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: _selectedTime != null
+                                          ? AppTheme.primary(context)
+                                          : AppTheme.textLight(context),
+                                    ),
+                                  ),
+                                  if (_selectedTime != null) ...[
+                                    const SizedBox(width: 6),
+                                    GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _selectedTime = null;
+                                        });
+                                      },
+                                      child: Icon(
+                                        Icons.close_rounded,
+                                        size: 14,
+                                        color: AppTheme.primary(context),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
@@ -396,7 +518,17 @@ class _CustomNotificationsScreenState extends State<CustomNotificationsScreen> {
                           itemBuilder: (context, index) {
                             final item = items[index];
                             final id = item['id'] as int;
-                            final content = item['content'] ?? '';
+                            final rawContent = item['content'] ?? '';
+                            final timeMatch = RegExp(r'^\[time:(\d{2}):(\d{2})\](.*)$', dotAll: true).firstMatch(rawContent);
+                            final String content;
+                            final String? scheduledTime;
+                            if (timeMatch != null) {
+                              scheduledTime = '${timeMatch.group(1)}:${timeMatch.group(2)}';
+                              content = timeMatch.group(3)!;
+                            } else {
+                              scheduledTime = null;
+                              content = rawContent;
+                            }
 
                             return Container(
                               margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
@@ -417,7 +549,7 @@ class _CustomNotificationsScreenState extends State<CustomNotificationsScreen> {
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
-                                    Icons.favorite_rounded,
+                                    scheduledTime != null ? Icons.alarm_rounded : Icons.favorite_rounded,
                                     size: 16,
                                     color: AppTheme.primary(context),
                                   ),
@@ -430,6 +562,29 @@ class _CustomNotificationsScreenState extends State<CustomNotificationsScreen> {
                                     height: 1.3,
                                   ),
                                 ),
+                                subtitle: scheduledTime != null
+                                    ? Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.access_time_rounded,
+                                              size: 12,
+                                              color: AppTheme.primary(context),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'Delivered daily at $scheduledTime',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: AppTheme.primary(context),
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      )
+                                    : null,
                                 trailing: IconButton(
                                   icon: const Icon(
                                     Icons.delete_outline_rounded,

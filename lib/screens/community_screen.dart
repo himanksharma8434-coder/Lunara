@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/shimmer_loading.dart';
 import '../services/database_service.dart';
+import '../services/app_notification_service.dart';
 import '../models/community_post_model.dart';
 import '../models/community_comment_model.dart';
 import '../providers/auth_provider.dart';
@@ -35,6 +36,9 @@ class _CommunityScreenState extends State<CommunityScreen>
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   Timer? _searchDebounceTimer;
+
+  // Optimistic UI updates
+  final List<Map<String, dynamic>> _optimisticPosts = [];
 
   @override
   void initState() {
@@ -329,7 +333,23 @@ class _CommunityScreenState extends State<CommunityScreen>
           return _buildErrorState(snapshot.error);
         }
 
-        final postsData = snapshot.data ?? [];
+        final streamPosts = snapshot.data ?? [];
+
+        // Remove any optimistic posts that have successfully loaded from the stream
+        _optimisticPosts.removeWhere((opt) {
+          return streamPosts.any((sp) =>
+              sp['author_id'] == opt['author_id'] &&
+              sp['content'] == opt['content'] &&
+              sp['category'] == opt['category']);
+        });
+
+        // Filter optimistic posts for this category
+        final categoryOptimistic = _optimisticPosts
+            .where((opt) => opt['category'] == category)
+            .toList();
+
+        final postsData = [...categoryOptimistic, ...streamPosts];
+
         if (postsData.isEmpty) {
           return const Center(child: Text('No posts yet in this category.'));
         }
@@ -559,33 +579,61 @@ class _CommunityScreenState extends State<CommunityScreen>
                         final userId = authProvider.userId;
                         final userName = authProvider.userName;
                         if (userId.isNotEmpty) {
+                          final content = contentController.text.trim();
+                          final avatar = authProvider.userAvatarUrl.isNotEmpty
+                              ? authProvider.userAvatarUrl
+                              : (selectedCategory == 'Women' ? '👩' : '👨');
+                          
+                          // Create optimistic post map
+                          final tempId = -DateTime.now().millisecondsSinceEpoch;
+                          final optimisticPost = {
+                            'id': tempId,
+                            'author_id': userId,
+                            'author_name': userName.isNotEmpty ? userName : 'Anonymous',
+                            'author_avatar': avatar,
+                            'category': selectedCategory,
+                            'content': content,
+                            'likes_count': 0,
+                            'comments_count': 0,
+                            'created_at': DateTime.now().toIso8601String(),
+                          };
+
+                          setState(() {
+                            _optimisticPosts.insert(0, optimisticPost);
+                          });
+
+                          Navigator.pop(context);
+
+                          CustomToast.show(
+                            context,
+                            message: 'Post created successfully!',
+                            icon: Icons.check_circle_rounded,
+                            backgroundColor: const Color(0xFF06D6A0),
+                          );
+
                           try {
                             await _dbService.createCommunityPost(
                               authorId: userId,
                               authorName: userName.isNotEmpty ? userName : 'Anonymous',
-                              authorAvatar: selectedCategory == 'Women' ? '👩' : '👨',
+                              authorAvatar: avatar,
                               category: selectedCategory,
-                              content: contentController.text.trim(),
-                            );
-                         
-                            setState(() {}); // Refresh list
-
-                            if (!context.mounted) return;
-
-                            Navigator.pop(context);
-                            CustomToast.show(
-                              context,
-                              message: 'Post created successfully!',
-                              icon: Icons.check_circle_rounded,
-                              backgroundColor: const Color(0xFF06D6A0),
+                              content: content,
                             );
                           } catch (e) {
-                            if (!context.mounted) return;
-                            CustomToast.show(
-                              context,
-                              message: 'Failed to create post: $e',
-                              icon: Icons.error_outline_rounded,
-                              backgroundColor: Colors.red[400],
+                            if (mounted) {
+                              setState(() {
+                                _optimisticPosts.removeWhere((p) => p['id'] == tempId);
+                              });
+                              CustomToast.show(
+                                context,
+                                message: 'Something went wrong. Upload failed.',
+                                icon: Icons.error_outline_rounded,
+                                backgroundColor: Colors.red[400],
+                              );
+                            }
+                            AppNotificationService().showInstantNotification(
+                              title: 'Post Upload Failed ⚠️',
+                              body: 'Something went wrong and your post could not be published. Please try again.',
                             );
                           }
                         }
