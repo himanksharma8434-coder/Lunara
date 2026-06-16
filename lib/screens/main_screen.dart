@@ -11,6 +11,7 @@ import 'profile_screen.dart';
 import 'dart:async';
 import 'package:provider/provider.dart';
 import '../providers/cycle_provider.dart';
+import '../providers/auth_provider.dart';
 import 'tabs/home_tab.dart';
 import '../services/app_notification_service.dart';
 import '../widgets/custom_toast.dart';

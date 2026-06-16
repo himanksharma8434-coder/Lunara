@@ -73,8 +73,8 @@ class AppNotificationService extends ChangeNotifier {
   Future<void> init() async {
     tz_data.initializeTimeZones(); // Use the correct alias
     try {
-      final String timeZoneName = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(timeZoneName));
+      final timeZoneInfo = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(timeZoneInfo.identifier));
     } catch (e) {
       debugPrint('Error setting local timezone location: $e');
     }
