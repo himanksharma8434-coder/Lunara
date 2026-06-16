@@ -237,6 +237,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildModernBottomBar() {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final avatarUrl = authProvider.userAvatarUrl;
+
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.cardColor(context),
@@ -254,11 +257,11 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(Icons.home_rounded, 0),
-              _buildNavItem(Icons.local_hospital_rounded, 1),
+              _buildNavItem(Icons.home_rounded, 0, null),
+              _buildNavItem(Icons.local_hospital_rounded, 1, null),
               const SizedBox(width: 48),
-              _buildNavItem(Icons.people_rounded, 2),
-              _buildNavItem(Icons.person_rounded, 3),
+              _buildNavItem(Icons.people_rounded, 2, null),
+              _buildNavItem(Icons.person_rounded, 3, avatarUrl),
             ],
           ),
         ),
@@ -266,7 +269,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildNavItem(IconData icon, int index) {
+  Widget _buildNavItem(IconData icon, int index, String? avatarUrl) {
     final isSelected = _selectedIndex == index;
     return Expanded(
       child: GestureDetector(
@@ -296,15 +299,33 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                         ),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
-                        icon,
-                        color: Color.lerp(
-                          Colors.grey[400],
-                          AppTheme.primary(context),
-                          value,
-                        ),
-                        size: 24,
-                      ),
+                      child: avatarUrl != null && avatarUrl.isNotEmpty
+                          ? ClipOval(
+                              child: Image.network(
+                                avatarUrl,
+                                width: 24,
+                                height: 24,
+                                fit: BoxFit.cover,
+                                errorBuilder: (c, e, s) => Icon(
+                                  icon,
+                                  color: Color.lerp(
+                                    Colors.grey[400],
+                                    AppTheme.primary(context),
+                                    value,
+                                  ),
+                                  size: 24,
+                                ),
+                              ),
+                            )
+                          : Icon(
+                              icon,
+                              color: Color.lerp(
+                                Colors.grey[400],
+                                AppTheme.primary(context),
+                                value,
+                              ),
+                              size: 24,
+                            ),
                     ),
                   );
                 },
