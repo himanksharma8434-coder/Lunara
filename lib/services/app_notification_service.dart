@@ -73,15 +73,14 @@ class AppNotificationService extends ChangeNotifier {
   Future<void> init() async {
     tz_data.initializeTimeZones(); // Use the correct alias
     try {
-      final timeZoneInfo = await FlutterTimezone.getLocalTimezone();
-      final String timeZoneName = timeZoneInfo.identifier;
+      final String timeZoneName = await FlutterTimezone.getLocalTimezone();
       tz.setLocalLocation(tz.getLocation(timeZoneName));
     } catch (e) {
       debugPrint('Error setting local timezone location: $e');
     }
 
     const androidSettings =
-        AndroidInitializationSettings('lunara_logo');
+        AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -137,7 +136,7 @@ class AppNotificationService extends ChangeNotifier {
             final recordUserId = payload.newRecord['user_id'] as String?;
             final currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
-            if (content != null && recordUserId == currentUserId) {
+            if (content != null && (recordUserId == currentUserId || recordUserId == null)) {
               // Only trigger instant notification for untimed insights
               if (!content.startsWith('[time:')) {
                 showInstantNotification(
@@ -168,7 +167,7 @@ class AppNotificationService extends ChangeNotifier {
           'Instant Alerts',
           importance: Importance.max,
           priority: Priority.high,
-          largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+          largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
         ),
         iOS: DarwinNotificationDetails(),
       ),
@@ -258,7 +257,7 @@ class AppNotificationService extends ChangeNotifier {
           'Daily Reminders',
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
-          largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+          largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
         ),
         iOS: DarwinNotificationDetails(),
       ),
@@ -332,7 +331,7 @@ class AppNotificationService extends ChangeNotifier {
             'Daily Health Insights',
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
-            largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+            largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
           ),
           iOS: DarwinNotificationDetails(),
         ),
@@ -358,7 +357,7 @@ class AppNotificationService extends ChangeNotifier {
             'Daily Health Insights',
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
-            largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+            largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
           ),
           iOS: DarwinNotificationDetails(),
         ),
@@ -392,7 +391,7 @@ class AppNotificationService extends ChangeNotifier {
               'Daily Health Insights',
               importance: Importance.high,
               priority: Priority.high,
-              largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+              largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
             ),
             iOS: DarwinNotificationDetails(),
           ),
@@ -449,7 +448,7 @@ class AppNotificationService extends ChangeNotifier {
           'Period Reminders',
           importance: Importance.max,
           priority: Priority.high,
-          largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+          largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
           actions: [
             if (!isTrackingForSomeoneElse) ...[
               const AndroidNotificationAction(
@@ -518,7 +517,7 @@ class AppNotificationService extends ChangeNotifier {
           'Fertility Reminders',
           importance: Importance.high,
           priority: Priority.high,
-          largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+          largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
         ),
         iOS: DarwinNotificationDetails(),
       ),
@@ -631,7 +630,7 @@ class AppNotificationService extends ChangeNotifier {
             'Daily Health Insights',
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
-            largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+            largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
           ),
           iOS: DarwinNotificationDetails(),
         ),

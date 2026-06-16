@@ -653,7 +653,7 @@ class DatabaseService {
         await _db
             .from('custom_notifications')
             .delete()
-            .eq('user_id', userId)
+            .or('user_id.eq.$userId,user_id.is.null')
             .lt('created_at', oneDayAgo);
       } catch (e) {
         debugPrint('Warning: Client-side custom notifications cleanup failed: $e');
@@ -662,7 +662,7 @@ class DatabaseService {
       final response = await _db
           .from('custom_notifications')
           .select()
-          .eq('user_id', userId)
+          .or('user_id.eq.$userId,user_id.is.null')
           .order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
