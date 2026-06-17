@@ -138,7 +138,7 @@ class AppTheme {
   // ─── LIGHT THEME ────────────────────────────
   static ThemeData get lightTheme {
     const primary = Color(0xFFFF8989);
-    const primaryDark = Color(0xFFD8405B);
+    const primaryDark = Color(0xFF880E4F); // Pushed darker for maximum contrast
     const background = Color(0xFFFDFBF7);
 
     return ThemeData(
@@ -149,9 +149,9 @@ class AppTheme {
         primary: primary,
         secondary: primaryDark,
         surface: background,
-        onSurface: Color(0xFF3E2723), // textDark
-        onSurfaceVariant: Color(0xFF8D6E63), // textLight
-        outlineVariant: Color(0xFFEEEEEE), // divider
+        onSurface: Color(0xFF1F100E), // textDark (very deep brown/almost black)
+        onSurfaceVariant: Color(0xFF3E2723), // textLight (pushed to previous dark text)
+        outlineVariant: Color(0xFFA1887F), // divider (more visible)
         error: Color(0xFFEF5350),
         surfaceContainerHighest: Colors.white, // Cards
       ),
@@ -200,10 +200,10 @@ class AppTheme {
 
   // ─── DARK THEME ────────────────────────────
   static ThemeData get darkTheme {
-    const primary = Color(0xFFFF7A8A); // Slightly brighter for dark mode
-    const primaryDark = Color(0xFFC2185B);
-    const background = Color(0xFF121212); // Deep plus slate
-    const cardColor = Color(0xFF1E1E1E);
+    const primary = Color(0xFFFF6B8B); // Vibrant coral pink
+    const primaryDark = Color(0xFFFF89A3); // Bright pink for contrast
+    const background = Color(0xFF0B0813); // Deep midnight violet/black
+    const cardColor = Color(0xFF161124); // Dark violet card surface
 
     return ThemeData(
       brightness: Brightness.dark,
@@ -213,15 +213,15 @@ class AppTheme {
         primary: primary,
         secondary: primaryDark,
         surface: background,
-        onSurface: Color(0xFFF5F5F5), // Light text
-        onSurfaceVariant: Color(0xFFAAAAAA), // Muted text
-        outlineVariant: Color(0xFF333333), // Darker dividers
+        onSurface: Color(0xFFFFFFFF), // Pure white text
+        onSurfaceVariant: Color(0xFFE0E0E0), // Muted light grey text
+        outlineVariant: Color(0xFF423B5A), // Subtle violet divider
         error: Color(0xFFEF5350),
         surfaceContainerHighest: cardColor, // Dark cards
       ),
       extensions: [
         LunaraThemeExtension(
-          periodRed: const Color(0xFFEF5350), // Deeper red
+          periodRed: const Color(0xFFFF6B8B), // Match vibrant pink
           fertileGreen: const Color(0xFF66BB6A),
           ovulationBlue: const Color(0xFF42A5F5),
           lutealPurple: const Color(0xFFAB47BC),
@@ -232,14 +232,14 @@ class AppTheme {
           backgroundGradient: const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF2A1525), Color(0xFF1A121A), background],
+            colors: [Color(0xFF1A1225), Color(0xFF0F0B1A), background], // Deep violet gradient
           ),
           softBackground: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              const Color(0xFF2A1525).withOpacity(0.4),
-              const Color(0xFF1A121A).withOpacity(0.3),
+              const Color(0xFF1A1225).withOpacity(0.4),
+              const Color(0xFF0F0B1A).withOpacity(0.3),
               background,
             ],
           ),
@@ -283,13 +283,13 @@ class LunaraColors {
 
   static const Color primary = Color(0xFFFF8989);
   static const Color primaryLight = Color(0xFFFCE4EC);
-  static const Color primaryDark = Color(0xFFD8405B);
+  static const Color primaryDark = Color(0xFF880E4F);
   static const Color background = Color(0xFFFDFBF7);
   static const Color backgroundPink = Color(0xFFF8BBD0);
-  static const Color textDark = Color(0xFF3E2723);
-  static const Color textLight = Color(0xFF8D6E63);
-  static const Color textBrown = Color(0xFF8D6E63);
-  static const Color divider = Color(0xFFEEEEEE);
+  static const Color textDark = Color(0xFF1F100E);
+  static const Color textLight = Color(0xFF3E2723);
+  static const Color textBrown = Color(0xFF3E2723);
+  static const Color divider = Color(0xFFA1887F);
   static const Color warning = Color(0xFFFFB74D);
 
   // Cycle phase colors
