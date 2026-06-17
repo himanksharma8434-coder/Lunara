@@ -78,24 +78,25 @@ class ParsedComment {
 }
 
 List<ParsedComment> buildCommentTree(List<Map<String, dynamic>> rawComments) {
-  final Map<int, ParsedComment> commentMap = {};
-  final List<ParsedComment> rootComments = [];
+  // Replace loop with functional JSON mapping
+  final commentMap = Map.fromEntries(
+    rawComments
+        .map((data) => CommunityCommentModel.fromJson(data))
+        .where((comment) => comment.id != null)
+        .map((comment) => MapEntry(comment.id!, ParsedComment(comment: comment))),
+  );
 
-  for (final data in rawComments) {
-    final comment = CommunityCommentModel.fromJson(data);
-    if (comment.id != null) {
-      commentMap[comment.id!] = ParsedComment(comment: comment);
-    }
-  }
-
+  // Link replies to their parents
   for (final parsed in commentMap.values) {
     final parentId = parsed.comment.parentId;
     if (parentId != null && commentMap.containsKey(parentId)) {
       commentMap[parentId]!.replies.add(parsed);
-    } else {
-      rootComments.add(parsed);
     }
   }
 
-  return rootComments;
+  // Filter and return only root comments functionally
+  return commentMap.values.where((parsed) {
+    final parentId = parsed.comment.parentId;
+    return parentId == null || !commentMap.containsKey(parentId);
+  }).toList();
 }
