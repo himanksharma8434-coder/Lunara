@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../models/community_post_model.dart';
+import '../config/app_errors.dart';
+import 'cache_service.dart';
 
 class DatabaseService {
   final SupabaseClient _db = Supabase.instance.client;
@@ -26,14 +28,15 @@ class DatabaseService {
       
       // Update the user's profile with the new avatar URL
       await _db.from('users').update({'avatar_url': imageUrl}).eq('uid', uid);
+      await CacheService.instance.clearCache('api_cache_user_profile_$uid');
       
       return imageUrl;
     } on StorageException catch (e) {
       debugPrint('Storage error uploading avatar: ${e.message}');
-      throw Exception(e.message);
+      throw Exception(AppErrors.dataSavingMessage);
     } catch (e) {
       debugPrint('Error uploading avatar: $e');
-      throw Exception('An unexpected error occurred during upload.');
+      throw Exception(AppErrors.dataSavingMessage);
     }
   }
 
@@ -76,6 +79,7 @@ class DatabaseService {
         'tracked_person_relation': trackedPersonRelation,
         'is_irregular': isIrregular,
       });
+      await CacheService.instance.clearCache('api_cache_user_profile_$uid');
     } catch (e) {
       debugPrint('Cloud sync error (saveUserProfile): $e');
     }
@@ -85,6 +89,7 @@ class DatabaseService {
   Future<void> saveUser(UserModel user) async {
     try {
       await _db.from('users').upsert(user.toMap());
+      await CacheService.instance.clearCache('api_cache_user_profile_${user.uid}');
     } catch (e) {
       debugPrint('Cloud sync error (saveUser): $e');
     }
@@ -92,9 +97,16 @@ class DatabaseService {
 
   /// Get user data as a one-time fetch.
   Future<Map<String, dynamic>?> getUserProfile(String uid) async {
+    final cacheKey = 'api_cache_user_profile_$uid';
+    final cachedData = await CacheService.instance.getCache(cacheKey);
+    if (cachedData != null) return Map<String, dynamic>.from(cachedData);
+
     try {
       final response =
           await _db.from('users').select().eq('uid', uid).maybeSingle();
+      if (response != null) {
+        await CacheService.instance.setCache(cacheKey, response, ttl: const Duration(hours: 12));
+      }
       return response;
     } catch (e) {
       debugPrint('Cloud fetch error (getUserProfile): $e');
@@ -104,15 +116,8 @@ class DatabaseService {
 
   /// Get user data as UserModel.
   Future<UserModel?> getUser(String uid) async {
-    try {
-      final response =
-          await _db.from('users').select().eq('uid', uid).maybeSingle();
-      if (response != null) {
-        return UserModel.fromMap(response);
-      }
-    } catch (e) {
-      debugPrint('Cloud fetch error (getUser): $e');
-    }
+    final profile = await getUserProfile(uid);
+    if (profile != null) return UserModel.fromMap(profile);
     return null;
   }
 
@@ -150,6 +155,7 @@ class DatabaseService {
         },
         onConflict: 'user_id, start_date',
       );
+      await CacheService.instance.clearCache('api_cache_cycles_$userId');
     } catch (e) {
       debugPrint('Cloud sync error (upsertCycle): $e');
     }
@@ -173,6 +179,7 @@ class DatabaseService {
             rows,
             onConflict: 'user_id, start_date',
           );
+      await CacheService.instance.clearCache('api_cache_cycles_$userId');
     } catch (e) {
       debugPrint('Cloud sync error (syncCycleHistory): $e');
     }
@@ -180,13 +187,19 @@ class DatabaseService {
 
   /// Get all cycles for a user, sorted newest first.
   Future<List<Map<String, dynamic>>> getCycles(String userId) async {
+    final cacheKey = 'api_cache_cycles_$userId';
+    final cachedData = await CacheService.instance.getCache(cacheKey);
+    if (cachedData != null) return List<Map<String, dynamic>>.from(cachedData);
+
     try {
       final response = await _db
           .from('cycles')
           .select()
           .eq('user_id', userId)
           .order('start_date', ascending: false);
-      return List<Map<String, dynamic>>.from(response);
+      final data = List<Map<String, dynamic>>.from(response);
+      await CacheService.instance.setCache(cacheKey, data, ttl: const Duration(hours: 24));
+      return data;
     } catch (e) {
       debugPrint('Cloud fetch error (getCycles): $e');
       return [];
@@ -198,6 +211,7 @@ class DatabaseService {
     try {
       data['user_id'] = userId;
       await _db.from('cycles').insert(data);
+      await CacheService.instance.clearCache('api_cache_cycles_$userId');
     } catch (e) {
       debugPrint('Cloud sync error (addCycle): $e');
     }
@@ -237,6 +251,7 @@ class DatabaseService {
         },
         onConflict: 'user_id, date',
       );
+      await CacheService.instance.clearCache('api_cache_assessments_$userId');
     } catch (e) {
       debugPrint('Cloud sync error (upsertAssessment): $e');
     }
@@ -244,13 +259,19 @@ class DatabaseService {
 
   /// Get assessment history for a user.
   Future<List<Map<String, dynamic>>> getAssessments(String userId) async {
+    final cacheKey = 'api_cache_assessments_$userId';
+    final cachedData = await CacheService.instance.getCache(cacheKey);
+    if (cachedData != null) return List<Map<String, dynamic>>.from(cachedData);
+
     try {
       final response = await _db
           .from('assessments')
           .select()
           .eq('user_id', userId)
           .order('date', ascending: false);
-      return List<Map<String, dynamic>>.from(response);
+      final data = List<Map<String, dynamic>>.from(response);
+      await CacheService.instance.setCache(cacheKey, data, ttl: const Duration(hours: 1));
+      return data;
     } catch (e) {
       debugPrint('Cloud fetch error (getAssessments): $e');
       return [];
@@ -262,6 +283,7 @@ class DatabaseService {
     try {
       data['user_id'] = userId;
       await _db.from('assessments').insert(data);
+      await CacheService.instance.clearCache('api_cache_assessments_$userId');
     } catch (e) {
       debugPrint('Cloud sync error (addAssessment): $e');
     }
@@ -486,13 +508,19 @@ class DatabaseService {
 
   /// Fetch community posts (legacy one-time fetch)
   Future<List<Map<String, dynamic>>> getCommunityPosts(String category) async {
+    final cacheKey = 'api_cache_community_posts_$category';
+    final cachedData = await CacheService.instance.getCache(cacheKey);
+    if (cachedData != null) return List<Map<String, dynamic>>.from(cachedData);
+
     try {
       final response = await _db
           .from('community_posts')
           .select()
           .eq('category', category)
           .order('created_at', ascending: false);
-      return List<Map<String, dynamic>>.from(response);
+      final data = List<Map<String, dynamic>>.from(response);
+      await CacheService.instance.setCache(cacheKey, data, ttl: const Duration(minutes: 5));
+      return data;
     } catch (e) {
       debugPrint('Error fetching posts: $e');
       return [];
@@ -531,6 +559,7 @@ class DatabaseService {
         'category': category,
         'content': content,
       });
+      await CacheService.instance.clearCache('api_cache_community_posts_$category');
     } catch (e) {
       debugPrint('Error creating post: $e');
     }
