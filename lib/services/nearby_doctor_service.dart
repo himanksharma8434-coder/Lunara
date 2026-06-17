@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -98,7 +99,6 @@ class NearbyDoctorService {
     }
   }
 
-  /// Helper to make HTTP POST request to Overpass API and parse results.
   static Future<List<NearbyDoctor>> _fetchFromOverpass(
     Position position,
     double radiusMeters,
@@ -110,25 +110,24 @@ class NearbyDoctorService {
     );
     print("NearbyDoctorService: Querying Overpass with radius ${radiusMeters}m:\n$query");
 
+    // Batch fetch: Execute all endpoints concurrently and race for the first successful 200 OK response.
+    final futures = _overpassEndpoints.map((endpoint) {
+      print("NearbyDoctorService: Batch fetching endpoint: $endpoint");
+      return http.post(
+        Uri.parse(endpoint),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'LunaraApp/1.0 (com.example.lunaraai; support@lunara.ai)',
+        },
+        body: {'data': query},
+      ).timeout(const Duration(seconds: 4));
+    });
+
     http.Response? response;
-    for (final endpoint in _overpassEndpoints) {
-      try {
-        print("NearbyDoctorService: Querying endpoint: $endpoint");
-        response = await http.post(
-          Uri.parse(endpoint),
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': 'LunaraApp/1.0 (com.example.lunaraai; support@lunara.ai)',
-          },
-          body: {'data': query},
-        ).timeout(const Duration(seconds: 4));
-        print("NearbyDoctorService: Endpoint $endpoint response status: ${response.statusCode}");
-        if (response.statusCode == 200) {
-          break; // Success!
-        }
-      } catch (e) {
-        print("NearbyDoctorService: Error querying endpoint $endpoint: $e");
-      }
+    try {
+      response = await _raceToSuccess(futures);
+    } catch (e) {
+      print("NearbyDoctorService: All Overpass batch endpoints failed: $e");
     }
 
     if (response == null || response.statusCode != 200) {
@@ -140,45 +139,78 @@ class NearbyDoctorService {
     final elements = data['elements'] as List<dynamic>? ?? [];
     print("NearbyDoctorService: Parsed ${elements.length} elements from response.");
 
-    final doctors = <NearbyDoctor>[];
-    for (final element in elements) {
-      final tags = element['tags'] as Map<String, dynamic>? ?? {};
-      final name = tags['name'] as String?;
-      if (name == null || name.isEmpty) continue; // Skip unnamed facilities
-
-      final lat = (element['lat'] as num?)?.toDouble() ??
-          (element['center']?['lat'] as num?)?.toDouble();
-      final lon = (element['lon'] as num?)?.toDouble() ??
-          (element['center']?['lon'] as num?)?.toDouble();
-
-      if (lat == null || lon == null) continue;
-
-      final distanceKm = _calculateDistance(
-        position.latitude,
-        position.longitude,
-        lat,
-        lon,
-      );
-
-      final facilityType = _determineFacilityType(tags);
-      final specialty = _determineSpecialty(tags, facilityType);
-
-      doctors.add(NearbyDoctor(
-        name: name,
-        specialty: specialty,
-        address: _buildAddress(tags),
-        latitude: lat,
-        longitude: lon,
-        distanceKm: distanceKm,
-        phone: tags['phone'] as String? ?? tags['contact:phone'] as String?,
-        isOpen: true,
-        facilityType: facilityType,
-      ));
-    }
+    // Replace loop with functional JSON mapping
+    final doctors = elements
+        .map((element) => _parseElementToDoctor(element, position))
+        .where((doc) => doc != null)
+        .cast<NearbyDoctor>()
+        .toList();
 
     // Sort by distance
     doctors.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
     return doctors;
+  }
+
+  /// Helper to race multiple HTTP futures and return the first 200 OK.
+  static Future<http.Response> _raceToSuccess(Iterable<Future<http.Response>> futures) {
+    final completer = Completer<http.Response>();
+    int errors = 0;
+    
+    for (final f in futures) {
+      f.then((res) {
+        if (res.statusCode == 200) {
+          if (!completer.isCompleted) completer.complete(res);
+        } else {
+          errors++;
+          if (errors == futures.length && !completer.isCompleted) {
+            completer.completeError('All failed');
+          }
+        }
+      }).catchError((e) {
+        errors++;
+        if (errors == futures.length && !completer.isCompleted) {
+          completer.completeError('All failed');
+        }
+      });
+    }
+    
+    return completer.future;
+  }
+
+  /// Helper to parse a single JSON element into a NearbyDoctor object
+  static NearbyDoctor? _parseElementToDoctor(dynamic element, Position position) {
+    final tags = element['tags'] as Map<String, dynamic>? ?? {};
+    final name = tags['name'] as String?;
+    if (name == null || name.isEmpty) return null; // Skip unnamed facilities
+
+    final lat = (element['lat'] as num?)?.toDouble() ??
+        (element['center']?['lat'] as num?)?.toDouble();
+    final lon = (element['lon'] as num?)?.toDouble() ??
+        (element['center']?['lon'] as num?)?.toDouble();
+
+    if (lat == null || lon == null) return null;
+
+    final distanceKm = _calculateDistance(
+      position.latitude,
+      position.longitude,
+      lat,
+      lon,
+    );
+
+    final facilityType = _determineFacilityType(tags);
+    final specialty = _determineSpecialty(tags, facilityType);
+
+    return NearbyDoctor(
+      name: name,
+      specialty: specialty,
+      address: _buildAddress(tags),
+      latitude: lat,
+      longitude: lon,
+      distanceKm: distanceKm,
+      phone: tags['phone'] as String? ?? tags['contact:phone'] as String?,
+      isOpen: true,
+      facilityType: facilityType,
+    );
   }
 
   /// Build the Overpass QL query to find healthcare facilities nearby.
