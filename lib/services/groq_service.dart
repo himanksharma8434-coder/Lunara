@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:http/http.dart' as http;
+import '../config/app_errors.dart';
 
 class GroqResponse {
   final String? text;
@@ -104,25 +107,37 @@ class GroqModel {
     }
     finalMessages.addAll(messages);
 
-    final response = await http.post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $apiKey',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'model': model,
-        'messages': finalMessages,
-        'temperature': 0.7,
-      }),
-    ).timeout(const Duration(seconds: 30));
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $apiKey',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'model': model,
+          'messages': finalMessages,
+          'temperature': 0.7,
+        }),
+      ).timeout(const Duration(seconds: 30));
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['choices'][0]['message']['content'] as String?;
-    } else {
-      debugPrint("Groq Error: ${response.statusCode} - ${response.body}");
-      throw Exception("Groq API error: ${response.statusCode} - ${response.body}");
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['choices'][0]['message']['content'] as String?;
+      } else {
+        debugPrint("Groq Error: ${response.statusCode} - ${response.body}");
+        throw Exception(AppErrors.serverMessage);
+      }
+    } on SocketException catch (_) {
+      throw Exception(AppErrors.connectionMessage);
+    } on TimeoutException catch (_) {
+      throw Exception(AppErrors.connectionMessage);
+    } catch (e) {
+      if (e is Exception && (e.toString().contains(AppErrors.serverMessage) || e.toString().contains(AppErrors.connectionMessage))) {
+        rethrow;
+      }
+      debugPrint("Unexpected Groq Error: $e");
+      throw Exception(AppErrors.genericMessage);
     }
   }
 }
