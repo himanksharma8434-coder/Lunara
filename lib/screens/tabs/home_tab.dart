@@ -2149,22 +2149,13 @@ class CycleRingCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.baseline,
                         textBaseline: TextBaseline.alphabetic,
                         children: [
-                          ShaderMask(
-                            shaderCallback: (bounds) =>
-                                const LinearGradient(
-                              colors: [
-                                LunaraColors.textDark,
-                                LunaraColors.primary
-                              ],
-                            ).createShader(bounds),
-                            child: Text(
-                              '$currentCycleDay',
-                              style: const TextStyle(
-                                fontSize: 44,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                height: 1,
-                              ),
+                          Text(
+                            '$currentCycleDay',
+                            style: const TextStyle(
+                              fontSize: 44,
+                              fontWeight: FontWeight.w900,
+                              color: LunaraColors.primary, // Solid bright color
+                              height: 1,
                             ),
                           ),
                           Text(
