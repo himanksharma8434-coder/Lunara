@@ -13,6 +13,7 @@ import '../services/groq_service.dart';
 import '../config/app_config.dart';
 import '../widgets/shimmer_loading.dart';
 import '../widgets/custom_toast.dart';
+import '../services/cache_service.dart';
 
 class InsightsScreen extends StatefulWidget {
   const InsightsScreen({super.key});
@@ -687,6 +688,19 @@ Your sleep drops below 6h on Wednesdays, and your mood consistently dips to "Low
 Do NOT use markdown formatting. Keep each insight EXTREMELY short (1 sentence max).
 ''';
 
+      final cacheKey = 'ai_insight_${prompt.hashCode}';
+      final cachedInsight = await CacheService.instance.getCache(cacheKey);
+
+      if (cachedInsight != null) {
+        if (mounted) {
+          setState(() {
+            _aiInsights = cachedInsight as String;
+            _isGeneratingAI = false;
+          });
+        }
+        return;
+      }
+
       final model = GroqModel(
         model: PlusService.plusModels.first,
         apiKey: AppConfig.groqApiKey,
@@ -697,6 +711,10 @@ Do NOT use markdown formatting. Keep each insight EXTREMELY short (1 sentence ma
       final response = await model.generateChatCompletion(
         messages: [{'role': 'user', 'content': prompt}],
       );
+
+      if (response != null) {
+        await CacheService.instance.setCache(cacheKey, response, ttl: const Duration(hours: 24));
+      }
 
       if (mounted) {
         setState(() {
