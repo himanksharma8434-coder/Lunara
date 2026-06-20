@@ -25,7 +25,8 @@ class AppNotificationService extends ChangeNotifier {
   final StreamController<String> actionStream = StreamController<String>.broadcast();
 
   // Notification IDs
-  static const int _dailyReminderId = 100;
+  static const int _dailyReminder12pmId = 100;
+  static const int _dailyReminder6pmId = 103;
   static const int _periodReminderId = 101;
   static const int _ovulationReminderId = 102;
 
@@ -80,7 +81,7 @@ class AppNotificationService extends ChangeNotifier {
     }
 
     const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@drawable/ic_notification');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -107,6 +108,14 @@ class AppNotificationService extends ChangeNotifier {
     if (_dailyEnabled) {
       scheduleDailyReminder();
     }
+
+    // Temporary test notification to check logo
+    Future.delayed(const Duration(seconds: 3), () {
+      showInstantNotification(
+        title: "Logo Test",
+        body: "Here is your new logo notification! No large side icon.",
+      );
+    });
 
     // Listen to Auth State changes to subscribe/unsubscribe to Realtime
     Supabase.instance.client.auth.onAuthStateChange.listen((data) {
@@ -167,7 +176,7 @@ class AppNotificationService extends ChangeNotifier {
           'Instant Alerts',
           importance: Importance.max,
           priority: Priority.high,
-          largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
+          color: Color(0xFFFF8989),
         ),
         iOS: DarwinNotificationDetails(),
       ),
@@ -192,7 +201,8 @@ class AppNotificationService extends ChangeNotifier {
       await scheduleDailyReminder();
       await scheduleDailyGuidance();
     } else {
-      await _notifications.cancel(id: _dailyReminderId);
+      await _notifications.cancel(id: _dailyReminder12pmId);
+      await _notifications.cancel(id: _dailyReminder6pmId);
       await cancelDailyGuidance();
     }
     notifyListeners();
@@ -231,34 +241,98 @@ class AppNotificationService extends ChangeNotifier {
     if (!_dailyEnabled) return;
 
     final now = tz.TZDateTime.now(tz.local);
-    var scheduledDate =
-        tz.TZDateTime(tz.local, now.year, now.month, now.day, 20);
-
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    
+    var noonDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, 12);
+    if (noonDate.isBefore(now)) {
+      noonDate = noonDate.add(const Duration(days: 1));
     }
 
-    final title = isTrackingForSomeoneElse
+    var eveningDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, 18);
+    if (eveningDate.isBefore(now)) {
+      eveningDate = eveningDate.add(const Duration(days: 1));
+    }
+
+    final noonTitle = isTrackingForSomeoneElse
         ? "Log for ${trackedPersonName.isNotEmpty ? trackedPersonName : "Partner"}"
         : "Time to reflect! 🌸";
 
-    final body = isTrackingForSomeoneElse
+    final noonBody = isTrackingForSomeoneElse
         ? "Don't forget to log their symptoms and mood today!"
         : "Log your mood, water intake, and sleep to keep your wellness streaks going.";
 
+    final eveningTitle = isTrackingForSomeoneElse
+        ? "Did you forget? Log for ${trackedPersonName.isNotEmpty ? trackedPersonName : "Partner"}"
+        : "Checking in! 🌸";
+
+    final eveningBody = isTrackingForSomeoneElse
+        ? "There's still time to log their symptoms today!"
+        : "You haven't logged your symptoms yet today. Take a quick moment to check in with your body.";
+
     await _notifications.zonedSchedule(
-      id: _dailyReminderId,
-      title: title,
-      body: body,
-      scheduledDate: scheduledDate,
+      id: _dailyReminder12pmId,
+      title: noonTitle,
+      body: noonBody,
+      scheduledDate: noonDate,
       notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'daily_channel',
           'Daily Reminders',
           importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
-          largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
-        ),
+          priority: Priority.defaultPriority, color: const Color(0xFFFF8989)),
+        iOS: DarwinNotificationDetails(),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+
+    await _notifications.zonedSchedule(
+      id: _dailyReminder6pmId,
+      title: eveningTitle,
+      body: eveningBody,
+      scheduledDate: eveningDate,
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'daily_channel',
+          'Daily Reminders',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority, color: const Color(0xFFFF8989)),
+        iOS: DarwinNotificationDetails(),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+  }
+
+  Future<void> cancelEveningReminderForToday({
+    bool isTrackingForSomeoneElse = false,
+    String trackedPersonName = '',
+  }) async {
+    if (!_dailyEnabled) return;
+
+    await _notifications.cancel(id: _dailyReminder6pmId);
+
+    final now = tz.TZDateTime.now(tz.local);
+    var tomorrow6pm = tz.TZDateTime(tz.local, now.year, now.month, now.day + 1, 18);
+
+    final eveningTitle = isTrackingForSomeoneElse
+        ? "Did you forget? Log for ${trackedPersonName.isNotEmpty ? trackedPersonName : "Partner"}"
+        : "Checking in! 🌸";
+
+    final eveningBody = isTrackingForSomeoneElse
+        ? "There's still time to log their symptoms today!"
+        : "You haven't logged your symptoms yet today. Take a quick moment to check in with your body.";
+
+    await _notifications.zonedSchedule(
+      id: _dailyReminder6pmId,
+      title: eveningTitle,
+      body: eveningBody,
+      scheduledDate: tomorrow6pm,
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'daily_channel',
+          'Daily Reminders',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority, color: const Color(0xFFFF8989)),
         iOS: DarwinNotificationDetails(),
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -330,9 +404,7 @@ class AppNotificationService extends ChangeNotifier {
             'guidance_channel',
             'Daily Health Insights',
             importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-            largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
-          ),
+            priority: Priority.defaultPriority, color: const Color(0xFFFF8989)),
           iOS: DarwinNotificationDetails(),
         ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -356,9 +428,7 @@ class AppNotificationService extends ChangeNotifier {
             'guidance_channel',
             'Daily Health Insights',
             importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-            largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
-          ),
+            priority: Priority.defaultPriority, color: const Color(0xFFFF8989)),
           iOS: DarwinNotificationDetails(),
         ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -390,9 +460,7 @@ class AppNotificationService extends ChangeNotifier {
               'guidance_channel',
               'Daily Health Insights',
               importance: Importance.high,
-              priority: Priority.high,
-              largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
-            ),
+              priority: Priority.high, color: const Color(0xFFFF8989)),
             iOS: DarwinNotificationDetails(),
           ),
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -448,7 +516,6 @@ class AppNotificationService extends ChangeNotifier {
           'Period Reminders',
           importance: Importance.max,
           priority: Priority.high,
-          largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
           actions: [
             if (!isTrackingForSomeoneElse) ...[
               const AndroidNotificationAction(
@@ -463,6 +530,7 @@ class AppNotificationService extends ChangeNotifier {
               ),
             ]
           ],
+          color: const Color(0xFFFF8989),
         ),
         iOS: const DarwinNotificationDetails(
           categoryIdentifier: 'period_reminder',
@@ -516,9 +584,7 @@ class AppNotificationService extends ChangeNotifier {
           'fertility_channel',
           'Fertility Reminders',
           importance: Importance.high,
-          priority: Priority.high,
-          largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
-        ),
+          priority: Priority.high, color: const Color(0xFFFF8989)),
         iOS: DarwinNotificationDetails(),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -629,9 +695,7 @@ class AppNotificationService extends ChangeNotifier {
             'guidance_channel',
             'Daily Health Insights',
             importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-            largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
-          ),
+            priority: Priority.defaultPriority, color: const Color(0xFFFF8989)),
           iOS: DarwinNotificationDetails(),
         ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,

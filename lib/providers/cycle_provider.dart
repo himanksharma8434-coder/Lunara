@@ -822,6 +822,12 @@ class CycleProvider extends ChangeNotifier {
 
     // Sync daily assessment to cloud
     _syncDailySnapshotToCloud(key);
+
+    // Cancel the 6 PM reminder for today since the user logged their metrics
+    AppNotificationService().cancelEveningReminderForToday(
+      isTrackingForSomeoneElse: _isTrackingForSomeoneElse,
+      trackedPersonName: _trackedPersonName,
+    );
   }
 
   /// Returns aggregated symptom counts across the last [days] days.
