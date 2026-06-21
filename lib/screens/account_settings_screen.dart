@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/cycle_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_toast.dart';
@@ -93,6 +94,11 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
         trackedPersonName: _trackedPersonNameController.text.trim(),
         trackedPersonRelation: _trackedPersonRelation,
       );
+
+      if (mounted) {
+        Provider.of<AuthProvider>(context, listen: false)
+            .updateUserNameLocally(_nameController.text.trim());
+      }
 
       if (mounted) {
         CustomToast.show(context, message: 'Profile updated successfully', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));

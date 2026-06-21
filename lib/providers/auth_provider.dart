@@ -533,6 +533,14 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Update the user's name locally without triggering a database save
+  /// (Useful when the database is already being updated elsewhere, e.g. CycleProvider)
+  void updateUserNameLocally(String name) {
+    _userName = name;
+    _prefs.setString('userName', name);
+    notifyListeners();
+  }
+
   // ─── LOGOUT ───────────────────────────────────────
 
   Future<void> logout() async {
