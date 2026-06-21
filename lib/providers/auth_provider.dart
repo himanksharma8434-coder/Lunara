@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../services/database_service.dart';
+import '../services/cache_service.dart';
 import '../models/user_model.dart';
 
 class AuthProvider with ChangeNotifier {
@@ -161,7 +162,23 @@ class AuthProvider with ChangeNotifier {
         if (profile['avatar_url'] != null && (profile['avatar_url'] as String).isNotEmpty) {
           _userAvatarUrl = profile['avatar_url'];
           await _prefs.setString('userAvatarUrl', _userAvatarUrl);
+        } else {
+          // If profile exists but no avatar, try to get it from Google metadata
+          final metadata = _supabase.auth.currentUser?.userMetadata;
+          final metaAvatar = metadata?['avatar_url'] ?? metadata?['picture'] ?? '';
+          if (metaAvatar.isNotEmpty) {
+            _userAvatarUrl = metaAvatar;
+            await _prefs.setString('userAvatarUrl', _userAvatarUrl);
+            try {
+              await _supabase.from('users').update({'avatar_url': metaAvatar}).eq('uid', uid);
+            } catch (_) {}
+          }
         }
+        
+        // If a profile exists, they have already completed onboarding previously
+        _hasCompletedOnboarding = true;
+        await _prefs.setBool('seenOnboarding', true);
+        await _prefs.setBool('hasCompletedOnboarding', true);
       } else {
         // Try metadata as fallback
         final metadata = _supabase.auth.currentUser?.userMetadata;
@@ -169,6 +186,11 @@ class AuthProvider with ChangeNotifier {
         if (metaName.isNotEmpty) {
           _userName = metaName;
           await _prefs.setString('userName', _userName);
+        }
+        final metaAvatar = metadata?['avatar_url'] ?? metadata?['picture'] ?? '';
+        if (metaAvatar.isNotEmpty) {
+          _userAvatarUrl = metaAvatar;
+          await _prefs.setString('userAvatarUrl', _userAvatarUrl);
         }
       }
     } catch (e) {
@@ -327,17 +349,19 @@ class AuthProvider with ChangeNotifier {
           }
         }
 
-        // Create/update profile in users table
-        try {
-          final userModel = UserModel(
-            uid: response.user!.id,
-            email: response.user?.email,
-            phone: response.user?.phone ?? phone,
-            name: _userName,
-          );
-          await _db.saveUser(userModel);
-        } catch (e) {
-           debugPrint('Could not save user profile: $e');
+        // Create profile only if they haven't completed onboarding (i.e. profile doesn't exist)
+        if (!hasSeenOnboarding) {
+          try {
+            final userModel = UserModel(
+              uid: response.user!.id,
+              email: response.user?.email,
+              phone: response.user?.phone ?? phone,
+              name: _userName,
+            );
+            await _db.saveUser(userModel);
+          } catch (e) {
+             debugPrint('Could not save user profile: $e');
+          }
         }
 
         if (_userName.isEmpty) {
@@ -404,6 +428,7 @@ class AuthProvider with ChangeNotifier {
         // Get user info from Google
         final googleName = googleUser.displayName ?? '';
         final email = googleUser.email;
+        final googlePhotoUrl = googleUser.photoUrl ?? '';
 
         // Try to fetch existing name from the database first
         await _fetchNameFromDatabase();
@@ -414,16 +439,40 @@ class AuthProvider with ChangeNotifier {
           await _prefs.setString('userName', _userName);
         }
 
-        // Create/update profile in users table
-        try {
-          final userModel = UserModel(
-            uid: response.user!.id,
-            email: email,
-            name: _userName,
-          );
-          await _db.saveUser(userModel);
-        } catch (e) {
-          debugPrint('Could not save user profile: $e');
+        // If no avatar in DB, use Google's avatar
+        if (_userAvatarUrl.isEmpty && googlePhotoUrl.isNotEmpty) {
+          _userAvatarUrl = googlePhotoUrl;
+          await _prefs.setString('userAvatarUrl', _userAvatarUrl);
+        }
+
+        // Create profile only if they haven't completed onboarding (i.e. profile doesn't exist)
+        if (!hasSeenOnboarding) {
+          try {
+            final userModel = UserModel(
+              uid: response.user!.id,
+              email: email,
+              name: _userName,
+              avatarUrl: _userAvatarUrl.isNotEmpty ? _userAvatarUrl : null,
+            );
+            await _db.saveUser(userModel);
+          } catch (e) {
+            debugPrint('Could not save user profile: $e');
+          }
+        } else {
+          // Just update the name/avatar if they were empty but we found them from Google
+          final updates = <String, dynamic>{};
+          if (_userName.isEmpty && googleName.isNotEmpty) {
+            updates['name'] = googleName;
+          }
+          if (_userAvatarUrl.isEmpty && googlePhotoUrl.isNotEmpty) {
+            updates['avatar_url'] = googlePhotoUrl;
+          }
+          
+          if (updates.isNotEmpty) {
+            try {
+              await _supabase.from('users').update(updates).eq('uid', response.user!.id);
+            } catch (_) {}
+          }
         }
 
         // If still no name after Google + DB, prompt the user
@@ -518,13 +567,11 @@ class AuthProvider with ChangeNotifier {
     _needsNamePrompt = false;
     await _prefs.setString('userName', name);
 
-    // Save to database
     final uid = _supabase.auth.currentUser?.id;
-    final email = _supabase.auth.currentUser?.email ?? '';
     if (uid != null) {
       try {
-        final userModel = UserModel(uid: uid, email: email, name: name);
-        await _db.saveUser(userModel);
+        await _supabase.from('users').update({'name': name}).eq('uid', uid);
+        await CacheService.instance.clearCache('api_cache_user_profile_$uid');
       } catch (e) {
         debugPrint('Could not save user name to database: $e');
       }

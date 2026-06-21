@@ -8,6 +8,7 @@ import '../providers/auth_provider.dart';
 import '../providers/cycle_provider.dart';
 import '../widgets/custom_toast.dart';
 import '../main.dart';
+import 'onboarding_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -614,7 +615,7 @@ class _SignupScreenState extends State<SignupScreen>
           Navigator.pushAndRemoveUntil(
             context,
             PageRouteBuilder(
-              pageBuilder: (context, anim, secAnim) => const InitialRouter(),
+              pageBuilder: (context, anim, secAnim) => const OnboardingScreen(),
               transitionsBuilder: (context, anim, secAnim, child) {
                 return FadeTransition(
                   opacity: anim,
@@ -631,7 +632,13 @@ class _SignupScreenState extends State<SignupScreen>
         }
       } else {
         // Show error from Supabase
-        if (mounted) _showError(error);
+        if (mounted) {
+          if (error.toLowerCase().contains('already registered')) {
+            _showError('Account already created');
+          } else {
+            _showError(error);
+          }
+        }
       }
     } catch (e) {
       // ignore: use_build_context_synchronously

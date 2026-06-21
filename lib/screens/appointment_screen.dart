@@ -24,6 +24,7 @@ class _AppointmentScreenState extends State<AppointmentScreen>
   String _searchQuery = '';
   bool _isLoading = true;
   bool _locationDenied = false;
+  bool _showGpsWarning = false;
   List<NearbyDoctor> _doctors = [];
   late AnimationController _pulseController;
 
@@ -77,20 +78,8 @@ class _AppointmentScreenState extends State<AppointmentScreen>
         _isLoading = false;
         // Only block the screen if permissions are denied or service is disabled
         _locationDenied = !serviceEnabled || isPermissionDenied;
+        _showGpsWarning = isFallback && serviceEnabled && !isPermissionDenied;
       });
-
-      if (!mounted) return;
-
-      // If we couldn't get a real position but services are enabled/allowed (e.g. GPS timeout / API fail),
-      // show fallback list and warn the user.
-      if (isFallback && serviceEnabled && !isPermissionDenied) {
-        CustomToast.show(
-          context,
-          message: 'GPS signal weak or API offline. Showing default healthcare facilities.',
-          icon: Icons.location_off_rounded,
-          backgroundColor: Colors.orange[400],
-        );
-      }
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -381,6 +370,45 @@ class _AppointmentScreenState extends State<AppointmentScreen>
             ),
 
             const SizedBox(height: 16),
+
+            if (_showGpsWarning)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange[400],
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.orange.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.location_off_rounded, color: Colors.white),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Weak GPS signal. Showing default facilities near you.',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => setState(() => _showGpsWarning = false),
+                    ),
+                  ],
+                ),
+              ),
 
             // Main Content
             Expanded(

@@ -4,7 +4,6 @@ import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import 'otp_verification_screen.dart';
 import '../widgets/custom_toast.dart';
-
 class PhoneLoginScreen extends StatefulWidget {
   const PhoneLoginScreen({super.key});
 

@@ -7,6 +7,10 @@ import '../config/app_errors.dart';
 import 'cache_service.dart';
 
 class DatabaseService {
+  static final DatabaseService _instance = DatabaseService._internal();
+  factory DatabaseService() => _instance;
+  DatabaseService._internal();
+
   final SupabaseClient _db = Supabase.instance.client;
 
   // ─── USER PROFILE ──────────────────────────────────
@@ -518,16 +522,35 @@ class DatabaseService {
           .select()
           .eq('category', category)
           .order('created_at', ascending: false);
-      final data = List<Map<String, dynamic>>.from(response);
-      await CacheService.instance.setCache(cacheKey, data, ttl: const Duration(minutes: 5));
-      return data;
+      await CacheService.instance.setCache(cacheKey, response);
+      return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       debugPrint('Error fetching posts: $e');
       return [];
     }
   }
 
-  /// Check if the current user has liked a specific post
+  /// Fetch community posts paged
+  Future<List<Map<String, dynamic>>> getCommunityPostsPaged({
+    required String category,
+    required int offset,
+    required int limit,
+  }) async {
+    try {
+      final response = await _db
+          .from('community_posts')
+          .select()
+          .eq('category', category)
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching posts paged: $e');
+      return [];
+    }
+  }
+
+  /// Check if the current user has liked a specific post (Legacy)
   Future<bool> hasUserLikedPost(int postId, String userId) async {
      try {
        final response = await _db
@@ -541,6 +564,20 @@ class DatabaseService {
        debugPrint('Error checking like status: $e');
        return false;
      }
+  }
+
+  /// Fetch all liked post IDs for a user to optimize loading
+  Future<Set<int>> getUserLikedPostIds(String userId) async {
+    try {
+      final response = await _db
+          .from('community_likes')
+          .select('post_id')
+          .eq('user_id', userId);
+      return response.map<int>((e) => int.tryParse(e['post_id'].toString()) ?? 0).toSet();
+    } catch (e) {
+      debugPrint('Error fetching liked post IDs: $e');
+      return {};
+    }
   }
 
   /// Create a new community post
@@ -569,18 +606,34 @@ class DatabaseService {
   Future<void> toggleLikePost(int postId, String userId, bool currentlyLiked) async {
     try {
       if (currentlyLiked) {
-        // Remove like record, database trigger handles the decrement
+        // Remove like record
         await _db
             .from('community_likes')
             .delete()
             .eq('post_id', postId)
             .eq('user_id', userId);
+            
+        // Manual fallback: decrement count
+        try {
+          final postRes = await _db.from('community_posts').select('likes_count').eq('id', postId).single();
+          int currentCount = int.tryParse(postRes['likes_count']?.toString() ?? '0') ?? 0;
+          if (currentCount > 0) {
+            await _db.from('community_posts').update({'likes_count': currentCount - 1}).eq('id', postId);
+          }
+        } catch (_) {}
       } else {
-        // Add like record, database trigger handles the increment
+        // Add like record
         await _db.from('community_likes').insert({
           'post_id': postId,
           'user_id': userId,
         });
+        
+        // Manual fallback: increment count
+        try {
+          final postRes = await _db.from('community_posts').select('likes_count').eq('id', postId).single();
+          int currentCount = int.tryParse(postRes['likes_count']?.toString() ?? '0') ?? 0;
+          await _db.from('community_posts').update({'likes_count': currentCount + 1}).eq('id', postId);
+        } catch (_) {}
       }
     } catch (e) {
       debugPrint('Error toggling like: $e');

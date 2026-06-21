@@ -7,7 +7,7 @@ import '../providers/auth_provider.dart';
 import '../main.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
-import 'phone_login_screen.dart';
+
 import '../widgets/custom_toast.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -327,37 +327,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                         ),
                       ),
-                      const SizedBox(width: 15),
-                      Expanded(
-                        child: _buildSocialButton(
-                          icon: Icons.apple,
-                          label: "Apple",
-                          onTap: () {
-                            CustomToast.show(context, message: 'Apple Sign-In coming soon!', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
-                          },
-                        ),
-                      ),
+
                     ],
                   ),
-                  const SizedBox(height: 15),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildSocialButton(
-                          icon: Icons.phone_android,
-                          label: "Continue with Phone",
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const PhoneLoginScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
+
                   const SizedBox(height: 35),
                   Center(
                     child: Row(

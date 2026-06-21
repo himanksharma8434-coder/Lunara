@@ -3,8 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../widgets/community_post_list_tab.dart';
 import '../theme/app_theme.dart';
-import '../widgets/shimmer_loading.dart';
 import '../services/database_service.dart';
 import '../services/app_notification_service.dart';
 import '../models/community_post_model.dart';
@@ -26,9 +26,10 @@ class _CommunityScreenState extends State<CommunityScreen>
   late TabController _tabController;
   final DatabaseService _dbService = DatabaseService();
 
-  // Cached streams to prevent connection leaks on search typing rebuilds
-  late Stream<List<Map<String, dynamic>>> _womenPostsStream;
-  late Stream<List<Map<String, dynamic>>> _menPostsStream;
+  // Variables
+  Set<int>? _likedPostIds;
+  final Map<int, int> _optimisticLikesCounts = {};
+  String _selectedSort = 'Recent';
 
   // Search state
   bool _isSearchActive = false;
@@ -44,9 +45,10 @@ class _CommunityScreenState extends State<CommunityScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _initStreams();
+    _fetchLikedPosts();
     _searchController.addListener(() {
-      if (_searchDebounceTimer?.isActive ?? false) _searchDebounceTimer!.cancel();
+      if (_searchDebounceTimer?.isActive ?? false)
+        _searchDebounceTimer!.cancel();
       _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () {
         if (mounted) {
           setState(() {
@@ -57,9 +59,23 @@ class _CommunityScreenState extends State<CommunityScreen>
     });
   }
 
-  void _initStreams() {
-    _womenPostsStream = _dbService.streamCommunityPosts('Women');
-    _menPostsStream = _dbService.streamCommunityPosts('Men');
+  Future<void> _fetchLikedPosts() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.userId.isNotEmpty) {
+      final likedIds =
+          await _dbService.getUserLikedPostIds(authProvider.userId);
+      if (mounted) {
+        setState(() {
+          _likedPostIds = likedIds;
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _likedPostIds = {};
+        });
+      }
+    }
   }
 
   @override
@@ -105,7 +121,8 @@ class _CommunityScreenState extends State<CommunityScreen>
                         children: [
                           Expanded(
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
                               decoration: BoxDecoration(
                                 color: AppTheme.cardColor(context),
                                 borderRadius: BorderRadius.circular(16),
@@ -115,7 +132,8 @@ class _CommunityScreenState extends State<CommunityScreen>
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: LunaraColors.primary.withOpacity(0.08),
+                                    color:
+                                        LunaraColors.primary.withOpacity(0.08),
                                     blurRadius: 12,
                                     offset: const Offset(0, 4),
                                   ),
@@ -142,11 +160,14 @@ class _CommunityScreenState extends State<CommunityScreen>
                                       decoration: InputDecoration(
                                         hintText: 'Search posts, authors...',
                                         hintStyle: TextStyle(
-                                          color: AppTheme.secondaryText(context),
+                                          color:
+                                              AppTheme.secondaryText(context),
                                           fontWeight: FontWeight.w400,
                                         ),
                                         border: InputBorder.none,
-                                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                vertical: 14),
                                       ),
                                     ),
                                   ),
@@ -158,13 +179,15 @@ class _CommunityScreenState extends State<CommunityScreen>
                                       child: Container(
                                         padding: const EdgeInsets.all(4),
                                         decoration: BoxDecoration(
-                                          color: AppTheme.secondaryText(context).withOpacity(0.15),
+                                          color: AppTheme.secondaryText(context)
+                                              .withOpacity(0.15),
                                           shape: BoxShape.circle,
                                         ),
                                         child: Icon(
                                           Icons.close_rounded,
                                           size: 16,
-                                          color: AppTheme.secondaryText(context),
+                                          color:
+                                              AppTheme.secondaryText(context),
                                         ),
                                       ),
                                     ),
@@ -195,74 +218,75 @@ class _CommunityScreenState extends State<CommunityScreen>
                     : Row(
                         key: const ValueKey('header'),
                         children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          LunaraColors.primary,
-                          LunaraColors.primaryDark
-                        ],
-                      ),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: LunaraColors.primary.withOpacity(0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.people_rounded,
-                        color: Colors.white, size: 24),
-                  ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Community',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textDark(context),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  LunaraColors.primary,
+                                  LunaraColors.primaryDark
+                                ],
+                              ),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: LunaraColors.primary.withOpacity(0.3),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.people_rounded,
+                                color: Colors.white, size: 24),
                           ),
-                        ),
-                        Text(
-                          'Share, learn, and support',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppTheme.textLight(context),
+                          const SizedBox(width: 15),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Community',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.textDark(context),
+                                  ),
+                                ),
+                                Text(
+                                  'Share, learn, and support',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppTheme.textLight(context),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      setState(() {
-                        _isSearchActive = true;
-                      });
-                    },
-                    icon: const Icon(Icons.search_rounded),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: const BoxDecoration(
-                      color: LunaraColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        HapticFeedback.mediumImpact();
-                        _showCreatePostSheet();
-                      },
-                      icon: const Icon(Icons.add_rounded, color: Colors.white),
-                      tooltip: 'Create Post',
-                    ),
-                  ),
+                          IconButton(
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              setState(() {
+                                _isSearchActive = true;
+                              });
+                            },
+                            icon: const Icon(Icons.search_rounded),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            decoration: const BoxDecoration(
+                              color: LunaraColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              onPressed: () {
+                                HapticFeedback.mediumImpact();
+                                _showCreatePostSheet();
+                              },
+                              icon: const Icon(Icons.add_rounded,
+                                  color: Colors.white),
+                              tooltip: 'Create Post',
+                            ),
+                          ),
                         ],
                       ),
               ),
@@ -309,204 +333,26 @@ class _CommunityScreenState extends State<CommunityScreen>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildPostsList('Women'),
-                  _buildPostsList('Men'),
+                  CommunityPostListTab(
+                    key: const PageStorageKey('WomenTab'),
+                    category: 'Women',
+                    searchQuery: _searchQuery,
+                    selectedSort: _selectedSort,
+                    likedPostIds: _likedPostIds,
+                    optimisticLikesCounts: _optimisticLikesCounts,
+                  ),
+                  CommunityPostListTab(
+                    key: const PageStorageKey('MenTab'),
+                    category: 'Men',
+                    searchQuery: _searchQuery,
+                    selectedSort: _selectedSort,
+                    likedPostIds: _likedPostIds,
+                    optimisticLikesCounts: _optimisticLikesCounts,
+                  ),
                 ],
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPostsList(String category) {
-    final stream = category == 'Women' ? _womenPostsStream : _menPostsStream;
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: stream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const CommunityPostShimmer();
-        }
-
-        if (snapshot.hasError) {
-          return _buildErrorState(snapshot.error);
-        }
-
-        final streamPosts = snapshot.data ?? [];
-
-        // Remove any optimistic posts that have successfully loaded from the stream
-        _optimisticPosts.removeWhere((opt) {
-          return streamPosts.any((sp) =>
-              sp['author_id'] == opt['author_id'] &&
-              sp['content'] == opt['content'] &&
-              sp['category'] == opt['category']);
-        });
-
-        // Filter optimistic posts for this category
-        final categoryOptimistic = _optimisticPosts
-            .where((opt) => opt['category'] == category)
-            .toList();
-
-        final postsData = [...categoryOptimistic, ...streamPosts];
-
-        if (postsData.isEmpty) {
-          return const Center(child: Text('No posts yet in this category.'));
-        }
-
-        // Apply search filter
-        final filteredPosts = _searchQuery.isEmpty
-            ? postsData
-            : postsData.where((postData) {
-                final content = (postData['content'] ?? '').toString().toLowerCase();
-                final authorName = (postData['author_name'] ?? '').toString().toLowerCase();
-                return content.contains(_searchQuery) ||
-                    authorName.contains(_searchQuery);
-              }).toList();
-
-        if (filteredPosts.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: LunaraColors.primary.withOpacity(0.08),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.search_off_rounded,
-                      size: 48,
-                      color: LunaraColors.primary.withOpacity(0.5),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No results found',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textDark(context),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Try different keywords or check spelling',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppTheme.secondaryText(context),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          itemCount: filteredPosts.length,
-          itemBuilder: (context, index) {
-            final postModel = CommunityPostModel.fromJson(filteredPosts[index]);
-            return CommunityPostCard(post: postModel);
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildErrorState(dynamic error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-        child: Container(
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            color: AppTheme.cardColor(context),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: LunaraColors.primary.withOpacity(0.15),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 15,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF8566).withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.wifi_off_rounded,
-                  size: 36,
-                  color: Color(0xFFFF8566),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Unable to Load Posts',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.textDark(context),
-                  letterSpacing: 0.3,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'The community page is temporarily unavailable. Please check your internet connection and try again.',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppTheme.secondaryText(context),
-                  fontWeight: FontWeight.w500,
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: () {
-                    HapticFeedback.mediumImpact();
-                    setState(() {
-                      _initStreams();
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: LunaraColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: const Text(
-                    'Try Again',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -574,22 +420,24 @@ class _CommunityScreenState extends State<CommunityScreen>
                         }
 
                         HapticFeedback.mediumImpact();
-                        
-                        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+                        final authProvider =
+                            Provider.of<AuthProvider>(context, listen: false);
                         final userId = authProvider.userId;
                         final userName = authProvider.userName;
                         if (userId.isNotEmpty) {
                           final content = contentController.text.trim();
                           final avatar = authProvider.userAvatarUrl.isNotEmpty
                               ? authProvider.userAvatarUrl
-                              : (selectedCategory == 'Women' ? '👩' : '👨');
-                          
+                              : (selectedCategory == 'Women' ? '≡ƒæ⌐' : '≡ƒæ¿');
+
                           // Create optimistic post map
                           final tempId = -DateTime.now().millisecondsSinceEpoch;
                           final optimisticPost = {
                             'id': tempId,
                             'author_id': userId,
-                            'author_name': userName.isNotEmpty ? userName : 'Anonymous',
+                            'author_name':
+                                userName.isNotEmpty ? userName : 'Anonymous',
                             'author_avatar': avatar,
                             'category': selectedCategory,
                             'content': content,
@@ -614,7 +462,8 @@ class _CommunityScreenState extends State<CommunityScreen>
                           try {
                             await _dbService.createCommunityPost(
                               authorId: userId,
-                              authorName: userName.isNotEmpty ? userName : 'Anonymous',
+                              authorName:
+                                  userName.isNotEmpty ? userName : 'Anonymous',
                               authorAvatar: avatar,
                               category: selectedCategory,
                               content: content,
@@ -622,7 +471,8 @@ class _CommunityScreenState extends State<CommunityScreen>
                           } catch (e) {
                             if (mounted) {
                               setState(() {
-                                _optimisticPosts.removeWhere((p) => p['id'] == tempId);
+                                _optimisticPosts
+                                    .removeWhere((p) => p['id'] == tempId);
                               });
                               CustomToast.show(
                                 context,
@@ -632,8 +482,9 @@ class _CommunityScreenState extends State<CommunityScreen>
                               );
                             }
                             AppNotificationService().showInstantNotification(
-                              title: 'Post Upload Failed ⚠️',
-                              body: 'Something went wrong and your post could not be published. Please try again.',
+                              title: 'Post Upload Failed ΓÜá∩╕Å',
+                              body:
+                                  'Something went wrong and your post could not be published. Please try again.',
                             );
                           }
                         }
@@ -656,7 +507,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Category Selection
-                       const Text(
+                      const Text(
                         'Post Category',
                         style: TextStyle(
                           fontSize: 16,
@@ -815,271 +666,13 @@ class _CommunityScreenState extends State<CommunityScreen>
   }
 }
 
-class CommunityPostCard extends StatefulWidget {
-  final CommunityPostModel post;
-
-  const CommunityPostCard({super.key, required this.post});
-
-  @override
-  State<CommunityPostCard> createState() => _CommunityPostCardState();
-}
-
-class _CommunityPostCardState extends State<CommunityPostCard> {
-  final DatabaseService _dbService = DatabaseService();
-  bool? _isLikedLocal;
-  int? _likesCountLocal;
-  Future<bool>? _isLikedFuture;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _initFutureIfNeeded();
-  }
-
-  @override
-  void didUpdateWidget(CommunityPostCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.post.id != widget.post.id) {
-      _isLikedLocal = null;
-      _likesCountLocal = null;
-      _isLikedFuture = null;
-      _initFutureIfNeeded();
-    }
-  }
-
-  void _initFutureIfNeeded() {
-    if (_isLikedFuture == null) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final currentUserId = authProvider.userId;
-      if (widget.post.id != null && currentUserId.isNotEmpty) {
-        _isLikedFuture = _dbService.hasUserLikedPost(widget.post.id!, currentUserId);
-      } else {
-        _isLikedFuture = Future.value(false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final currentUserId = authProvider.userId;
-
-    return FutureBuilder<bool>(
-      future: _isLikedLocal != null
-          ? Future.value(_isLikedLocal)
-          : _isLikedFuture,
-      builder: (context, snapshot) {
-        final isLiked = _isLikedLocal ?? snapshot.data ?? false;
-        final likesCount = _likesCountLocal ?? widget.post.likesCount;
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 15),
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: AppTheme.cardColor(context),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 45,
-                    height: 45,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: widget.post.category == 'Women'
-                            ? [LunaraColors.primary, const Color(0xFFFFB4A9)]
-                            : [const Color(0xFF118AB2), LunaraColors.ovulationBlue],
-                      ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: widget.post.authorAvatar != null && widget.post.authorAvatar!.startsWith('http')
-                          ? ClipOval(
-                              child: Image.network(
-                                widget.post.authorAvatar!,
-                                width: 45,
-                                height: 45,
-                                fit: BoxFit.cover,
-                              ),
-                            )
-                          : Text(
-                              widget.post.authorAvatar ?? (widget.post.category == 'Women' ? '👩' : '👨'),
-                              style: const TextStyle(fontSize: 24),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.post.authorName,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textDark(context),
-                          ),
-                        ),
-                        Text(
-                          timeago.format(widget.post.createdAt),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.secondaryText(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: widget.post.category == 'Women'
-                          ? LunaraColors.primary.withOpacity(0.15)
-                          : const Color(0xFF118AB2).withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      widget.post.category,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: widget.post.category == 'Women'
-                            ? LunaraColors.primaryDark
-                            : const Color(0xFF118AB2),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 15),
-              Text(
-                widget.post.content,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppTheme.textLight(context),
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 15),
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: () async {
-                      if (currentUserId.isEmpty) return;
-                      HapticFeedback.lightImpact();
-                      final oldIsLiked = isLiked;
-                      final oldLikesCount = likesCount;
-                      setState(() {
-                        _isLikedLocal = !oldIsLiked;
-                        _likesCountLocal = oldLikesCount + (oldIsLiked ? -1 : 1);
-                      });
-                      try {
-                        await _dbService.toggleLikePost(widget.post.id!, currentUserId, oldIsLiked);
-                      } catch (e) {
-                        setState(() {
-                          _isLikedLocal = oldIsLiked;
-                          _likesCountLocal = oldLikesCount;
-                        });
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isLiked
-                            ? LunaraColors.primary.withOpacity(0.15)
-                            : AppTheme.isDark(context) ? const Color(0xFF2A2A2A) : Colors.grey[100],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            isLiked ? Icons.favorite : Icons.favorite_border,
-                            size: 18,
-                            color: isLiked ? LunaraColors.primary : AppTheme.secondaryText(context),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '$likesCount',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: isLiked ? LunaraColors.primaryDark : AppTheme.secondaryText(context),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  GestureDetector(
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      _showCommentsSheet(context, widget.post);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.isDark(context) ? const Color(0xFF2A2A2A) : Colors.grey[100],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.chat_bubble_outline, size: 18, color: AppTheme.secondaryText(context)),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${widget.post.commentCount}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.secondaryText(context),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                    },
-                    icon: Icon(Icons.share_outlined, size: 20, color: AppTheme.secondaryText(context)),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showCommentsSheet(BuildContext context, CommunityPostModel post) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => CommentsSheetContent(post: post),
-    );
-  }
-}
 
 // A stateful widget for the comments sheet to handle real-time fetching and posting
 class CommentsSheetContent extends StatefulWidget {
   final CommunityPostModel post;
+  final VoidCallback? onCommentAdded;
 
-  const CommentsSheetContent({super.key, required this.post});
+  const CommentsSheetContent({super.key, required this.post, this.onCommentAdded});
 
   @override
   State<CommentsSheetContent> createState() => CommentsSheetContentState();
@@ -1154,9 +747,9 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
           ? '[reply:${_replyingToComment!.comment.id}]$text'
           : text;
 
-      final userAvatar = authProvider.userAvatarUrl.isNotEmpty 
-          ? authProvider.userAvatarUrl 
-          : (widget.post.category == 'Women' ? '👩' : '👨');
+      final userAvatar = authProvider.userAvatarUrl.isNotEmpty
+          ? authProvider.userAvatarUrl
+          : (widget.post.category == 'Women' ? '≡ƒæ⌐' : '≡ƒæ¿');
 
       final tempComment = {
         'id': DateTime.now().millisecondsSinceEpoch,
@@ -1173,6 +766,7 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
         _cancelReplyMode();
       });
       _commentController.clear();
+      widget.onCommentAdded?.call();
 
       try {
         await _dbService.addComment(
@@ -1205,7 +799,7 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
     for (int i = 0; i < words.length; i++) {
       final word = words[i];
       final spacing = i == words.length - 1 ? '' : ' ';
-      
+
       if (word.startsWith('@') && word.length > 1) {
         spans.add(TextSpan(
           text: '$word$spacing',
@@ -1230,7 +824,8 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
     );
   }
 
-  Widget _buildCommentItem(ParsedComment parsedComment, {required bool isReply, required ParsedComment parentComment}) {
+  Widget _buildCommentItem(ParsedComment parsedComment,
+      {required bool isReply, required ParsedComment parentComment}) {
     final comment = parsedComment.comment;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1242,12 +837,13 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
             height: isReply ? 30 : 35,
             decoration: BoxDecoration(
               color: AppTheme.isDark(context)
-                ? const Color(0xFF2A2A2A)
-                : Colors.grey[200],
+                  ? const Color(0xFF2A2A2A)
+                  : Colors.grey[200],
               shape: BoxShape.circle,
             ),
             child: Center(
-              child: comment.authorAvatar != null && comment.authorAvatar!.startsWith('http')
+              child: comment.authorAvatar != null &&
+                      comment.authorAvatar!.startsWith('http')
                   ? ClipOval(
                       child: Image.network(
                         comment.authorAvatar!,
@@ -1257,7 +853,7 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
                       ),
                     )
                   : Text(
-                      comment.authorAvatar ?? '👤',
+                      comment.authorAvatar ?? '≡ƒæñ',
                       style: TextStyle(fontSize: isReply ? 14 : 18),
                     ),
             ),
@@ -1303,7 +899,8 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
                   _buildCommentText(comment.cleanContent),
                   const SizedBox(height: 8),
                   GestureDetector(
-                    onTap: () => _startReplyMode(parentComment, comment.authorName),
+                    onTap: () =>
+                        _startReplyMode(parentComment, comment.authorName),
                     child: Text(
                       'Reply',
                       style: TextStyle(
@@ -1404,17 +1001,20 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
                         itemCount: rootComments.length,
                         itemBuilder: (context, index) {
                           final rootComment = rootComments[index];
-                          
+
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildCommentItem(rootComment, isReply: false, parentComment: rootComment),
+                              _buildCommentItem(rootComment,
+                                  isReply: false, parentComment: rootComment),
                               if (rootComment.replies.isNotEmpty)
                                 Padding(
                                   padding: const EdgeInsets.only(left: 45),
                                   child: Column(
                                     children: rootComment.replies.map((reply) {
-                                      return _buildCommentItem(reply, isReply: true, parentComment: rootComment);
+                                      return _buildCommentItem(reply,
+                                          isReply: true,
+                                          parentComment: rootComment);
                                     }).toList(),
                                   ),
                                 ),
@@ -1443,7 +1043,8 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
                 children: [
                   if (_replyingToComment != null && _replyingToUser != null)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
                       color: AppTheme.isDark(context)
                           ? const Color(0xFF252525)
                           : Colors.grey[100],
@@ -1519,7 +1120,8 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
                           ),
                           child: IconButton(
                             onPressed: _submitComment,
-                            icon: const Icon(Icons.send_rounded, color: Colors.white),
+                            icon: const Icon(Icons.send_rounded,
+                                color: Colors.white),
                           ),
                         ),
                       ],

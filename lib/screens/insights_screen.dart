@@ -419,7 +419,7 @@ class _InsightsScreenState extends State<InsightsScreen>
                 end: Alignment.bottomRight,
               )
             : null,
-        color: isPlus ? null : Colors.white,
+        color: isPlus ? null : AppTheme.cardColor(context),
         borderRadius: BorderRadius.circular(LunaraRadius.lg),
         boxShadow: isPlus
             ? [

@@ -86,7 +86,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
 
       final lastView = DateTime.parse(lastViewStr);
       final hasNew = replies.any((r) {
-        final createdAt = DateTime.tryParse(r['created_at'] ?? '') ?? DateTime.now();
+        final createdAt =
+            DateTime.tryParse(r['created_at'] ?? '') ?? DateTime.now();
         return createdAt.isAfter(lastView);
       });
 
@@ -167,7 +168,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
         ),
         actions: [
@@ -204,12 +206,17 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
     final provider = Provider.of<CycleProvider>(context, listen: false);
     final authProvider = Provider.of<AuthProvider>(context);
     final userName = context.select<CycleProvider, String>((p) => p.userName);
-    final dynamicGreeting = context.select<CycleProvider, String>((p) => p.dynamicGreeting);
+    final dynamicGreeting =
+        context.select<CycleProvider, String>((p) => p.dynamicGreeting);
     final isOnPeriod = context.select<CycleProvider, bool>((p) => p.isOnPeriod);
-    final shouldShowPeriodConfirmation = context.select<CycleProvider, bool>((p) => p.shouldShowPeriodConfirmation);
-    final predictiveInsight = context.select<CycleProvider, String?>((p) => p.predictiveInsight);
-    final currentPredictions = context.select<CycleProvider, List<String>>((p) => p.currentPredictions);
-    final forecasts = context.select<CycleProvider, List<WellnessForecast>>((p) => p.latestPrediction.wellnessForecasts);
+    final shouldShowPeriodConfirmation = context
+        .select<CycleProvider, bool>((p) => p.shouldShowPeriodConfirmation);
+    final predictiveInsight =
+        context.select<CycleProvider, String?>((p) => p.predictiveInsight);
+    final currentPredictions = context
+        .select<CycleProvider, List<String>>((p) => p.currentPredictions);
+    final forecasts = context.select<CycleProvider, List<WellnessForecast>>(
+        (p) => p.latestPrediction.wellnessForecasts);
     final isPlus = context.watch<PlusService>().isPlus;
     final textColor = Theme.of(context).colorScheme.onSurface;
     final showDeferredBanner = authProvider.hasDeferredAssessment &&
@@ -254,7 +261,9 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                   ],
                                 ).createShader(bounds),
                                 child: Text(
-                                  'Hello, ${userName.isEmpty ? 'There' : userName.split(' ')[0]}',
+                                  provider.isViewingPartner
+                                      ? "Your Partner's Cycle"
+                                      : 'Hello, ${userName.isEmpty ? 'There' : userName.split(' ')[0]}',
                                   style: const TextStyle(
                                     fontSize: 26,
                                     fontWeight: FontWeight.w900,
@@ -300,7 +309,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const NotificationsScreen(),
+                                builder: (context) =>
+                                    const NotificationsScreen(),
                               ),
                             ).then((_) {
                               _checkNotifications();
@@ -362,7 +372,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
             ),
 
             // Complete Profile Banner (name missing)
-            if (userName.isEmpty)
+            if (userName.isEmpty && !provider.isViewingPartner)
               SliverToBoxAdapter(
                 child: Padding(
                   padding:
@@ -378,8 +388,14 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: AppTheme.isDark(context)
-                              ? [const Color(0xFF1A2740), const Color(0xFF1E3A5F)]
-                              : [const Color(0xFFE3F2FD), const Color(0xFFBBDEFB)],
+                              ? [
+                                  const Color(0xFF1A2740),
+                                  const Color(0xFF1E3A5F)
+                                ]
+                              : [
+                                  const Color(0xFFE3F2FD),
+                                  const Color(0xFFBBDEFB)
+                                ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -456,7 +472,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
               ),
 
             // Deferred Assessment Banner
-            if (showDeferredBanner)
+            if (showDeferredBanner && !provider.isViewingPartner)
               SliverToBoxAdapter(
                 child: Padding(
                   padding:
@@ -476,8 +492,14 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: AppTheme.isDark(context)
-                              ? [const Color(0xFF3E2723), const Color(0xFF4E342E)]
-                              : [const Color(0xFFFFF3E0), const Color(0xFFFFE0B2)],
+                              ? [
+                                  const Color(0xFF3E2723),
+                                  const Color(0xFF4E342E)
+                                ]
+                              : [
+                                  const Color(0xFFFFF3E0),
+                                  const Color(0xFFFFE0B2)
+                                ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -534,8 +556,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                   'Tap to log how you\'re feeling today',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color:
-                                        AppTheme.textLight(context),
+                                    color: AppTheme.textLight(context),
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -579,7 +600,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
               ),
 
             // Period Confirmation Banner
-            if (shouldShowPeriodConfirmation)
+            if (shouldShowPeriodConfirmation && !provider.isViewingPartner)
               SliverToBoxAdapter(
                 child: Padding(
                   padding:
@@ -590,8 +611,14 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: AppTheme.isDark(context)
-                            ? [const Color(0xFF2A1525), AppTheme.primary(context).withOpacity(0.15)]
-                            : [const Color(0xFFF3E5F5), LunaraColors.primaryLight],
+                            ? [
+                                const Color(0xFF2A1525),
+                                AppTheme.primary(context).withOpacity(0.15)
+                              ]
+                            : [
+                                const Color(0xFFF3E5F5),
+                                LunaraColors.primaryLight
+                              ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -710,7 +737,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                   provider.dismissPeriodConfirmation();
                                   CustomToast.show(
                                     context,
-                                    message: 'Noted! Lunara\'s intelligence will adjust your predictions.',
+                                    message:
+                                        'Noted! Lunara\'s intelligence will adjust your predictions.',
                                     icon: Icons.auto_awesome_rounded,
                                     backgroundColor: LunaraColors.primaryDark,
                                     duration: const Duration(seconds: 4),
@@ -752,24 +780,29 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                               final picked = await showDatePicker(
                                 context: context,
                                 initialDate: DateTime.now(),
-                                firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                                firstDate: DateTime.now()
+                                    .subtract(const Duration(days: 30)),
                                 lastDate: DateTime.now(),
                                 builder: (context, child) {
-                                  final isDark = Theme.of(context).brightness == Brightness.dark;
+                                  final isDark = Theme.of(context).brightness ==
+                                      Brightness.dark;
                                   return Theme(
                                     data: Theme.of(context).copyWith(
                                       colorScheme: isDark
                                           ? ColorScheme.dark(
-                                              primary: AppTheme.primary(context),
+                                              primary:
+                                                  AppTheme.primary(context),
                                               onPrimary: Colors.white,
                                               surface: const Color(0xFF1E1E1E),
                                               onSurface: Colors.white,
                                             )
                                           : ColorScheme.light(
-                                              primary: AppTheme.primary(context),
+                                              primary:
+                                                  AppTheme.primary(context),
                                               onPrimary: Colors.white,
                                               surface: Colors.white,
-                                              onSurface: const Color(0xFF3E2723),
+                                              onSurface:
+                                                  const Color(0xFF3E2723),
                                             ),
                                     ),
                                     child: child!,
@@ -781,7 +814,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                 if (context.mounted) {
                                   CustomToast.show(
                                     context,
-                                    message: 'Period date updated! Predictions recalculated.',
+                                    message:
+                                        'Period date updated! Predictions recalculated.',
                                     icon: Icons.check_circle_rounded,
                                     backgroundColor: const Color(0xFF06D6A0),
                                   );
@@ -796,7 +830,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                   Icon(
                                     Icons.edit_calendar_rounded,
                                     size: 14,
-                                    color: LunaraColors.lutealPurple.withOpacity(0.8),
+                                    color: LunaraColors.lutealPurple
+                                        .withOpacity(0.8),
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
@@ -804,9 +839,11 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
-                                      color: LunaraColors.lutealPurple.withOpacity(0.8),
+                                      color: LunaraColors.lutealPurple
+                                          .withOpacity(0.8),
                                       decoration: TextDecoration.underline,
-                                      decorationColor: LunaraColors.lutealPurple.withOpacity(0.4),
+                                      decorationColor: LunaraColors.lutealPurple
+                                          .withOpacity(0.4),
                                     ),
                                   ),
                                 ],
@@ -935,7 +972,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: StatsRowWidget(
-                  onShowEditStatDialog: (statName) => _showEditStatDialog(context, provider, statName),
+                  onShowEditStatDialog: (statName) =>
+                      _showEditStatDialog(context, provider, statName),
                 ),
               ),
             ),
@@ -1036,14 +1074,12 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                         text: 'Diet Plan',
                         icon: Icons.restaurant_menu_rounded,
                         gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFF81C784),
-                            Color(0xFF66BB6A)
-                          ],
+                          colors: [Color(0xFF81C784), Color(0xFF66BB6A)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        prompt: 'I need a personalized diet plan based on my menstrual cycle phase.',
+                        prompt:
+                            'I need a personalized diet plan based on my menstrual cycle phase.',
                         delay: 0,
                       ),
                     ),
@@ -1053,14 +1089,12 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                         text: 'Workout',
                         icon: Icons.fitness_center_rounded,
                         gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFFFF8989),
-                            Color(0xFFD8405B)
-                          ],
+                          colors: [Color(0xFFFF8989), Color(0xFFD8405B)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        prompt: 'I need a workout routine suitable for my current cycle phase.',
+                        prompt:
+                            'I need a workout routine suitable for my current cycle phase.',
                         delay: 100,
                       ),
                     ),
@@ -1175,9 +1209,6 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
       ),
     );
   }
-
-
-
 
   void _showEnhancedDetails(BuildContext context, CycleProvider provider) {
     HapticFeedback.mediumImpact();
@@ -1404,7 +1435,6 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
       },
     );
   }
-
 }
 
 // ENHANCED CYCLE RING PAINTER - STATIC BACKGROUND
@@ -1528,8 +1558,8 @@ class _IrregularAnimationOverlay extends StatefulWidget {
       _IrregularAnimationOverlayState();
 }
 
-class _IrregularAnimationOverlayState
-    extends State<_IrregularAnimationOverlay> with TickerProviderStateMixin {
+class _IrregularAnimationOverlayState extends State<_IrregularAnimationOverlay>
+    with TickerProviderStateMixin {
   late AnimationController _orbController;
   late AnimationController _cardController;
   late AnimationController _bgController;
@@ -1621,9 +1651,7 @@ class _IrregularAnimationOverlayState
   void _generateTrailParticle() {
     final endY = 80.0;
     final currentX = widget.startOffset.dx +
-        (_rng.nextDouble() - 0.5) *
-            30 *
-            math.sin(_orbProgress.value * math.pi);
+        (_rng.nextDouble() - 0.5) * 30 * math.sin(_orbProgress.value * math.pi);
     final currentY = widget.startOffset.dy +
         (endY - widget.startOffset.dy) * _orbProgress.value;
 
@@ -1665,9 +1693,8 @@ class _IrregularAnimationOverlayState
 
   @override
   Widget build(BuildContext context) {
-    final orbColor = widget.isIrregular
-        ? const Color(0xFFFF8566)
-        : const Color(0xFF7C4DFF);
+    final orbColor =
+        widget.isIrregular ? const Color(0xFFFF8566) : const Color(0xFF7C4DFF);
     final endY = 80.0;
 
     // Calculate orb position along a curved path
@@ -1675,16 +1702,16 @@ class _IrregularAnimationOverlayState
         math.sin(_orbProgress.value * math.pi) *
             (widget.screenSize.width / 2 - widget.startOffset.dx) *
             0.3;
-    final orbY =
-        widget.startOffset.dy + (endY - widget.startOffset.dy) * _orbProgress.value;
+    final orbY = widget.startOffset.dy +
+        (endY - widget.startOffset.dy) * _orbProgress.value;
 
     return Material(
       color: Colors.transparent,
       child: GestureDetector(
         onTap: _dismiss,
         child: AnimatedBuilder(
-          animation:
-              Listenable.merge([_bgOpacity, _orbController, _cardController, _pulseController]),
+          animation: Listenable.merge(
+              [_bgOpacity, _orbController, _cardController, _pulseController]),
           builder: (context, _) {
             return Stack(
               children: [
@@ -1697,7 +1724,8 @@ class _IrregularAnimationOverlayState
 
                 // Trail particles
                 ..._trailParticles.map((p) {
-                  final age = (_orbController.value - p.createdAt).clamp(0.0, 0.25);
+                  final age =
+                      (_orbController.value - p.createdAt).clamp(0.0, 0.25);
                   final fadeout = 1.0 - (age / 0.25);
                   return Positioned(
                     left: p.x - p.radius,
@@ -1744,8 +1772,10 @@ class _IrregularAnimationOverlayState
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: orbColor.withOpacity(
-                                  0.6 + 0.3 * math.sin(_pulseController.value * math.pi)),
+                              color: orbColor.withOpacity(0.6 +
+                                  0.3 *
+                                      math.sin(
+                                          _pulseController.value * math.pi)),
                               blurRadius: 30 + 10 * _pulseController.value,
                               spreadRadius: 5,
                             ),
@@ -1789,17 +1819,20 @@ class _IrregularAnimationOverlayState
             _IntelligencePoint(
               icon: Icons.trending_up_rounded,
               title: 'Wider Prediction Windows',
-              desc: 'Predictions will account for variability — showing ranges instead of exact dates.',
+              desc:
+                  'Predictions will account for variability — showing ranges instead of exact dates.',
             ),
             _IntelligencePoint(
               icon: Icons.psychology_rounded,
               title: 'Adaptive Learning',
-              desc: 'Lunara will learn your unique pattern over 3–6 cycles to improve accuracy.',
+              desc:
+                  'Lunara will learn your unique pattern over 3–6 cycles to improve accuracy.',
             ),
             _IntelligencePoint(
               icon: Icons.notifications_active_rounded,
               title: 'Smarter Reminders',
-              desc: 'Notifications will be sent earlier to prepare you for a wider window.',
+              desc:
+                  'Notifications will be sent earlier to prepare you for a wider window.',
             ),
           ]
         : [
@@ -1811,7 +1844,8 @@ class _IrregularAnimationOverlayState
             _IntelligencePoint(
               icon: Icons.auto_awesome_rounded,
               title: 'Optimized Tracking',
-              desc: 'Insights and tips are tuned for a consistent cycle rhythm.',
+              desc:
+                  'Insights and tips are tuned for a consistent cycle rhythm.',
             ),
           ];
 
@@ -1888,9 +1922,8 @@ class _IrregularAnimationOverlayState
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: isDark
-                      ? Colors.white.withOpacity(0.6)
-                      : Colors.black54,
+                  color:
+                      isDark ? Colors.white.withOpacity(0.6) : Colors.black54,
                 ),
               ),
               const SizedBox(height: 24),
@@ -1939,9 +1972,8 @@ class _IrregularAnimationOverlayState
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w800,
-                                    color: isDark
-                                        ? Colors.white
-                                        : Colors.black87,
+                                    color:
+                                        isDark ? Colors.white : Colors.black87,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -1971,9 +2003,8 @@ class _IrregularAnimationOverlayState
                 'Tap anywhere to dismiss',
                 style: TextStyle(
                   fontSize: 11,
-                  color: isDark
-                      ? Colors.white.withOpacity(0.3)
-                      : Colors.black26,
+                  color:
+                      isDark ? Colors.white.withOpacity(0.3) : Colors.black26,
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -2013,7 +2044,6 @@ class _IntelligencePoint {
   });
 }
 
-
 // ═══════════════════════════════════════════════════════════════════
 //  CUSTOM OPTIMIZED WIDGETS
 // ═══════════════════════════════════════════════════════════════════
@@ -2030,16 +2060,56 @@ class CycleRingWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currentCycleDay = context.select<CycleProvider, int>((p) => p.currentCycleDay);
-    final cycleLength = context.select<CycleProvider, int>((p) => p.cycleLength);
-    final currentPhase = context.select<CycleProvider, String>((p) => p.currentPhase);
+    final currentCycleDay =
+        context.select<CycleProvider, int>((p) => p.currentCycleDay);
+    final cycleLength =
+        context.select<CycleProvider, int>((p) => p.cycleLength);
+    final currentPhase =
+        context.select<CycleProvider, String>((p) => p.currentPhase);
 
-    return CycleRingCard(
-      currentCycleDay: currentCycleDay,
-      cycleLength: cycleLength,
-      currentPhase: currentPhase,
-      breathingAnimation: breathingAnimation,
-      onTap: onTap,
+    final isViewingPartner =
+        context.select<CycleProvider, bool>((p) => p.isViewingPartner);
+
+    return Column(
+      children: [
+        CycleRingCard(
+          currentCycleDay: currentCycleDay,
+          cycleLength: cycleLength,
+          currentPhase: currentPhase,
+          breathingAnimation: breathingAnimation,
+          onTap: onTap,
+        ),
+        if (isViewingPartner)
+          Padding(
+            padding: const EdgeInsets.only(top: 16.0, left: 24, right: 24),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: LunaraColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border:
+                    Border.all(color: LunaraColors.primary.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded,
+                      color: LunaraColors.primary, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      "Since you are synced, it would be best if your partner logs their cycle data.",
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textDark(context),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -2150,7 +2220,7 @@ class CycleRingCard extends StatelessWidget {
                         textBaseline: TextBaseline.alphabetic,
                         children: [
                           Text(
-                            '$currentCycleDay',
+                            currentCycleDay == 0 ? '--' : '$currentCycleDay',
                             style: const TextStyle(
                               fontSize: 44,
                               fontWeight: FontWeight.w900,
@@ -2212,7 +2282,7 @@ class CycleRingCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  
+
                   // 2. Ring Stack
                   SizedBox(
                     width: 200,
@@ -2222,7 +2292,7 @@ class CycleRingCard extends StatelessWidget {
                       children: [
                         // Static background ring and center text
                         child!,
-                        
+
                         // Animated foreground arc (Simple arc, no expensive shadows here)
                         RepaintBoundary(
                           child: CustomPaint(
@@ -2286,8 +2356,10 @@ class StatsRowWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sleepHours = context.select<CycleProvider, double>((p) => p.sleepHours);
-    final waterGlasses = context.select<CycleProvider, int>((p) => p.waterGlasses);
+    final sleepHours =
+        context.select<CycleProvider, double>((p) => p.sleepHours);
+    final waterGlasses =
+        context.select<CycleProvider, int>((p) => p.waterGlasses);
     final dailySteps = context.select<CycleProvider, int>((p) => p.dailySteps);
     final provider = Provider.of<CycleProvider>(context, listen: false);
 
@@ -2300,7 +2372,16 @@ class StatsRowWidget extends StatelessWidget {
             color: const Color(0xFFB39DDB),
             value: '${sleepHours}h',
             delay: 0,
-            onTap: () => onShowEditStatDialog('Sleep'),
+            onTap: () {
+              if (provider.isViewingPartner) {
+                CustomToast.show(context,
+                    message: "It would be better if your partner logs it",
+                    icon: Icons.info_outline,
+                    backgroundColor: Colors.blueGrey);
+                return;
+              }
+              onShowEditStatDialog('Sleep');
+            },
           ),
         ),
         const SizedBox(width: 10),
@@ -2312,8 +2393,14 @@ class StatsRowWidget extends StatelessWidget {
             value: '$waterGlasses',
             delay: 50,
             onTap: () {
-              HapticFeedback.lightImpact();
-              provider.incrementWater();
+              if (provider.isViewingPartner) {
+                CustomToast.show(context,
+                    message: "It would be better if your partner logs it",
+                    icon: Icons.info_outline,
+                    backgroundColor: Colors.blueGrey);
+                return;
+              }
+              onShowEditStatDialog('Water');
             },
           ),
         ),
@@ -2325,7 +2412,16 @@ class StatsRowWidget extends StatelessWidget {
             color: LunaraColors.fertileGreen,
             value: '$dailySteps',
             delay: 100,
-            onTap: () => onShowEditStatDialog('Steps'),
+            onTap: () {
+              if (provider.isViewingPartner) {
+                CustomToast.show(context,
+                    message: "It would be better if your partner logs it",
+                    icon: Icons.info_outline,
+                    backgroundColor: Colors.blueGrey);
+                return;
+              }
+              onShowEditStatDialog('Steps');
+            },
           ),
         ),
       ],
@@ -2382,10 +2478,7 @@ class InteractiveStat extends StatelessWidget {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [
-                        color.withOpacity(0.2),
-                        color.withOpacity(0.1)
-                      ],
+                      colors: [color.withOpacity(0.2), color.withOpacity(0.1)],
                     ),
                     shape: BoxShape.circle,
                   ),
@@ -2643,7 +2736,8 @@ class InsightsCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cycleOwnerName = context.select<CycleProvider, String>((p) => p.cycleOwnerName);
+    final cycleOwnerName =
+        context.select<CycleProvider, String>((p) => p.cycleOwnerName);
 
     return GestureDetector(
       onTap: () {
@@ -2869,7 +2963,9 @@ class FamTrackingWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final confidence = context.select<CycleProvider, OvulationConfidence>((p) => p.ovulationConfidence);
+    final confidence = context.select<CycleProvider, OvulationConfidence>(
+        (p) => p.ovulationConfidence);
+    final provider = Provider.of<CycleProvider>(context, listen: false);
 
     Color statusColor;
     String statusText;
@@ -2897,6 +2993,13 @@ class FamTrackingWidget extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GestureDetector(
         onTap: () {
+          if (provider.isViewingPartner) {
+            CustomToast.show(context,
+                message: "It would be better if your partner logs it",
+                icon: Icons.info_outline,
+                backgroundColor: Colors.blueGrey);
+            return;
+          }
           HapticFeedback.mediumImpact();
           Navigator.push(
             context,
@@ -2986,7 +3089,8 @@ class RegularActionsRowWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final symptomPromptName = context.select<CycleProvider, String>((p) => p.symptomPromptName);
+    final symptomPromptName =
+        context.select<CycleProvider, String>((p) => p.symptomPromptName);
 
     return Row(
       children: [
@@ -2997,6 +3101,15 @@ class RegularActionsRowWidget extends StatelessWidget {
             bgColor: LunaraColors.primaryLight,
             accentColor: LunaraColors.primary,
             onTap: () {
+              final provider =
+                  Provider.of<CycleProvider>(context, listen: false);
+              if (provider.isViewingPartner) {
+                CustomToast.show(context,
+                    message: "It would be better if your partner logs it",
+                    icon: Icons.info_outline,
+                    backgroundColor: Colors.blueGrey);
+                return;
+              }
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -3015,8 +3128,7 @@ class RegularActionsRowWidget extends StatelessWidget {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                    builder: (context) => const NoteScreen()),
+                MaterialPageRoute(builder: (context) => const NoteScreen()),
               );
             },
           ),
@@ -3204,7 +3316,8 @@ class IrregularPeriodWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isIrregular = context.select<CycleProvider, bool>((p) => p.isIrregular);
+    final isIrregular =
+        context.select<CycleProvider, bool>((p) => p.isIrregular);
 
     return Column(
       children: [
@@ -3268,7 +3381,8 @@ class IrregularPeriodWidget extends StatelessWidget {
                         AnimatedSwitcher(
                           duration: const Duration(milliseconds: 300),
                           transitionBuilder: (child, animation) {
-                            return FadeTransition(opacity: animation, child: child);
+                            return FadeTransition(
+                                opacity: animation, child: child);
                           },
                           child: Text(
                             isIrregular
@@ -3285,7 +3399,8 @@ class IrregularPeriodWidget extends StatelessWidget {
                         AnimatedSwitcher(
                           duration: const Duration(milliseconds: 300),
                           transitionBuilder: (child, animation) {
-                            return FadeTransition(opacity: animation, child: child);
+                            return FadeTransition(
+                                opacity: animation, child: child);
                           },
                           child: Text(
                             isIrregular
@@ -3340,9 +3455,7 @@ class IrregularPeriodWidget extends StatelessWidget {
                       return FadeTransition(opacity: animation, child: child);
                     },
                     child: Text(
-                      isIrregular
-                          ? 'Mark as Regular'
-                          : 'Mark as Irregular',
+                      isIrregular ? 'Mark as Regular' : 'Mark as Irregular',
                       key: ValueKey<bool>(isIrregular),
                       style: const TextStyle(
                         fontSize: 16,

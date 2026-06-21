@@ -37,7 +37,8 @@ class CycleProvider extends ChangeNotifier {
   double _sleepHours = 0.0;
   String _currentMood = 'Good';
   double? _todayBbt; // Basal Body Temperature in °C
-  String? _todayCervicalMucus; // 'Dry' | 'Sticky' | 'Creamy' | 'EggWhite' | 'Watery'
+  String?
+      _todayCervicalMucus; // 'Dry' | 'Sticky' | 'Creamy' | 'EggWhite' | 'Watery'
 
   // Partner Tracking
   bool _isTrackingForSomeoneElse = false;
@@ -166,7 +167,8 @@ class CycleProvider extends ChangeNotifier {
     if (customSymptomsJson != null) {
       try {
         final decoded = jsonDecode(customSymptomsJson) as List<dynamic>;
-        _customSymptoms = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+        _customSymptoms =
+            decoded.map((e) => Map<String, dynamic>.from(e)).toList();
       } catch (e) {
         debugPrint('Error loading custom symptoms: $e');
       }
@@ -462,12 +464,18 @@ class CycleProvider extends ChangeNotifier {
     syncProfileToCloud();
   }
 
-
   // Dynamic name getter for UI (e.g. "Your Cycle" vs "Sarah's Cycle")
-  String get cycleOwnerName =>
-      _isTrackingForSomeoneElse && _trackedPersonName.isNotEmpty
-          ? "$_trackedPersonName's"
-          : "Your";
+  String get cycleOwnerName {
+    if (isPartnerLinked &&
+        partnerLinkRole == 'partner' &&
+        _linkedPartnerName != null) {
+      return "$_linkedPartnerName's";
+    }
+    if (_isTrackingForSomeoneElse && _trackedPersonName.isNotEmpty) {
+      return "$_trackedPersonName's";
+    }
+    return "Your";
+  }
 
   // Dynamic symptom prompt getter
   String get symptomPromptName =>
@@ -544,8 +552,9 @@ class CycleProvider extends ChangeNotifier {
       if (hr != null) {
         _heartRate = hr;
       }
-      
-      _lastSyncStatus = "Last synced: ${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}";
+
+      _lastSyncStatus =
+          "Last synced: ${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}";
     } catch (e) {
       _lastSyncStatus = "Sync failed: $e";
       debugPrint('Sync from health error: $e');
@@ -645,6 +654,41 @@ class CycleProvider extends ChangeNotifier {
   List<Map<String, dynamic>> get partnerCycles => _partnerCycles;
   List<Map<String, dynamic>> get partnerAssessments => _partnerAssessments;
 
+  /// Helper to determine if we are currently viewing the partner's cycle (read-only observer)
+  bool get isViewingPartner => isPartnerLinked && partnerLinkRole == 'partner';
+
+  int get _activeCycleLength => isViewingPartner
+      ? (_partnerProfile?['cycle_length'] ?? _cycleLength)
+      : _cycleLength;
+
+  int get _activePeriodDuration => isViewingPartner
+      ? (_partnerProfile?['period_duration'] ?? _periodDuration)
+      : _periodDuration;
+
+  DateTime? get _activeLastPeriodDate {
+    if (isViewingPartner) {
+      if (_partnerCycles.isEmpty) return null;
+      final sorted = List<Map<String, dynamic>>.from(_partnerCycles);
+      sorted.sort((a, b) => DateTime.parse(a['start_date'] as String)
+          .compareTo(DateTime.parse(b['start_date'] as String)));
+      if (sorted.isNotEmpty) {
+        return DateTime.parse(sorted.last['start_date'] as String);
+      }
+    }
+    return _lastPeriodDate;
+  }
+
+  List<DateTime> get _activeCycleHistory {
+    if (isViewingPartner) {
+      final dates = _partnerCycles
+          .map((c) => DateTime.parse(c['start_date'] as String))
+          .toList();
+      dates.sort((a, b) => a.compareTo(b));
+      return dates;
+    }
+    return _cycleHistory;
+  }
+
   /// Load partner link from Supabase on startup.
   Future<void> _loadPartnerLink() async {
     try {
@@ -665,7 +709,7 @@ class CycleProvider extends ChangeNotifier {
           _linkedPartnerUid = otherUid;
           final profile = await db.getPartnerProfile(otherUid);
           _linkedPartnerName = profile?['name'] ?? 'Partner';
-          
+
           if (_partnerLinkRole == 'partner') {
             await _subscribeToPartnerData(otherUid);
           }
@@ -681,7 +725,7 @@ class CycleProvider extends ChangeNotifier {
     final db = DatabaseService();
     _partnerProfile = await db.getPartnerProfile(trackerUid);
     _partnerCycles = await db.getPartnerCycles(trackerUid);
-    
+
     // Subscribe to real-time assessments
     await _assessmentSub?.cancel();
     _assessmentSub = db.streamPartnerAssessments(trackerUid).listen((data) {
@@ -690,7 +734,7 @@ class CycleProvider extends ChangeNotifier {
       _updateHomeWidget();
       notifyListeners();
     });
-    
+
     // Trigger widget update with partner details
     await _updateHomeWidget();
     notifyListeners();
@@ -752,7 +796,7 @@ class CycleProvider extends ChangeNotifier {
       _partnerAssessments = [];
       _assessmentSub?.cancel();
       _assessmentSub = null;
-      
+
       // Update native widget (revert to user cycle data)
       _updateHomeWidget();
       notifyListeners();
@@ -877,8 +921,7 @@ class CycleProvider extends ChangeNotifier {
 
   /// Adaptive cycle length computed via the intelligence engine.
   /// Uses exponential-decay weighted average — no outlier filtering.
-  int get adaptiveCycleLength =>
-      _latestPrediction.effectiveCycleLengthRounded;
+  int get adaptiveCycleLength => _latestPrediction.effectiveCycleLengthRounded;
 
   /// The effective cycle length used for all calculations.
   int get effectiveCycleLength => adaptiveCycleLength;
@@ -916,12 +959,12 @@ class CycleProvider extends ChangeNotifier {
 
   // Calculated Properties
   int get currentCycleDay {
-    if (_lastPeriodDate == null) return 1;
+    final lastDate = _activeLastPeriodDate;
+    if (lastDate == null) return 0;
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final lastStart = DateTime(
-        _lastPeriodDate!.year, _lastPeriodDate!.month, _lastPeriodDate!.day);
+    final lastStart = DateTime(lastDate.year, lastDate.month, lastDate.day);
 
     final daysSinceStart = today.difference(lastStart).inDays;
     return (daysSinceStart % effectiveCycleLength) + 1;
@@ -935,7 +978,8 @@ class CycleProvider extends ChangeNotifier {
   String get currentPhase => _getPhaseForDay(currentCycleDay);
 
   String _getPhaseForDay(int day) {
-    if (day <= _periodDuration) return 'Menstrual';
+    if (_activeLastPeriodDate == null) return 'Waiting for Sync';
+    if (day <= _activePeriodDuration) return 'Menstrual';
     final ovDay = _ovulationDay;
     if (day < ovDay - 1) return 'Follicular';
     if (day <= ovDay + 1) return 'Ovulation';
@@ -943,7 +987,7 @@ class CycleProvider extends ChangeNotifier {
   }
 
   int get daysUntilNextPeriod {
-    if (_lastPeriodDate == null) return 0;
+    if (_activeLastPeriodDate == null) return 0;
     final day = currentCycleDay;
     return effectiveCycleLength - (day - 1);
   }
@@ -1071,9 +1115,10 @@ class CycleProvider extends ChangeNotifier {
   String? get irregularityWarning {
     if (_cycleHistory.length < 3) return null;
     if (!isCycleIrregular) return null;
-    final classLabel = cycleClassification == CycleClassification.highlyIrregular
-        ? 'highly irregular'
-        : 'irregular';
+    final classLabel =
+        cycleClassification == CycleClassification.highlyIrregular
+            ? 'highly irregular'
+            : 'irregular';
     return 'Your cycles are $classLabel '
         '(σ=${cycleStdDev.toStringAsFixed(1)} days, '
         '$shortestCycle–$longestCycle day range). '
@@ -1295,29 +1340,31 @@ class CycleProvider extends ChangeNotifier {
 
   /// Updates the existing last period date (from settings) to avoid duplicate cycles near the same time
   void updateLastPeriodDate(DateTime newDate) {
+    if (isViewingPartner) return;
     if (_lastPeriodDate == null) {
       setLastPeriodDate(newDate);
       return;
     }
-    
+
     final oldDate = _lastPeriodDate!;
     _lastPeriodDate = newDate;
-    
+
     final normalizedNew = DateTime(newDate.year, newDate.month, newDate.day);
     final normalizedOld = DateTime(oldDate.year, oldDate.month, oldDate.day);
-    
+
     // Remove the exact old date from history
     _cycleHistory.removeWhere((d) => d.isAtSameMomentAs(normalizedOld));
     // Remove any nearby dates to prevent duplicate artifacts
-    _cycleHistory.removeWhere((d) => (d.difference(normalizedNew).inDays).abs() < 15);
-    
+    _cycleHistory
+        .removeWhere((d) => (d.difference(normalizedNew).inDays).abs() < 15);
+
     _cycleHistory.add(normalizedNew);
     _cycleHistory.sort();
     // Keep max 12 cycles
     if (_cycleHistory.length > 12) {
       _cycleHistory = _cycleHistory.sublist(_cycleHistory.length - 12);
     }
-    
+
     _calculatePredictions();
     _saveToPrefs();
     _updateReminders();
@@ -1347,7 +1394,8 @@ class CycleProvider extends ChangeNotifier {
     setLastPeriodDate(startDate);
   }
 
-  Future<void> _replacePeriodStartInCloud(DateTime oldDate, DateTime newDate) async {
+  Future<void> _replacePeriodStartInCloud(
+      DateTime oldDate, DateTime newDate) async {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
     try {
@@ -1357,7 +1405,7 @@ class CycleProvider extends ChangeNotifier {
           .delete()
           .eq('user_id', userId)
           .eq('start_date', oldDate.toIso8601String().split('T')[0]);
-          
+
       // Then insert the new one
       await DatabaseService().upsertCycle(
         userId: userId,
@@ -1489,6 +1537,7 @@ class CycleProvider extends ChangeNotifier {
   /// Log today's cervical mucus observation.
   /// Accepted values: 'Dry', 'Sticky', 'Creamy', 'EggWhite', 'Watery'.
   void updateCervicalMucus(String type) {
+    if (isViewingPartner) return;
     _todayCervicalMucus = type;
     _saveDailySnapshot();
     _calculatePredictions(); // CM data can trigger ovulation confirmation
@@ -1530,6 +1579,7 @@ class CycleProvider extends ChangeNotifier {
 
   // Symptom Tracking Methods
   void addSymptom(String symptom) {
+    if (isViewingPartner) return;
     if (!_todaySymptoms.contains(symptom)) {
       _todaySymptoms.add(symptom);
       _updateSymptomHistory();
@@ -1547,6 +1597,7 @@ class CycleProvider extends ChangeNotifier {
   }
 
   void removeSymptom(String symptom) {
+    if (isViewingPartner) return;
     _todaySymptoms.remove(symptom);
     _updateSymptomHistory();
     notifyListeners();
@@ -1561,7 +1612,8 @@ class CycleProvider extends ChangeNotifier {
   }
 
   void addCustomSymptom(String name, int iconCodePoint, int colorValue) {
-    if (!_customSymptoms.any((s) => s['name'].toString().toLowerCase() == name.toLowerCase())) {
+    if (!_customSymptoms
+        .any((s) => s['name'].toString().toLowerCase() == name.toLowerCase())) {
       _customSymptoms.add({
         'name': name,
         'iconCodePoint': iconCodePoint,
@@ -1597,11 +1649,12 @@ class CycleProvider extends ChangeNotifier {
   void _calculatePredictions() {
     // Run the intelligence engine
     _latestPrediction = _intelligenceService.predict(
-      cycleHistory: _cycleHistory,
-      wellnessHistory: _wellnessHistory,
-      userSetCycleLength: _cycleLength,
-      periodDuration: _periodDuration,
-      lastPeriodDate: _lastPeriodDate,
+      cycleHistory: _activeCycleHistory,
+      wellnessHistory:
+          _wellnessHistory, // Partner wellness history mapping is optional for basic display
+      userSetCycleLength: _activeCycleLength,
+      periodDuration: _activePeriodDuration,
+      lastPeriodDate: _activeLastPeriodDate,
     );
 
     _nextPeriodDate = _latestPrediction.predictedNextPeriod;
@@ -1615,8 +1668,9 @@ class CycleProvider extends ChangeNotifier {
   Future<void> _updateHomeWidget() async {
     try {
       // Determine if we should update with partner's cycle data
-      final usePartner = _partnerLinkRole == 'partner' && _partnerCycles.isNotEmpty;
-      
+      final usePartner =
+          _partnerLinkRole == 'partner' && _partnerCycles.isNotEmpty;
+
       final String phase;
       final int day;
       final int total;
@@ -1629,11 +1683,12 @@ class CycleProvider extends ChangeNotifier {
       if (usePartner) {
         final cycleLength = _partnerProfile?['cycle_length'] ?? 28;
         final duration = _partnerProfile?['period_duration'] ?? 5;
-        final latestStart = DateTime.parse(_partnerCycles.first['start_date'] as String);
+        final latestStart =
+            DateTime.parse(_partnerCycles.first['start_date'] as String);
         final cycleDay = DateTime.now().difference(latestStart).inDays + 1;
-        
+
         final ovDay = cycleLength - 14;
-        
+
         String pPhase = 'Unknown';
         if (cycleDay <= duration) {
           pPhase = 'Menstrual';
@@ -1647,7 +1702,9 @@ class CycleProvider extends ChangeNotifier {
 
         final pFertility = cycleDay <= duration
             ? "Menstruation"
-            : ((cycleDay >= ovDay - 5 && cycleDay <= ovDay) ? "High Fertility" : "Low Fertility");
+            : ((cycleDay >= ovDay - 5 && cycleDay <= ovDay)
+                ? "High Fertility"
+                : "Low Fertility");
 
         phase = pPhase;
         day = cycleDay;
@@ -1664,7 +1721,9 @@ class CycleProvider extends ChangeNotifier {
         fertility = isOnPeriod
             ? "Menstruation"
             : (isInFertileWindow ? "High Fertility" : "Low Fertility");
-        lastPeriodDateMs = _lastPeriodDate != null ? _lastPeriodDate!.millisecondsSinceEpoch : 0;
+        lastPeriodDateMs = _lastPeriodDate != null
+            ? _lastPeriodDate!.millisecondsSinceEpoch
+            : 0;
         cycleLen = effectiveCycleLength;
         periodDuration = _periodDuration;
         ovulationDay = _ovulationDay;
@@ -1672,11 +1731,13 @@ class CycleProvider extends ChangeNotifier {
 
       // Save widget keys (shared with Android remote views)
       await HomeWidget.saveWidgetData<String>('cycle_phase', '$phase Phase');
-      await HomeWidget.saveWidgetData<String>('cycle_day', 'Day $day of $total');
+      await HomeWidget.saveWidgetData<String>(
+          'cycle_day', 'Day $day of $total');
       await HomeWidget.saveWidgetData<String>('fertility_status', fertility);
 
       // Save raw widget configuration for native-side dynamic calculations
-      await HomeWidget.saveWidgetData<int>('last_period_date_ms', lastPeriodDateMs);
+      await HomeWidget.saveWidgetData<int>(
+          'last_period_date_ms', lastPeriodDateMs);
       await HomeWidget.saveWidgetData<int>('cycle_length', cycleLen);
       await HomeWidget.saveWidgetData<int>('period_duration', periodDuration);
       await HomeWidget.saveWidgetData<int>('ovulation_day', ovulationDay);
@@ -1686,7 +1747,8 @@ class CycleProvider extends ChangeNotifier {
         name: 'LunaraWidgetProvider',
         androidName: 'LunaraWidgetProvider',
       );
-      debugPrint('Home Widget updated: $phase Phase, Day $day of $total, $fertility');
+      debugPrint(
+          'Home Widget updated: $phase Phase, Day $day of $total, $fertility');
     } catch (e) {
       debugPrint('Error updating home widget: $e');
     }

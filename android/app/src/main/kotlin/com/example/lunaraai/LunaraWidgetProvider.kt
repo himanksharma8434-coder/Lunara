@@ -16,7 +16,11 @@ class LunaraWidgetProvider : HomeWidgetProvider() {
         widgetData: SharedPreferences
     ) {
         for (appWidgetId in appWidgetIds) {
-            val lastPeriodMs = widgetData.getLong("last_period_date_ms", 0L)
+            val lastPeriodMs = try {
+                widgetData.getLong("last_period_date_ms", 0L)
+            } catch (e: Exception) {
+                widgetData.getInt("last_period_date_ms", 0).toLong()
+            }
             
             val cyclePhase: String
             val cycleDay: String
