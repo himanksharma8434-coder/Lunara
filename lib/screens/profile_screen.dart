@@ -10,6 +10,7 @@ import '../services/app_notification_service.dart';
 import '../services/pdf_export_service.dart';
 import '../theme/app_theme.dart';
 import 'account_settings_screen.dart';
+import 'community_activity_screen.dart';
 import 'custom_notifications_screen.dart';
 import 'legal_screen.dart';
 import 'login_screen.dart';
@@ -76,6 +77,7 @@ class _ProfileHeaderState extends State<_ProfileHeader> {
       );
 
       if (image == null) return;
+      if (!context.mounted) return;
 
       final CroppedFile? croppedFile = await ImageCropper().cropImage(
         sourcePath: image.path,
@@ -106,7 +108,7 @@ class _ProfileHeaderState extends State<_ProfileHeader> {
 
       if (newUrl != null) {
         authProvider.updateUserAvatar(newUrl);
-        if (mounted) {
+        if (context.mounted) {
           CustomToast.show(
             context,
             message: 'Profile picture updated successfully!',
@@ -117,7 +119,7 @@ class _ProfileHeaderState extends State<_ProfileHeader> {
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
-      if (mounted) {
+      if (context.mounted) {
         CustomToast.show(
           context,
           message: 'Upload failed: ${e.toString().replaceAll('Exception: ', '')}',
@@ -341,6 +343,7 @@ class _SettingsSection extends StatelessWidget {
           const _CustomNotificationsItem(),
           const _ExportReportItem(),
           const _AccountSettingsItem(),
+          const _CommunityActivityItem(),
           const _PartnerSyncItem(),
           const _GoogleFitConnectionCard(),
           const _LegalAndHelpItems(),
@@ -461,6 +464,29 @@ class _AccountSettingsItem extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder: (context) => const AccountSettingsScreen(),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CommunityActivityItem extends StatelessWidget {
+  const _CommunityActivityItem();
+
+  @override
+  Widget build(BuildContext context) {
+    return _buildSettingItem(
+      context,
+      Icons.people_alt_rounded,
+      'Community Activity',
+      'View your posts and saved community posts',
+      () {
+        HapticFeedback.lightImpact();
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const CommunityActivityScreen(),
           ),
         );
       },

@@ -16,6 +16,7 @@ class CommunityPostCard extends StatefulWidget {
   final bool initialIsLiked;
   final int? initialLikesCount;
   final Function(bool, int)? onLikeToggled;
+  final VoidCallback? onDelete;
 
   const CommunityPostCard({
     super.key,
@@ -23,6 +24,7 @@ class CommunityPostCard extends StatefulWidget {
     required this.initialIsLiked,
     this.initialLikesCount,
     this.onLikeToggled,
+    this.onDelete,
   });
 
   @override
@@ -236,6 +238,64 @@ class CommunityPostCardState extends State<CommunityPostCard>
                         ],
                       ),
                     ),
+                    if (context.read<AuthProvider>().userId == widget.post.authorId)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: GestureDetector(
+                          onTap: () async {
+                            HapticFeedback.mediumImpact();
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: Text(
+                                  'Delete Post?',
+                                  style: TextStyle(
+                                    color: AppTheme.textDark(context),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                content: Text(
+                                  'Are you sure you want to delete this post? This action cannot be undone.',
+                                  style: TextStyle(
+                                    color: AppTheme.secondaryText(context),
+                                  ),
+                                ),
+                                backgroundColor: AppTheme.cardColor(context),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, false),
+                                    child: Text(
+                                      'Cancel',
+                                      style: TextStyle(
+                                        color: AppTheme.secondaryText(context),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, true),
+                                    child: const Text(
+                                      'Delete',
+                                      style: TextStyle(
+                                        color: Colors.redAccent,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            if (confirm == true && widget.onDelete != null) {
+                              widget.onDelete!();
+                            }
+                          },
+                          child: Icon(Icons.delete_outline_rounded, color: AppTheme.secondaryText(context), size: 20),
+                        ),
+                      ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(

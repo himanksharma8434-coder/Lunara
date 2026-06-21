@@ -7,7 +7,6 @@ import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/cycle_provider.dart';
 import '../widgets/custom_toast.dart';
-import '../main.dart';
 import 'onboarding_screen.dart';
 
 class SignupScreen extends StatefulWidget {

@@ -530,6 +530,22 @@ class DatabaseService {
     }
   }
 
+  /// Fetch specific community posts by their IDs (for saved posts)
+  Future<List<Map<String, dynamic>>> getPostsByIds(List<int> postIds) async {
+    if (postIds.isEmpty) return [];
+    try {
+      final response = await _db
+          .from('community_posts')
+          .select()
+          .filter('id', 'in', '(${postIds.join(',')})')
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching saved posts: $e');
+      return [];
+    }
+  }
+
   /// Fetch community posts paged
   Future<List<Map<String, dynamic>>> getCommunityPostsPaged({
     required String category,
@@ -599,6 +615,36 @@ class DatabaseService {
       await CacheService.instance.clearCache('api_cache_community_posts_$category');
     } catch (e) {
       debugPrint('Error creating post: $e');
+    }
+  }
+
+  /// Get posts authored by a specific user
+  Future<List<Map<String, dynamic>>> getUserPosts(String userId) async {
+    try {
+      final response = await _db
+          .from('community_posts')
+          .select()
+          .eq('author_id', userId)
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching user posts: $e');
+      return [];
+    }
+  }
+
+  /// Delete a community post authored by the user
+  Future<void> deleteCommunityPost(int postId, String userId) async {
+    try {
+      // We include author_id to ensure a user can only delete their own post
+      await _db
+          .from('community_posts')
+          .delete()
+          .eq('id', postId)
+          .eq('author_id', userId);
+    } catch (e) {
+      debugPrint('Error deleting post: $e');
+      throw Exception('Failed to delete post');
     }
   }
 

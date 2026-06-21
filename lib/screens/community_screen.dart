@@ -29,7 +29,7 @@ class _CommunityScreenState extends State<CommunityScreen>
   // Variables
   Set<int>? _likedPostIds;
   final Map<int, int> _optimisticLikesCounts = {};
-  String _selectedSort = 'Recent';
+  final String _selectedSort = 'Recent';
 
   // Search state
   bool _isSearchActive = false;
@@ -47,8 +47,9 @@ class _CommunityScreenState extends State<CommunityScreen>
     _tabController = TabController(length: 2, vsync: this);
     _fetchLikedPosts();
     _searchController.addListener(() {
-      if (_searchDebounceTimer?.isActive ?? false)
+      if (_searchDebounceTimer?.isActive ?? false) {
         _searchDebounceTimer!.cancel();
+      }
       _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () {
         if (mounted) {
           setState(() {
@@ -469,7 +470,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                               content: content,
                             );
                           } catch (e) {
-                            if (mounted) {
+                            if (context.mounted) {
                               setState(() {
                                 _optimisticPosts
                                     .removeWhere((p) => p['id'] == tempId);

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 
@@ -18,20 +19,20 @@ class NearbyDoctorService {
     try {
       // Check if location services are enabled
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      print("NearbyDoctorService: Location services enabled status: $serviceEnabled");
+      debugPrint("NearbyDoctorService: Location services enabled status: $serviceEnabled");
       if (!serviceEnabled) return null;
 
       // Check permission
       var permission = await Geolocator.checkPermission();
-      print("NearbyDoctorService: Check permission result: $permission");
+      debugPrint("NearbyDoctorService: Check permission result: $permission");
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        print("NearbyDoctorService: Request permission result: $permission");
+        debugPrint("NearbyDoctorService: Request permission result: $permission");
         if (permission == LocationPermission.denied) return null;
       }
 
       if (permission == LocationPermission.deniedForever) {
-        print("NearbyDoctorService: Permission denied forever");
+        debugPrint("NearbyDoctorService: Permission denied forever");
         return null;
       }
 
@@ -39,25 +40,25 @@ class NearbyDoctorService {
       try {
         final lastPosition = await Geolocator.getLastKnownPosition();
         if (lastPosition != null) {
-          print("NearbyDoctorService: Found last known position: ${lastPosition.latitude}, ${lastPosition.longitude}");
+          debugPrint("NearbyDoctorService: Found last known position: ${lastPosition.latitude}, ${lastPosition.longitude}");
           return lastPosition;
         }
       } catch (e) {
-        print("NearbyDoctorService: Error getting last known position: $e");
+        debugPrint("NearbyDoctorService: Error getting last known position: $e");
       }
 
       // Fallback: Get new position with lower accuracy for drastically faster response indoors
-      print("NearbyDoctorService: Requesting current position (accuracy low, 5s limit)...");
+      debugPrint("NearbyDoctorService: Requesting current position (accuracy low, 5s limit)...");
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.low,
           timeLimit: Duration(seconds: 5),
         ),
       );
-      print("NearbyDoctorService: Current position obtained: ${position.latitude}, ${position.longitude}");
+      debugPrint("NearbyDoctorService: Current position obtained: ${position.latitude}, ${position.longitude}");
       return position;
     } catch (e) {
-      print("NearbyDoctorService: Exception in getCurrentPosition: $e");
+      debugPrint("NearbyDoctorService: Exception in getCurrentPosition: $e");
       return null;
     }
   }
@@ -74,10 +75,10 @@ class NearbyDoctorService {
     double? radiusMeters,
   }) async {
     // If no position provided, try to get it
-    print("NearbyDoctorService: fetchNearbyDoctors called. Position parameter: $position");
+    debugPrint("NearbyDoctorService: fetchNearbyDoctors called. Position parameter: $position");
     position ??= await getCurrentPosition();
     if (position == null) {
-      print("NearbyDoctorService: Final position is null, returning fallback doctors");
+      debugPrint("NearbyDoctorService: Final position is null, returning fallback doctors");
       return _getFallbackDoctors();
     }
 
@@ -88,13 +89,13 @@ class NearbyDoctorService {
 
       // Adaptive widening: If we found 0 results and no custom radius was specified, try 8km
       if (doctors.isEmpty && radiusMeters == null) {
-        print("NearbyDoctorService: 0 results at ${queryRadius}m. Trying adaptive widening search to 8000m...");
+        debugPrint("NearbyDoctorService: 0 results at ${queryRadius}m. Trying adaptive widening search to 8000m...");
         doctors = await _fetchFromOverpass(position, 8000);
       }
 
       return doctors.isEmpty ? _getFallbackDoctors() : doctors;
     } catch (e) {
-      print("NearbyDoctorService: Exception in fetchNearbyDoctors: $e");
+      debugPrint("NearbyDoctorService: Exception in fetchNearbyDoctors: $e");
       return _getFallbackDoctors();
     }
   }
@@ -108,11 +109,11 @@ class NearbyDoctorService {
       position.longitude,
       radiusMeters,
     );
-    print("NearbyDoctorService: Querying Overpass with radius ${radiusMeters}m:\n$query");
+    debugPrint("NearbyDoctorService: Querying Overpass with radius ${radiusMeters}m:\n$query");
 
     // Batch fetch: Execute all endpoints concurrently and race for the first successful 200 OK response.
     final futures = _overpassEndpoints.map((endpoint) {
-      print("NearbyDoctorService: Batch fetching endpoint: $endpoint");
+      debugPrint("NearbyDoctorService: Batch fetching endpoint: $endpoint");
       return http.post(
         Uri.parse(endpoint),
         headers: {
@@ -127,17 +128,17 @@ class NearbyDoctorService {
     try {
       response = await _raceToSuccess(futures);
     } catch (e) {
-      print("NearbyDoctorService: All Overpass batch endpoints failed: $e");
+      debugPrint("NearbyDoctorService: All Overpass batch endpoints failed: $e");
     }
 
     if (response == null || response.statusCode != 200) {
-      print("NearbyDoctorService: Failed to get successful Overpass response.");
+      debugPrint("NearbyDoctorService: Failed to get successful Overpass response.");
       return [];
     }
 
     final data = json.decode(response.body);
     final elements = data['elements'] as List<dynamic>? ?? [];
-    print("NearbyDoctorService: Parsed ${elements.length} elements from response.");
+    debugPrint("NearbyDoctorService: Parsed ${elements.length} elements from response.");
 
     // Replace loop with functional JSON mapping
     final doctors = elements

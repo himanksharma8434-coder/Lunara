@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:lunara/services/plus_service.dart';
+import 'package:lunara/services/saved_posts_service.dart';
 
 // local files
 import 'config/app_config.dart';
@@ -57,6 +58,7 @@ void main() {
     }
 
     final prefs = await SharedPreferences.getInstance();
+    await SavedPostsService.instance.init();
 
     // Load environment variables
     await dotenv.load(fileName: ".env");
