@@ -704,4 +704,111 @@ class AppNotificationService extends ChangeNotifier {
       currentId++;
     }
   }
+
+  Future<void> scheduleCycleDayReminders({
+    required int currentCycleDay,
+    required int periodDuration,
+    required int cycleLength,
+    bool isTrackingForSomeoneElse = false,
+  }) async {
+    if (!_cycleEnabled || isTrackingForSomeoneElse) return;
+
+    // Clear old cycle day reminders (use IDs 400-430)
+    for (int i = 400; i < 431; i++) {
+      await _notifications.cancel(id: i);
+    }
+
+    final now = tz.TZDateTime.now(tz.local);
+
+    for (int i = 0; i < 30; i++) {
+      // Calculate future cycle day
+      int predictedCycleDay = ((currentCycleDay - 1 + i) % cycleLength) + 1;
+      
+      bool shouldSchedule = false;
+      if (predictedCycleDay <= periodDuration) {
+        // Rule 1: Menstrual phase -> Daily
+        shouldSchedule = true;
+      } else {
+        // Rule 2: Non-menstrual phase -> Alternate days
+        int daysAfterPeriod = predictedCycleDay - periodDuration;
+        if (daysAfterPeriod % 2 != 0) {
+          shouldSchedule = true;
+        }
+      }
+
+      if (!shouldSchedule) continue;
+
+      // Schedule at 12:00 PM
+      var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day + i, 12, 0);
+      
+      // If it's today and 12 PM has passed, skip
+      if (scheduledDate.isBefore(now)) continue;
+
+      final message = _getCycleDayMessage(predictedCycleDay, periodDuration);
+
+      await _notifications.zonedSchedule(
+        id: 400 + i,
+        title: 'Day $predictedCycleDay 🌸',
+        body: message,
+        scheduledDate: scheduledDate,
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'guidance_channel',
+            'Daily Health Insights',
+            importance: Importance.defaultImportance,
+            priority: Priority.defaultPriority,
+            color: Color(0xFFFF8989),
+          ),
+          iOS: DarwinNotificationDetails(),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+    }
+  }
+
+  String _getCycleDayMessage(int dayOfCycle, int periodDuration) {
+    if (dayOfCycle <= periodDuration) {
+      final periodMsgs = [
+        "Take it easy today! Ek garma-garam chai se acha lag skta hai ☕",
+        "Body thodi tired ? Heating pad or adrak wali chai is your best friend right now ✨",
+        "Cramps bothering you? Thoda rest kar lo and keep yourself hydrated 💧",
+        "Your body is working hard. Watch Netflix & chill 🌸",
+        "Periods can be tough, but you are tougher! Send yourself some love today 💜",
+        "Aaram se din nikalo aaj. Comfort over everything else! 💆‍♀️",
+        "Warm hugs and warm water for you today! You've got this ✨",
+      ];
+      return periodMsgs[(dayOfCycle - 1) % periodMsgs.length];
+    } else if (dayOfCycle > periodDuration && dayOfCycle <= 12) {
+      final follicularMsgs = [
+        "Estrogen is rising! Increased energy levels make this a great time to start a new project 🚀",
+        "Your skin might be glowing thanks to the estrogen peak. Enjoy the fresh vibe today ✨",
+        "Mood levels are generally elevated during this phase. A great time for social activities ☕",
+        "Energy levels are peaking. This is an optimal time for a good workout session 💪",
+        "Feeling creative? This phase is perfect for picking up a new hobby 🎨",
+        "Good vibes only! Focus on your wellness and maintain that positive energy 🌟",
+        "Looking for a fresh start? Today is a great day for new beginnings! 🌿",
+      ];
+      return follicularMsgs[((dayOfCycle - periodDuration - 1) ~/ 2) % follicularMsgs.length];
+    } else if (dayOfCycle > 12 && dayOfCycle <= 16) {
+      final ovMsgs = [
+        "Ovulation phase! You're likely experiencing peak energy and confidence 💁‍♀️",
+        "Fertile window alert. Utilize your peak energy levels well today ✨",
+        "Feeling sociable? Hormonal shifts during this time often boost social energy 🎉",
+        "You are glowing! Take some time to pamper yourself today 💅",
+      ];
+      return ovMsgs[((dayOfCycle - 13) ~/ 2).clamp(0, ovMsgs.length - 1)];
+    } else {
+      final lutealMsgs = [
+        "Progesterone rising . Breast tenderness are normal , comfort your breast🌸",
+        "Mood swings feeling real? Thoda time nikal lo, suno apni pasand ki music 🎧",
+        "Cravings hitting hard? Ek piece dark chocolate , totally allowed hai 🍫",
+        "Energy thodi low lag sakti hai. Chill day plan karo, maybe watch a movie 🍿",
+        "PMS might be knocking. Don't be too hard on yourself 💜",
+        "Skin acting up? It happens before periods. Hydrate karo aur chill raho 💧",
+        "Feeling bloated? Nimbu pani or green tea help kar sakti hai 🍵",
+        "Feeling extra sensitive today? warm bath can do wonders 🛀",
+      ];
+      return lutealMsgs[((dayOfCycle - 17) ~/ 2).clamp(0, lutealMsgs.length - 1)];
+    }
+  }
 }

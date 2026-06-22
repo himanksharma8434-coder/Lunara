@@ -1788,6 +1788,14 @@ class CycleProvider extends ChangeNotifier {
       isTrackingForSomeoneElse: _isTrackingForSomeoneElse,
       trackedPersonName: _trackedPersonName,
     );
+
+    // Schedule Cycle Day Reminders (Daily for period, Alternate for others)
+    appNs.scheduleCycleDayReminders(
+      currentCycleDay: currentCycleDay,
+      periodDuration: _periodDuration,
+      cycleLength: effectiveCycleLength,
+      isTrackingForSomeoneElse: _isTrackingForSomeoneElse,
+    );
   }
 
   // Helper Methods for UI (Calendar Screen)
