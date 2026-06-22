@@ -17,8 +17,9 @@ class HealthService {
   /// Data types we want to read from the health platform.
   static final List<HealthDataType> _readTypes = [
     HealthDataType.STEPS,
-    HealthDataType.SLEEP_ASLEEP,
-    HealthDataType.SLEEP_IN_BED,
+    if (Platform.isAndroid) HealthDataType.SLEEP_SESSION,
+    if (Platform.isIOS) HealthDataType.SLEEP_ASLEEP,
+    if (Platform.isIOS) HealthDataType.SLEEP_IN_BED,
     HealthDataType.HEART_RATE,
     HealthDataType.WEIGHT,
     HealthDataType.HEIGHT,
@@ -180,8 +181,12 @@ class HealthService {
       final now = DateTime.now();
       final yesterday = now.subtract(const Duration(hours: 24));
 
+      final types = Platform.isAndroid
+          ? [HealthDataType.SLEEP_SESSION]
+          : [HealthDataType.SLEEP_ASLEEP, HealthDataType.SLEEP_IN_BED];
+
       final sleepData = await Health().getHealthDataFromTypes(
-        types: [HealthDataType.SLEEP_ASLEEP, HealthDataType.SLEEP_IN_BED],
+        types: types,
         startTime: yesterday,
         endTime: now,
       );
