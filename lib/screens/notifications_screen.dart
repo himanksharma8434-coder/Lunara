@@ -32,7 +32,52 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   void _loadNotifications() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    _notificationsFuture = _dbService.getRepliesToUserPosts(authProvider.userId);
+    _notificationsFuture = _dbService.getRepliesToUserPosts(authProvider.userId).then((comments) async {
+      final prefs = await SharedPreferences.getInstance();
+      final clearTimeString = prefs.getString('last_notifications_clear_time');
+      if (clearTimeString != null) {
+        final clearTime = DateTime.parse(clearTimeString);
+        return comments.where((c) {
+          final createdAt = DateTime.parse(c['created_at']);
+          return createdAt.isAfter(clearTime);
+        }).toList();
+      }
+      return comments;
+    });
+  }
+
+  Future<void> _clearAllNotifications() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear All Notifications?'),
+        content: const Text('Are you sure you want to clear all your notifications?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Clear All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('last_notifications_clear_time', DateTime.now().toIso8601String());
+      setState(() {
+        _loadNotifications();
+      });
+    }
   }
 
   Future<void> _markNotificationsAsRead() async {
@@ -156,6 +201,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             ),
                           ],
                         ),
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          HapticFeedback.mediumImpact();
+                          _clearAllNotifications();
+                        },
+                        icon: const Icon(Icons.clear_all_rounded),
+                        color: AppTheme.primary(context),
+                        tooltip: 'Clear all',
                       ),
                     ],
                   ),

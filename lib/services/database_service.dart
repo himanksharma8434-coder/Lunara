@@ -32,6 +32,15 @@ class DatabaseService {
       
       // Update the user's profile with the new avatar URL
       await _db.from('users').update({'avatar_url': imageUrl}).eq('uid', uid);
+      
+      // Update denormalized author avatars in community tables
+      try {
+        await _db.from('community_posts').update({'author_avatar': imageUrl}).eq('author_id', uid);
+        await _db.from('community_comments').update({'author_avatar': imageUrl}).eq('author_id', uid);
+      } catch (e) {
+        debugPrint('Error updating community avatars: $e');
+      }
+      
       await CacheService.instance.clearCache('api_cache_user_profile_$uid');
       
       return imageUrl;
@@ -83,6 +92,17 @@ class DatabaseService {
         'tracked_person_relation': trackedPersonRelation,
         'is_irregular': isIrregular,
       });
+      
+      // Also update denormalized author names in community tables
+      if (name.isNotEmpty) {
+        try {
+          await _db.from('community_posts').update({'author_name': name}).eq('author_id', uid);
+          await _db.from('community_comments').update({'author_name': name}).eq('author_id', uid);
+        } catch (e) {
+          debugPrint('Error updating community names: $e');
+        }
+      }
+      
       await CacheService.instance.clearCache('api_cache_user_profile_$uid');
     } catch (e) {
       debugPrint('Cloud sync error (saveUserProfile): $e');
@@ -93,6 +113,17 @@ class DatabaseService {
   Future<void> saveUser(UserModel user) async {
     try {
       await _db.from('users').upsert(user.toMap());
+      
+      // Also update denormalized author names in community tables
+      if (user.name.isNotEmpty) {
+        try {
+          await _db.from('community_posts').update({'author_name': user.name}).eq('author_id', user.uid);
+          await _db.from('community_comments').update({'author_name': user.name}).eq('author_id', user.uid);
+        } catch (e) {
+          debugPrint('Error updating community names in saveUser: $e');
+        }
+      }
+      
       await CacheService.instance.clearCache('api_cache_user_profile_${user.uid}');
     } catch (e) {
       debugPrint('Cloud sync error (saveUser): $e');
@@ -711,7 +742,7 @@ class DatabaseService {
     required String content,
   }) async {
     try {
-      // Database trigger handles comments_count increment
+      // Database trigger handles comments_count increment, but add a manual fallback just in case
       await _db.from('community_comments').insert({
         'post_id': postId,
         'author_id': authorId,
@@ -719,6 +750,14 @@ class DatabaseService {
         'author_avatar': authorAvatar,
         'content': content,
       });
+      
+      // Manual fallback: increment comments_count
+      try {
+        final postRes = await _db.from('community_posts').select('comments_count').eq('id', postId).single();
+        int currentCount = int.tryParse(postRes['comments_count']?.toString() ?? '0') ?? 0;
+        await _db.from('community_posts').update({'comments_count': currentCount + 1}).eq('id', postId);
+      } catch (_) {}
+      
     } catch (e) {
       debugPrint('Error adding comment: $e');
     }
@@ -818,6 +857,16 @@ class DatabaseService {
       await _db.from('custom_notifications').delete().eq('id', id);
     } catch (e) {
       debugPrint('Error deleting custom notification: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete all custom notifications for a specific user.
+  Future<void> clearAllCustomNotifications(String userId) async {
+    try {
+      await _db.from('custom_notifications').delete().eq('user_id', userId);
+    } catch (e) {
+      debugPrint('Error clearing all custom notifications: $e');
       rethrow;
     }
   }

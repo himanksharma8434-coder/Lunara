@@ -160,6 +160,7 @@ class CommunityPostCardState extends State<CommunityPostCard>
   }
 
   void _showCommentsBottomSheet() {
+    HapticFeedback.lightImpact();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

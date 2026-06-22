@@ -10,6 +10,7 @@ import '../services/app_notification_service.dart';
 import '../models/community_post_model.dart';
 import '../models/community_comment_model.dart';
 import '../providers/auth_provider.dart';
+import '../providers/cycle_provider.dart';
 import 'dart:async';
 import 'package:timeago/timeago.dart' as timeago;
 import '../widgets/custom_toast.dart';
@@ -424,8 +425,12 @@ class _CommunityScreenState extends State<CommunityScreen>
 
                         final authProvider =
                             Provider.of<AuthProvider>(context, listen: false);
+                        final cycleProvider =
+                            Provider.of<CycleProvider>(context, listen: false);
                         final userId = authProvider.userId;
-                        final userName = authProvider.userName;
+                        final userName = cycleProvider.userName.isNotEmpty 
+                            ? cycleProvider.userName 
+                            : authProvider.userName;
                         if (userId.isNotEmpty) {
                           final content = contentController.text.trim();
                           final avatar = authProvider.userAvatarUrl.isNotEmpty
@@ -740,8 +745,11 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
     if (text.isEmpty) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final cycleProvider = Provider.of<CycleProvider>(context, listen: false);
     final userId = authProvider.userId;
-    final userName = authProvider.userName;
+    final userName = cycleProvider.userName.isNotEmpty 
+        ? cycleProvider.userName 
+        : authProvider.userName;
 
     if (userId.isNotEmpty) {
       final contentToSend = _replyingToComment != null
@@ -976,24 +984,27 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
                 ? const Center(child: CircularProgressIndicator())
                 : _comments.isEmpty
                     ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.chat_bubble_outline,
-                                size: 60, color: Colors.grey[300]),
-                            const SizedBox(height: 15),
-                            Text(
-                              'No comments yet',
-                              style: TextStyle(
-                                  fontSize: 16, color: Colors.grey[600]),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Be the first to comment',
-                              style: TextStyle(
-                                  fontSize: 14, color: Colors.grey[500]),
-                            ),
-                          ],
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.chat_bubble_outline,
+                                  size: 60, color: Colors.grey[300]),
+                              const SizedBox(height: 15),
+                              Text(
+                                'No comments yet',
+                                style: TextStyle(
+                                    fontSize: 16, color: Colors.grey[600]),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Be the first to comment',
+                                style: TextStyle(
+                                    fontSize: 14, color: Colors.grey[500]),
+                              ),
+                            ],
+                          ),
                         ),
                       )
                     : ListView.builder(

@@ -207,7 +207,6 @@ class AuthProvider with ChangeNotifier {
     required String password,
     required String name,
   }) async {
-    _setLoading(true);
     _userDidExplicitLogin = true;
     try {
       final response = await _supabase.auth.signUp(
@@ -224,7 +223,7 @@ class AuthProvider with ChangeNotifier {
             email: email,
             name: name,
           );
-          await _db.saveUser(userModel);
+          await _db.saveUser(userModel).timeout(const Duration(seconds: 15));
         } catch (e) {
           debugPrint('Could not save user profile: $e');
         }
@@ -232,22 +231,15 @@ class AuthProvider with ChangeNotifier {
         // Save locally
         _userName = name;
         await _prefs.setString('userName', name);
-
-        _setLoading(false);
         notifyListeners();
         return null; // null = success (no error)
       }
-
-      _setLoading(false);
       return 'Sign up failed. Please try again.';
     } on TimeoutException {
-      _setLoading(false);
       return 'Connection timed out. Please check your internet or try again later.';
     } on AuthException catch (e) {
-      _setLoading(false);
       return e.message;
     } catch (e) {
-      _setLoading(false);
       return 'An unexpected error occurred: $e';
     }
   }
@@ -256,7 +248,6 @@ class AuthProvider with ChangeNotifier {
 
   /// Log in with email and password.
   Future<String?> login(String email, String password) async {
-    _setLoading(true);
     _userDidExplicitLogin = true;
     try {
       final response = await _supabase.auth
@@ -276,22 +267,15 @@ class AuthProvider with ChangeNotifier {
             await _prefs.setString('userName', _userName);
           }
         }
-
-        _setLoading(false);
         notifyListeners();
         return null; // success
       }
-
-      _setLoading(false);
       return 'Login failed. Please check your credentials.';
     } on TimeoutException {
-      _setLoading(false);
       return 'Connection timed out. Please check your internet or try again later.';
     } on AuthException catch (e) {
-      _setLoading(false);
       return e.message;
     } catch (e) {
-      _setLoading(false);
       return 'An unexpected error occurred: $e';
     }
   }
@@ -306,30 +290,23 @@ class AuthProvider with ChangeNotifier {
 
   /// Send an OTP to the given phone number.
   Future<String?> signInWithOTP(String phone) async {
-    _setLoading(true);
     _userDidExplicitLogin = true;
     try {
       await _supabase.auth.signInWithOtp(
         phone: phone,
       ).timeout(const Duration(seconds: 15));
-      
-      _setLoading(false);
       return null; // success
     } on TimeoutException {
-      _setLoading(false);
       return 'Connection timed out. Please check your internet or try again later.';
     } on AuthException catch (e) {
-      _setLoading(false);
       return e.message;
     } catch (e) {
-      _setLoading(false);
       return 'An unexpected error occurred: $e';
     }
   }
 
   /// Verify the OTP sent to the phone.
   Future<String?> verifyOTP(String phone, String otp) async {
-    _setLoading(true);
     _userDidExplicitLogin = true;
     try {
       final response = await _supabase.auth.verifyOTP(
@@ -358,7 +335,7 @@ class AuthProvider with ChangeNotifier {
               phone: response.user?.phone ?? phone,
               name: _userName,
             );
-            await _db.saveUser(userModel);
+            await _db.saveUser(userModel).timeout(const Duration(seconds: 15));
           } catch (e) {
              debugPrint('Could not save user profile: $e');
           }
@@ -367,21 +344,15 @@ class AuthProvider with ChangeNotifier {
         if (_userName.isEmpty) {
           _needsNamePrompt = true;
         }
-
-        _setLoading(false);
         notifyListeners();
         return null; // success
       }
-      _setLoading(false);
       return 'OTP Verification failed.';
     } on TimeoutException {
-      _setLoading(false);
       return 'Connection timed out. Please check your internet or try again later.';
     } on AuthException catch (e) {
-      _setLoading(false);
       return e.message;
     } catch (e) {
-      _setLoading(false);
       return 'An unexpected error occurred: $e';
     }
   }
@@ -391,7 +362,6 @@ class AuthProvider with ChangeNotifier {
   /// Sign in with Google using native flow.
   /// Uses google_sign_in v7 + supabase.auth.signInWithIdToken()
   Future<String?> signInWithGoogle() async {
-    _setLoading(true);
     _userDidExplicitLogin = true;
     try {
       /// Web Client ID from Google Cloud Console.
@@ -412,7 +382,6 @@ class AuthProvider with ChangeNotifier {
       final idToken = googleUser.authentication.idToken;
 
       if (idToken == null) {
-        _setLoading(false);
         return 'No ID token received from Google.';
       }
 
@@ -431,7 +400,7 @@ class AuthProvider with ChangeNotifier {
         final googlePhotoUrl = googleUser.photoUrl ?? '';
 
         // Try to fetch existing name from the database first
-        await _fetchNameFromDatabase();
+        await _fetchNameFromDatabase().timeout(const Duration(seconds: 15));
 
         // If no name in DB, use Google's name
         if (_userName.isEmpty && googleName.isNotEmpty) {
@@ -454,7 +423,7 @@ class AuthProvider with ChangeNotifier {
               name: _userName,
               avatarUrl: _userAvatarUrl.isNotEmpty ? _userAvatarUrl : null,
             );
-            await _db.saveUser(userModel);
+            await _db.saveUser(userModel).timeout(const Duration(seconds: 15));
           } catch (e) {
             debugPrint('Could not save user profile: $e');
           }
@@ -470,7 +439,7 @@ class AuthProvider with ChangeNotifier {
           
           if (updates.isNotEmpty) {
             try {
-              await _supabase.from('users').update(updates).eq('uid', response.user!.id);
+              await _supabase.from('users').update(updates).eq('uid', response.user!.id).timeout(const Duration(seconds: 15));
             } catch (_) {}
           }
         }
@@ -479,28 +448,20 @@ class AuthProvider with ChangeNotifier {
         if (_userName.isEmpty) {
           _needsNamePrompt = true;
         }
-
-        _setLoading(false);
         notifyListeners();
         return null; // success
       }
-
-      _setLoading(false);
       return 'Google sign-in failed.';
     } on GoogleSignInException catch (e) {
-      _setLoading(false);
       if (e.code == GoogleSignInExceptionCode.canceled) {
         return 'Google sign-in was cancelled.';
       }
       return 'Google sign-in error: ${e.description ?? e.code.name}';
     } on TimeoutException {
-      _setLoading(false);
       return 'Connection timed out. Please check your internet or try again later.';
     } on AuthException catch (e) {
-      _setLoading(false);
       return e.message;
     } catch (e) {
-      _setLoading(false);
       return 'Google sign-in error: $e';
     }
   }
@@ -509,45 +470,35 @@ class AuthProvider with ChangeNotifier {
 
   /// Send a password reset email.
   Future<String?> resetPassword(String email) async {
-    _setLoading(true);
     try {
       await _supabase.auth.resetPasswordForEmail(
         email,
         redirectTo: 'io.supabase.lunara://login-callback/',
       );
-      _setLoading(false);
       return null; // success
     } on TimeoutException {
-      _setLoading(false);
       return 'Connection timed out. Please check your internet or try again later.';
     } on AuthException catch (e) {
-      _setLoading(false);
       return e.message;
     } catch (e) {
-      _setLoading(false);
       return 'An unexpected error occurred: $e';
     }
   }
 
   /// Update the user's password (used after password recovery).
   Future<String?> updatePassword(String newPassword) async {
-    _setLoading(true);
     try {
       await _supabase.auth.updateUser(
         UserAttributes(password: newPassword),
       );
       _isPasswordRecovery = false;
-      _setLoading(false);
       notifyListeners();
       return null; // success
     } on TimeoutException {
-      _setLoading(false);
       return 'Connection timed out. Please check your internet or try again later.';
     } on AuthException catch (e) {
-      _setLoading(false);
       return e.message;
     } catch (e) {
-      _setLoading(false);
       return 'An unexpected error occurred: $e';
     }
   }
@@ -655,10 +606,6 @@ class AuthProvider with ChangeNotifier {
 
   // ─── HELPERS ──────────────────────────────────────
 
-  void _setLoading(bool value) {
-    _isLoading = value;
-    notifyListeners();
-  }
 
   /// FOR TESTING ONLY: Completely wipes app state so onboarding shows again
   Future<void> testWipeAppState() async {
@@ -676,3 +623,6 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 }
+
+
+

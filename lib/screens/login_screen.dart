@@ -310,10 +310,25 @@ class _LoginScreenState extends State<LoginScreen> {
                           icon: Icons.g_mobiledata,
                           label: "Google",
                           onTap: () async {
+                            FocusScope.of(context).unfocus();
+                            
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (context) => const Center(
+                                  child: CircularProgressIndicator(
+                                      color: LunaraColors.primary)),
+                            );
+
                             final authProvider = Provider.of<AuthProvider>(
                                 context,
                                 listen: false);
                             final error = await authProvider.signInWithGoogle();
+                            
+                            if (context.mounted) {
+                              Navigator.pop(context); // Close loading spinner
+                            }
+
                             if (error != null && context.mounted) {
                               _showError(context, error);
                             } else if (context.mounted) {
