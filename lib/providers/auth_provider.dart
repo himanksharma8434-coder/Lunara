@@ -468,6 +468,17 @@ class AuthProvider with ChangeNotifier {
 
   // ─── FORGOT PASSWORD ─────────────────────────────
 
+  /// Check if an email is registered by querying the users table.
+  Future<bool> checkEmailExists(String email) async {
+    try {
+      final response = await _supabase.from('users').select('uid').eq('email', email).maybeSingle();
+      return response != null;
+    } catch (e) {
+      debugPrint('Error checking if email exists: $e');
+      return false;
+    }
+  }
+
   /// Send a password reset email.
   Future<String?> resetPassword(String email) async {
     try {

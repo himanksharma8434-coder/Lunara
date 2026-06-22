@@ -143,7 +143,7 @@ class _PeriodFeelingScreenState extends State<PeriodFeelingScreen>
             child: SlideTransition(
               position: _slideAnimation,
               child: CustomScrollView(
-                physics: const BouncingScrollPhysics(),
+                physics: const NeverScrollableScrollPhysics(),
                 slivers: [
                   SliverFillRemaining(
                     hasScrollBody: false,

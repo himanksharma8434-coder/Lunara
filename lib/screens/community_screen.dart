@@ -720,12 +720,13 @@ class CommentsSheetContentState extends State<CommentsSheetContent> {
 
   void _startReplyMode(ParsedComment parentComment, String targetAuthorName) {
     HapticFeedback.lightImpact();
+    final formattedName = targetAuthorName.replaceAll(' ', '_');
     setState(() {
       _replyingToComment = parentComment;
-      _replyingToUser = targetAuthorName;
+      _replyingToUser = formattedName;
     });
 
-    final tag = '@$targetAuthorName ';
+    final tag = '@$formattedName ';
     if (!_commentController.text.startsWith(tag)) {
       _commentController.text = tag + _commentController.text;
     }

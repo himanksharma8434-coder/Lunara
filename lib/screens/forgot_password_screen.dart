@@ -141,7 +141,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final email = _emailController.text.trim();
 
     if (email.isEmpty || !email.contains('@')) {
-      CustomToast.show(context, message: 'Please enter a valid email address', icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
+      CustomToast.show(context, message: 'Please enter a valid email address', icon: Icons.error_outline, backgroundColor: Colors.orange[400]);
       return;
     }
 
@@ -154,8 +154,25 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       ),
     );
 
-    final error = await Provider.of<AuthProvider>(context, listen: false)
-        .resetPassword(email);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    // Check if email is actually registered in the database
+    final isRegistered = await authProvider.checkEmailExists(email);
+
+    if (!isRegistered) {
+      if (mounted) Navigator.pop(context); // hide loading
+      if (mounted) {
+        CustomToast.show(
+          context, 
+          message: 'This email is not registered. Please sign up first.', 
+          icon: Icons.error_outline, 
+          backgroundColor: Colors.red[400]
+        );
+      }
+      return;
+    }
+
+    final error = await authProvider.resetPassword(email);
 
     // ignore: use_build_context_synchronously
     if (mounted) Navigator.pop(context); // hide loading
@@ -169,7 +186,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     } else {
       // Error
       if (mounted) {
-        CustomToast.show(context, message: error, icon: Icons.check_circle, backgroundColor: const Color(0xFF4CAF50));
+        CustomToast.show(context, message: error, icon: Icons.error_outline, backgroundColor: Colors.red[400]);
       }
     }
   }

@@ -168,14 +168,6 @@ class _AssessmentScreenState extends State<AssessmentScreen>
           ),
 
           SafeArea(
-              child: SingleChildScrollView(
-                  child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height -
-                  MediaQuery.of(context).padding.top -
-                  MediaQuery.of(context).padding.bottom,
-            ),
-            child: IntrinsicHeight(
               child: FadeTransition(
                 opacity: _fadeAnimation,
                 child: SlideTransition(
@@ -510,7 +502,6 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                 ),
               ),
             ),
-          )))
         ],
       ),
     );
