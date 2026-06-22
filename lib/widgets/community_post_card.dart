@@ -48,9 +48,15 @@ class CommunityPostCardState extends State<CommunityPostCard>
   @override
   void initState() {
     super.initState();
+    int initialCount = widget.initialLikesCount ?? widget.post.likesCount;
+    // Fallback: if the database hasn't updated likes_count but the user liked it,
+    // ensure it shows at least 1 like.
+    if (widget.initialIsLiked && initialCount == 0) {
+      initialCount = 1;
+    }
     _likeState = ValueNotifier((
       liked: widget.initialIsLiked,
-      count: widget.initialLikesCount ?? widget.post.likesCount,
+      count: initialCount,
     ));
     _commentCount = ValueNotifier(widget.post.commentCount);
 
@@ -77,16 +83,24 @@ class CommunityPostCardState extends State<CommunityPostCard>
   void didUpdateWidget(CommunityPostCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.post.id != widget.post.id) {
+      int updatedCount = widget.initialLikesCount ?? widget.post.likesCount;
+      if (widget.initialIsLiked && updatedCount == 0) {
+        updatedCount = 1;
+      }
       _likeState.value = (
         liked: widget.initialIsLiked,
-        count: widget.initialLikesCount ?? widget.post.likesCount,
+        count: updatedCount,
       );
       _commentCount.value = widget.post.commentCount;
     } else {
       if (!_isLikeProcessing && oldWidget.post.likesCount != widget.post.likesCount) {
+        int newCount = widget.post.likesCount;
+        if (_likeState.value.liked && newCount == 0) {
+          newCount = 1;
+        }
         _likeState.value = (
           liked: _likeState.value.liked,
-          count: widget.post.likesCount,
+          count: newCount,
         );
       }
       if (oldWidget.post.commentCount != widget.post.commentCount) {
@@ -159,12 +173,24 @@ class CommunityPostCardState extends State<CommunityPostCard>
     );
   }
 
+  int _lastTapTime = 0;
+
+  void _handlePointerDown(PointerDownEvent event) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastTapTime < 300) {
+      _handleDoubleTap();
+      _lastTapTime = 0;
+    } else {
+      _lastTapTime = now;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for KeepAlive
 
-    return GestureDetector(
-      onDoubleTap: _handleDoubleTap,
+    return Listener(
+      onPointerDown: _handlePointerDown,
       behavior: HitTestBehavior.opaque,
       child: Stack(
         alignment: Alignment.center,
@@ -238,7 +264,7 @@ class CommunityPostCardState extends State<CommunityPostCard>
                         ],
                       ),
                     ),
-                    if (context.read<AuthProvider>().userId == widget.post.authorId)
+                    if (context.read<AuthProvider>().userId == widget.post.authorId && widget.onDelete != null)
                       Padding(
                         padding: const EdgeInsets.only(right: 8.0),
                         child: GestureDetector(

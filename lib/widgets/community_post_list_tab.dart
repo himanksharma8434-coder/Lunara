@@ -211,6 +211,7 @@ class _CommunityPostListTabState extends State<CommunityPostListTab>
       onRefresh: _loadInitialPosts,
       child: CustomScrollView(
         controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),

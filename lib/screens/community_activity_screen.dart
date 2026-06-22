@@ -144,19 +144,24 @@ class _MyPostsTabState extends State<_MyPostsTab> {
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: _posts.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 16),
-      itemBuilder: (context, index) {
-        final post = _posts[index];
-        return CommunityPostCard(
-          key: ValueKey('my_post_${post.id}'),
-          post: post,
-          initialIsLiked: _likedPostIds.contains(post.id),
-          onDelete: () => _deletePost(post.id ?? 0),
-        );
-      },
+    return RefreshIndicator(
+      color: LunaraColors.primary,
+      onRefresh: _loadMyPosts,
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: _posts.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 16),
+        itemBuilder: (context, index) {
+          final post = _posts[index];
+          return CommunityPostCard(
+            key: ValueKey('my_post_${post.id}'),
+            post: post,
+            initialIsLiked: _likedPostIds.contains(post.id),
+            onDelete: () => _deletePost(post.id ?? 0),
+          );
+        },
+      ),
     );
   }
 }
@@ -262,18 +267,23 @@ class _SavedPostsTabState extends State<_SavedPostsTab> {
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: _posts.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 16),
-      itemBuilder: (context, index) {
-        final post = _posts[index];
-        return CommunityPostCard(
-          key: ValueKey('saved_post_${post.id}'),
-          post: post,
-          initialIsLiked: _likedPostIds.contains(post.id),
-        );
-      },
+    return RefreshIndicator(
+      color: LunaraColors.primary,
+      onRefresh: _loadSavedPosts,
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: _posts.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 16),
+        itemBuilder: (context, index) {
+          final post = _posts[index];
+          return CommunityPostCard(
+            key: ValueKey('saved_post_${post.id}'),
+            post: post,
+            initialIsLiked: _likedPostIds.contains(post.id),
+          );
+        },
+      ),
     );
   }
 }
