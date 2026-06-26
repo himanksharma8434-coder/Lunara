@@ -240,6 +240,12 @@ class _InitialRouterState extends State<InitialRouter> {
     // a fresh login (SharedPreferences were wiped by uninstall/reinstall).
     if (!_cloudLoadTriggered) {
       _cloudLoadTriggered = true;
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if (authProvider.hasCompletedOnboarding) {
+        setState(() {
+          _loading = false;
+        });
+      }
       _loadData();
     }
   }
@@ -277,7 +283,7 @@ class _InitialRouterState extends State<InitialRouter> {
               CircularProgressIndicator(color: LunaraColors.primary),
               SizedBox(height: 16),
               Text(
-                'Restoring your data...',
+                'Lunara is setting up your things...',
                 style: TextStyle(
                   color: LunaraColors.textLight,
                   fontSize: 16,
