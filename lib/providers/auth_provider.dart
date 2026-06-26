@@ -591,8 +591,14 @@ class AuthProvider with ChangeNotifier {
       }
     }
 
-    // 6. Clear SharedPreferences LAST
+    // 6. Clear SharedPreferences LAST, but preserve app-level settings
+    final bool seenOnboarding = _prefs.getBool('seenOnboarding') ?? false;
+    final String? themeMode = _prefs.getString('theme_mode');
+
     await _prefs.clear();
+
+    if (seenOnboarding) await _prefs.setBool('seenOnboarding', true);
+    if (themeMode != null) await _prefs.setString('theme_mode', themeMode);
 
     notifyListeners();
     debugPrint('🔒 [AuthProvider] Full logout completed.');
@@ -622,7 +628,10 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> deferAssessment() async {
+    _lastAssessmentDate = DateTime.now();
     _assessmentDeferred = true;
+    await _prefs.setString(
+        'lastAssessmentDate', _lastAssessmentDate!.toIso8601String());
     await _prefs.setBool('assessmentDeferred', true);
     notifyListeners();
   }
@@ -659,6 +668,44 @@ class AuthProvider with ChangeNotifier {
 
   // ─── HELPERS ──────────────────────────────────────
 
+
+  /// Delete user account and all data
+  Future<void> deleteAccount() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final uid = _supabase.auth.currentUser?.id;
+      if (uid == null) {
+        throw Exception('User is not logged in');
+      }
+
+      // Delete user data from Supabase tables
+      await DatabaseService().deleteAccountData(uid);
+      
+      // Clear preferences (preserving app-level settings) and log out
+      final bool seenOnboarding = _prefs.getBool('seenOnboarding') ?? false;
+      final String? themeMode = _prefs.getString('theme_mode');
+      
+      await _prefs.clear();
+      
+      if (seenOnboarding) await _prefs.setBool('seenOnboarding', true);
+      if (themeMode != null) await _prefs.setString('theme_mode', themeMode);
+      if (_supabase.auth.currentSession != null) {
+        await _supabase.auth.signOut();
+      }
+      
+      _isLoggedIn = false;
+      _hasCompletedOnboarding = false;
+      _assessmentDeferred = false;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('🔵 AuthProvider.deleteAccount: error -> $e');
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
   /// FOR TESTING ONLY: Completely wipes app state so onboarding shows again
   Future<void> testWipeAppState() async {

@@ -220,8 +220,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
     final isPlus = context.watch<PlusService>().isPlus;
     final textColor = Theme.of(context).colorScheme.onSurface;
     final showDeferredBanner = authProvider.hasDeferredAssessment &&
-        isOnPeriod &&
-        authProvider.shouldShowAssessment(isOnPeriod);
+        isOnPeriod;
 
     return Container(
       decoration: BoxDecoration(

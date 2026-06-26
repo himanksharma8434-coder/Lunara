@@ -463,7 +463,7 @@ class AppNotificationService extends ChangeNotifier {
               priority: Priority.high, color: Color(0xFFFF8989)),
             iOS: DarwinNotificationDetails(),
           ),
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         );
         timedIdOffset++;
       }
@@ -536,7 +536,7 @@ class AppNotificationService extends ChangeNotifier {
           categoryIdentifier: 'period_reminder',
         ),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
   }
 
@@ -587,7 +587,7 @@ class AppNotificationService extends ChangeNotifier {
           priority: Priority.high, color: Color(0xFFFF8989)),
         iOS: DarwinNotificationDetails(),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
   }
 

@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import '../providers/cycle_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_toast.dart';
+import '../providers/auth_provider.dart';
+import 'package:flutter/services.dart';
+import 'login_screen.dart';
 
 class AccountSettingsScreen extends StatefulWidget {
   const AccountSettingsScreen({super.key});
@@ -235,6 +238,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                           ),
                   ),
                 ),
+                const SizedBox(height: 32),
+                const _DeleteAccountButton(),
               ],
             ),
           ),
@@ -536,4 +541,123 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     ];
     return months[month];
   }
+}
+
+class _DeleteAccountButton extends StatelessWidget {
+  const _DeleteAccountButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.heavyImpact();
+        final authProvider = context.read<AuthProvider>();
+        _showDeleteAccountConfirmation(context, authProvider);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red[900]?.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.red[900]!.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.red[900]?.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.delete_forever_rounded,
+                color: Colors.red[900],
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Text(
+              'Delete Account',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.red[900],
+              ),
+            ),
+            const Spacer(),
+            Icon(Icons.chevron_right, color: Colors.red[900]),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void _showDeleteAccountConfirmation(BuildContext context, AuthProvider authProvider) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Text(
+        'Delete Account',
+        style: TextStyle(
+          color: AppTheme.textDark(context),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      content: Text(
+        'Are you sure you want to permanently delete your account and all associated data? This action cannot be undone.',
+        style: TextStyle(color: AppTheme.textDark(context)),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(
+            'Cancel',
+            style: TextStyle(color: AppTheme.textLight(context)),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            HapticFeedback.heavyImpact();
+            Navigator.pop(context); // Close dialog
+
+            try {
+              // Reset CycleProvider FIRST (while we still have context)
+              Provider.of<CycleProvider>(context, listen: false).resetForLogout();
+
+              // Then delete account (clears auth state, prefs, caches, Hive, and Supabase data)
+              await authProvider.deleteAccount();
+
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (Route<dynamic> route) => false,
+                );
+              }
+            } catch (e) {
+              if (context.mounted) {
+                CustomToast.show(
+                  context, 
+                  message: 'Could not delete account. Please try again.', 
+                  icon: Icons.error_outline, 
+                  backgroundColor: Colors.red[400]
+                );
+              }
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red[900],
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          child: const Text('Delete Permanently'),
+        ),
+      ],
+    ),
+  );
 }

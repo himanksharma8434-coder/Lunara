@@ -232,6 +232,8 @@ class _InitialRouterState extends State<InitialRouter> {
   bool _dialogShown = false;
   bool _cloudLoadTriggered = false;
   bool _loading = true;
+  bool _hasShownMainScreen = false;
+
 
   @override
   void didChangeDependencies() {
@@ -242,9 +244,7 @@ class _InitialRouterState extends State<InitialRouter> {
       _cloudLoadTriggered = true;
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.hasCompletedOnboarding) {
-        setState(() {
-          _loading = false;
-        });
+        // Wait for cloud data before showing the UI to prevent sudden state jumps
       }
       _loadData();
     }
@@ -303,9 +303,18 @@ class _InitialRouterState extends State<InitialRouter> {
       });
     }
 
-    if (authProvider.shouldShowAssessment(cycleProvider.isOnPeriod)) {
+    if (!_hasShownMainScreen && authProvider.shouldShowAssessment(cycleProvider.isOnPeriod)) {
       return const AssessmentScreen();
     }
+
+    // Once we decide to show MainScreen, lock it so subsequent rebuilds don't hijack the UI
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_hasShownMainScreen) {
+        setState(() {
+          _hasShownMainScreen = true;
+        });
+      }
+    });
 
     return const MainScreen();
   }

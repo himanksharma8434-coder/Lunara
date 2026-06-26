@@ -1048,7 +1048,7 @@ class CycleProvider extends ChangeNotifier {
   String get currentPhase => _getPhaseForDay(currentCycleDay);
 
   String _getPhaseForDay(int day) {
-    if (_activeLastPeriodDate == null) return 'Waiting for Sync';
+    if (_activeLastPeriodDate == null) return isViewingPartner ? 'Waiting for Sync' : 'Setup Needed';
     if (day <= _activePeriodDuration) return 'Menstrual';
     final ovDay = _ovulationDay;
     if (day < ovDay - 1) return 'Follicular';

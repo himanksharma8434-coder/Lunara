@@ -876,5 +876,39 @@ class DatabaseService {
       rethrow;
     }
   }
+  
+  /// Delete all user data from all tables
+  Future<void> deleteAccountData(String uid) async {
+    // Delete from all tables referencing the user, ignoring errors for individual tables (e.g., if they don't exist)
+    
+    Future<void> tryDelete(String table, String column) async {
+      try {
+        await _db.from(table).delete().eq(column, uid);
+      } catch (e) {
+        debugPrint('Error deleting from $table: $e');
+      }
+    }
+
+    await tryDelete('custom_notifications', 'user_id');
+    await tryDelete('partner_links', 'primary_user_id');
+    await tryDelete('partner_links', 'partner_user_id');
+    await tryDelete('period_delay_events', 'user_id');
+    await tryDelete('appointments', 'user_id');
+    await tryDelete('assessments', 'user_id');
+    await tryDelete('cycles', 'user_id');
+    await tryDelete('community_likes', 'user_id');
+    await tryDelete('community_comments', 'author_id');
+    await tryDelete('community_posts', 'author_id');
+    
+    // Finally, delete the public user profile
+    await tryDelete('users', 'uid');
+    
+    // Try to call an RPC to delete the auth.users account if it exists
+    try {
+      await _db.rpc('delete_user');
+    } catch (_) {
+      // RPC might not exist, silently ignore
+    }
+  }
 }
 

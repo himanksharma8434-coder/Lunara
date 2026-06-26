@@ -147,7 +147,7 @@ class NotificationService {
         body: body,
         scheduledDate: tzScheduledDate,
         notificationDetails: _getNotificationDetails(),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
       debugPrint('Scheduled notification $id for $tzScheduledDate');
     } catch (e) {
@@ -182,7 +182,7 @@ class NotificationService {
         body: body,
         scheduledDate: tzScheduledDate,
         notificationDetails: _getNotificationDetails(),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         matchDateTimeComponents:
             DateTimeComponents.time, // Make it repeating daily
       );

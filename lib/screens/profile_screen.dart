@@ -925,6 +925,7 @@ class _LogoutButton extends StatelessWidget {
   }
 }
 
+
 // ─── PRIVATE GLOBAL HELPERS ────────────────────────────────────────
 
 Widget _buildStatItem(

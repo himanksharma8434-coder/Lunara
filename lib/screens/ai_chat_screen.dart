@@ -834,7 +834,7 @@ class _AIChatScreenState extends State<AIChatScreen>
                 Row(
                   children: [
                     Text(
-                      'AI Assistant',
+                      'Lunara AI',
                       style: TextStyle(
                         fontSize: 19,
                         fontWeight: FontWeight.w900,
@@ -842,36 +842,11 @@ class _AIChatScreenState extends State<AIChatScreen>
                         letterSpacing: -0.3,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: PlusService.instance.isPlus
-                            ? LunaraColors.warning.withOpacity(0.15)
-                            : AppTheme.subtleBackground(context),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: PlusService.instance.isPlus
-                              ? LunaraColors.warning.withOpacity(0.4)
-                              : AppTheme.divider(context),
-                        ),
-                      ),
-                      child: Text(
-                        PlusService.instance.isPlus ? '💎 PLUS' : 'FREE',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: PlusService.instance.isPlus
-                              ? LunaraColors.warning
-                              : AppTheme.textLight(context),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
                 Text(
                   _remainingRequests == -1
-                      ? 'Unlimited questions · Plus'
+                      ? 'Unlimited questions'
                       : '$_remainingRequests questions left today',
                   style: TextStyle(
                     fontSize: 12,

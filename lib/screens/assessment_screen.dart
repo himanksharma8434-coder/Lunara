@@ -175,8 +175,13 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                 opacity: _fadeAnimation,
                 child: SlideTransition(
                   position: _slideAnimation,
-                  child: Column(
-                    children: [
+                  child: CustomScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    slivers: [
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Column(
+                          children: [
                       // Plus Header
                       Padding(
                         padding: const EdgeInsets.symmetric(
@@ -555,6 +560,9 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                               ),
                             ),
                           ],
+                        ),
+                      ),
+                    ],
                         ),
                       ),
                     ],
