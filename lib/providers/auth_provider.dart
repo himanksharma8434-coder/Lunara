@@ -2,9 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:google_sign_in/google_sign_in.dart' as google_sign;
 import '../services/database_service.dart';
 import '../services/cache_service.dart';
+import '../services/storage_service.dart';
+import '../services/database/hive_service.dart';
 import '../models/user_model.dart';
 
 class AuthProvider with ChangeNotifier {
@@ -326,8 +328,10 @@ class AuthProvider with ChangeNotifier {
           }
         }
 
-        // Create profile only if they haven't completed onboarding (i.e. profile doesn't exist)
-        if (!hasSeenOnboarding) {
+        // Check DB directly — never use device-local flags as a proxy
+        final existingProfile = await _db.getUserProfile(response.user!.id);
+        if (existingProfile == null) {
+          // Truly new user — create profile
           try {
             final userModel = UserModel(
               uid: response.user!.id,
@@ -339,6 +343,11 @@ class AuthProvider with ChangeNotifier {
           } catch (e) {
              debugPrint('Could not save user profile: $e');
           }
+        } else {
+          // Existing user — restore onboarding flags
+          _hasCompletedOnboarding = true;
+          await _prefs.setBool('seenOnboarding', true);
+          await _prefs.setBool('hasCompletedOnboarding', true);
         }
 
         if (_userName.isEmpty) {
@@ -369,17 +378,15 @@ class AuthProvider with ChangeNotifier {
       const webClientId =
           '592495918096-13ov72hqkckc847lhl89328h5g4gdtkc.apps.googleusercontent.com';
 
-      final googleSignIn = GoogleSignIn.instance;
-
-      // Initialize with the Web Client ID
-      await googleSignIn.initialize(
+      await google_sign.GoogleSignIn.instance.initialize(
         serverClientId: webClientId,
       );
 
       // Show the Google account picker
-      final googleUser = await googleSignIn.authenticate();
+      final googleUser = await google_sign.GoogleSignIn.instance.authenticate();
 
-      final idToken = googleUser.authentication.idToken;
+      final googleAuth = googleUser.authentication;
+      final idToken = googleAuth.idToken;
 
       if (idToken == null) {
         return 'No ID token received from Google.';
@@ -414,8 +421,10 @@ class AuthProvider with ChangeNotifier {
           await _prefs.setString('userAvatarUrl', _userAvatarUrl);
         }
 
-        // Create profile only if they haven't completed onboarding (i.e. profile doesn't exist)
-        if (!hasSeenOnboarding) {
+        // Check DB directly — never use device-local flags as a proxy
+        final existingProfile = await _db.getUserProfile(response.user!.id);
+        if (existingProfile == null) {
+          // Truly new user — create profile
           try {
             final userModel = UserModel(
               uid: response.user!.id,
@@ -428,13 +437,13 @@ class AuthProvider with ChangeNotifier {
             debugPrint('Could not save user profile: $e');
           }
         } else {
-          // Just update the name/avatar if they were empty but we found them from Google
+          // Existing user — only fill in blanks, never overwrite
           final updates = <String, dynamic>{};
-          if (_userName.isEmpty && googleName.isNotEmpty) {
-            updates['name'] = googleName;
+          if ((existingProfile['name'] ?? '').toString().isEmpty && _userName.isNotEmpty) {
+            updates['name'] = _userName;
           }
-          if (_userAvatarUrl.isEmpty && googlePhotoUrl.isNotEmpty) {
-            updates['avatar_url'] = googlePhotoUrl;
+          if ((existingProfile['avatar_url'] ?? '').toString().isEmpty && _userAvatarUrl.isNotEmpty) {
+            updates['avatar_url'] = _userAvatarUrl;
           }
           
           if (updates.isNotEmpty) {
@@ -442,6 +451,11 @@ class AuthProvider with ChangeNotifier {
               await _supabase.from('users').update(updates).eq('uid', response.user!.id).timeout(const Duration(seconds: 15));
             } catch (_) {}
           }
+
+          // Restore onboarding flags from the fact that a profile exists
+          _hasCompletedOnboarding = true;
+          await _prefs.setBool('seenOnboarding', true);
+          await _prefs.setBool('hasCompletedOnboarding', true);
         }
 
         // If still no name after Google + DB, prompt the user
@@ -452,8 +466,8 @@ class AuthProvider with ChangeNotifier {
         return null; // success
       }
       return 'Google sign-in failed.';
-    } on GoogleSignInException catch (e) {
-      if (e.code == GoogleSignInExceptionCode.canceled) {
+    } on google_sign.GoogleSignInException catch (e) {
+      if (e.code == google_sign.GoogleSignInExceptionCode.canceled) {
         return 'Google sign-in was cancelled.';
       }
       return 'Google sign-in error: ${e.description ?? e.code.name}';
@@ -545,15 +559,43 @@ class AuthProvider with ChangeNotifier {
   // ─── LOGOUT ───────────────────────────────────────
 
   Future<void> logout() async {
+    // 1. Sign out from Supabase (revokes token server-side)
     await _supabase.auth.signOut();
 
+    // 2. Clear ALL in-memory auth state
     _userName = '';
+    _userAvatarUrl = '';
     _lastAssessmentDate = null;
     _hasCompletedOnboarding = false;
     _needsNamePrompt = false;
+    _assessmentDeferred = false;
+    _isPasswordRecovery = false;
+    _userDidExplicitLogin = false;
 
+    // 3. Clear secure storage (JWT token)
+    try {
+      await StorageService.logout();
+    } catch (e) {
+      debugPrint('StorageService logout error (ignoring): $e');
+    }
+
+    // 4. Clear API caches (stale user data)
+    await CacheService.instance.clearAll();
+
+    // 5. Wipe Hive encrypted local database
+    if (HiveService.instance.isInitialized) {
+      try {
+        await HiveService.instance.wipeAllData();
+      } catch (e) {
+        debugPrint('HiveService wipe error (ignoring): $e');
+      }
+    }
+
+    // 6. Clear SharedPreferences LAST
     await _prefs.clear();
+
     notifyListeners();
+    debugPrint('🔒 [AuthProvider] Full logout completed.');
   }
 
   // ─── ASSESSMENT HELPERS ───────────────────────────

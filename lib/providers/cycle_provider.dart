@@ -106,6 +106,76 @@ class CycleProvider extends ChangeNotifier {
     super.dispose();
   }
 
+  /// Resets ALL in-memory state for a clean user switch.
+  /// Called before AuthProvider.logout() to prevent identity leakage.
+  void resetForLogout() {
+    // Cancel background work
+    _syncTimer?.cancel();
+    _assessmentSub?.cancel();
+    _assessmentSub = null;
+
+    // Clear user identity
+    _userName = '';
+
+    // Clear cycle data
+    _lastPeriodDate = null;
+    _cycleLength = 28;
+    _periodDuration = 5;
+    _age = 0;
+    _userGender = 'Female';
+    _weight = 60;
+    _height = 165;
+    _bodyMetricsCompleted = false;
+    _isIrregular = false;
+    _cycleHistory.clear();
+
+    // Clear daily metrics
+    _dailySteps = 0;
+    _waterGlasses = 0;
+    _sleepHours = 0.0;
+    _currentMood = 'Good';
+    _todayBbt = null;
+    _todayCervicalMucus = null;
+
+    // Clear partner tracking
+    _isTrackingForSomeoneElse = false;
+    _trackedPersonName = '';
+    _trackedPersonRelation = 'Partner';
+
+    // Clear symptoms & journal
+    _todaySymptoms.clear();
+    _symptomHistory.clear();
+    _customSymptoms.clear();
+    _journalEntries.clear();
+
+    // Clear wellness history
+    _wellnessHistory.clear();
+
+    // Clear predictions
+    _nextPeriodDate = null;
+    _ovulationDate = null;
+    _latestPrediction = const PredictionResult();
+
+    // Clear health connect state
+    _healthConnected = false;
+    _heartRate = null;
+    _isSyncing = false;
+    _lastSyncStatus = null;
+
+    // Clear partner link state
+    _partnerLinkId = null;
+    _partnerLinkRole = null;
+    _linkedPartnerName = null;
+    _linkedPartnerUid = null;
+    _activeInviteCode = null;
+    _partnerProfile = null;
+    _partnerCycles.clear();
+    _partnerAssessments.clear();
+
+    notifyListeners();
+    debugPrint('🔄 [CycleProvider] State fully reset for logout.');
+  }
+
   void _onPlusStatusChanged() {
     _updateReminders();
   }
@@ -238,24 +308,24 @@ class CycleProvider extends ChangeNotifier {
           _userName = profile['name'];
           updated = true;
         }
-        if (_age == 0 && (profile['age'] ?? 0) > 0) {
-          _age = profile['age'];
+        if (profile['age'] != null) {
+          _age = (profile['age'] as num).toInt();
           updated = true;
         }
-        if (_weight == 60 && (profile['weight'] ?? 60) != 60) {
-          _weight = profile['weight'];
+        if (profile['weight'] != null) {
+          _weight = (profile['weight'] as num).toInt();
           updated = true;
         }
-        if (_height == 165 && (profile['height'] ?? 165) != 165) {
-          _height = profile['height'];
+        if (profile['height'] != null) {
+          _height = (profile['height'] as num).toInt();
           updated = true;
         }
         if (profile['cycle_length'] != null) {
-          _cycleLength = profile['cycle_length'];
+          _cycleLength = (profile['cycle_length'] as num).toInt();
           updated = true;
         }
         if (profile['period_duration'] != null) {
-          _periodDuration = profile['period_duration'];
+          _periodDuration = (profile['period_duration'] as num).toInt();
           updated = true;
         }
         if (profile['is_irregular'] != null) {

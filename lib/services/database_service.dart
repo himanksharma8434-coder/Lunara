@@ -71,27 +71,27 @@ class DatabaseService {
     bool isIrregular = false,
   }) async {
     try {
-      final safeAge = age.clamp(13, 120);
-      final safeWeight = weight.clamp(20, 300);
-      final safeHeight = height.clamp(50, 250);
-      final safeCycleLength = cycleLength.clamp(15, 60);
-      final safePeriodDuration = periodDuration.clamp(1, 15);
-
-      await _db.from('users').upsert({
-        'uid': uid,
-        'email': email,
+      final updateData = {
         'name': name,
+        'email': email,
         'gender': gender,
-        'cycle_length': safeCycleLength,
-        'period_duration': safePeriodDuration,
-        'age': safeAge,
-        'weight': safeWeight,
-        'height': safeHeight,
+        'cycle_length': cycleLength,
+        'period_duration': periodDuration,
+        'age': age,
+        'weight': weight,
+        'height': height,
+        'is_irregular': isIrregular,
         'tracking_for_others': trackingForOthers,
         'tracked_person_name': trackedPersonName,
         'tracked_person_relation': trackedPersonRelation,
-        'is_irregular': isIrregular,
-      });
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      try {
+        await _db.from('users').insert({'uid': uid, ...updateData});
+      } catch (_) {
+        await _db.from('users').update(updateData).eq('uid', uid);
+      }
       
       // Also update denormalized author names in community tables
       if (name.isNotEmpty) {
@@ -109,11 +109,17 @@ class DatabaseService {
     }
   }
 
-  /// Create or update user profile (upsert) — legacy method.
+  /// Create or update user profile (upsert).
   Future<void> saveUser(UserModel user) async {
     try {
-      await _db.from('users').upsert(user.toMap());
-      
+      final data = user.toMap();
+      // Use upsert with onConflict — uid is the primary key.
+      // created_at is omitted from UserModel.toMap() and handled by DB DEFAULT.
+      await _db.from('users').upsert(
+        data,
+        onConflict: 'uid',
+      );
+
       // Also update denormalized author names in community tables
       if (user.name.isNotEmpty) {
         try {

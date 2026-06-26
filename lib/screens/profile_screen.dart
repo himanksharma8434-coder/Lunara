@@ -1177,7 +1177,13 @@ void _showLogoutConfirmation(BuildContext context, AuthProvider authProvider) {
           onPressed: () async {
             HapticFeedback.mediumImpact();
             Navigator.pop(context); // Close dialog
+
+            // Reset CycleProvider FIRST (while we still have context)
+            Provider.of<CycleProvider>(context, listen: false).resetForLogout();
+
+            // Then sign out (clears auth state, prefs, caches, Hive)
             await authProvider.logout();
+
             if (context.mounted) {
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (context) => const LoginScreen()),

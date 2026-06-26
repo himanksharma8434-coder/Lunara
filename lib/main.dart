@@ -230,12 +230,64 @@ class InitialRouter extends StatefulWidget {
 
 class _InitialRouterState extends State<InitialRouter> {
   bool _dialogShown = false;
+  bool _cloudLoadTriggered = false;
+  bool _loading = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Trigger a cloud restore the first time we land on this screen after
+    // a fresh login (SharedPreferences were wiped by uninstall/reinstall).
+    if (!_cloudLoadTriggered) {
+      _cloudLoadTriggered = true;
+      _loadData();
+    }
+  }
+
+  Future<void> _loadData() async {
+    try {
+      await Provider.of<CycleProvider>(context, listen: false)
+          .loadFromCloud()
+          .timeout(const Duration(seconds: 10));
+    } catch (e) {
+      debugPrint('Error loading cloud data (proceeding anyway): $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     debugPrint('[InitialRouter] building');
     final authProvider = context.watch<AuthProvider>();
     final cycleProvider = context.watch<CycleProvider>();
+
+    if (_loading) {
+      // Don't also block on cycleProvider.isSyncing — health sync can finish in background
+      return Scaffold(
+        backgroundColor: AppTheme.background(context),
+        body: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: LunaraColors.primary),
+              SizedBox(height: 16),
+              Text(
+                'Restoring your data...',
+                style: TextStyle(
+                  color: LunaraColors.textLight,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     // Show name prompt dialog if needed (after the frame builds)
     if (authProvider.needsNamePrompt && !_dialogShown) {

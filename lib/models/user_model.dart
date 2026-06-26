@@ -15,7 +15,8 @@ class UserModel {
     this.avatarUrl,
   });
 
-  /// Convert to Map to send to Supabase
+  /// Convert to Map to send to Supabase.
+  /// Note: `created_at` is omitted — the DB column has DEFAULT NOW().
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,
@@ -24,7 +25,6 @@ class UserModel {
       'name': name,
       'cycle_length': cycleLength,
       'avatar_url': avatarUrl,
-      'created_at': DateTime.now().toIso8601String(),
     };
   }
 
