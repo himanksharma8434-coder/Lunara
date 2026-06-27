@@ -22,6 +22,7 @@ import '../../services/plus_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/database_service.dart';
 import '../notifications_screen.dart';
+import '../period_start_setup_screen.dart';
 
 // HOME TAB - ENHANCED
 class HomeTab extends StatefulWidget {
@@ -449,6 +450,111 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                 const SizedBox(height: 2),
                                 Text(
                                   'Tap to add your name',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.textLight(context),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 14,
+                            color: AppTheme.textLight(context),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // Setup Cycle Banner (lastPeriodDate is null)
+            if (provider.lastPeriodDate == null && !provider.isViewingPartner)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PeriodStartSetupScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 14),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: AppTheme.isDark(context)
+                              ? [
+                                  const Color(0xFF2E1935),
+                                  const Color(0xFF4A2B55)
+                                ]
+                              : [
+                                  const Color(0xFFF3E5F5),
+                                  const Color(0xFFE1BEE7)
+                                ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFFAB47BC).withOpacity(0.4),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFAB47BC).withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppTheme.cardColor(context),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color:
+                                      const Color(0xFFAB47BC).withOpacity(0.2),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.calendar_month_rounded,
+                              color: Color(0xFFAB47BC),
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Set up your cycle',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: textColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Tap to add last period date',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: AppTheme.textLight(context),

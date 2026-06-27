@@ -18,6 +18,7 @@ import 'screens/onboarding_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/assessment_screen.dart';
 import 'screens/reset_password_screen.dart';
+import 'widgets/pink_loading_animation.dart';
 import 'package:lunara/providers/auth_provider.dart';
 import 'package:lunara/providers/cycle_provider.dart';
 import 'package:lunara/providers/theme_provider.dart';
@@ -47,16 +48,6 @@ void main() {
       FlutterError.presentError(details);
     };
 
-    // Fire and forget non-critical services so they don't block startup
-    try {
-      AppNotificationService().init().then((_) {
-        AppNotificationService().scheduleDailyGuidance();
-      });
-    } catch (e, st) {
-      log.error('Notification Service Startup Failed (non-fatal)',
-          error: e, stackTrace: st, tag: 'Notifications');
-    }
-
     final prefs = await SharedPreferences.getInstance();
     await SavedPostsService.instance.init();
 
@@ -68,6 +59,16 @@ void main() {
       url: AppConfig.supabaseUrl,
       anonKey: AppConfig.supabaseAnonKey,
     );
+
+    // Initialize notifications (requires Supabase to be initialized)
+    try {
+      // Wait for initialization so the logo test and listeners are properly set up
+      await AppNotificationService().init();
+      AppNotificationService().scheduleDailyGuidance();
+    } catch (e, st) {
+      log.error('Notification Service Startup Failed (non-fatal)',
+          error: e, stackTrace: st, tag: 'Notifications');
+    }
 
     // Initialize real-time listeners for notifications
     AppNotificationService().setupRealtimeListener();
@@ -232,6 +233,7 @@ class _InitialRouterState extends State<InitialRouter> {
   bool _dialogShown = false;
   bool _cloudLoadTriggered = false;
   bool _loading = true;
+  bool _showOverlay = true;
   bool _hasShownMainScreen = false;
 
 
@@ -252,9 +254,13 @@ class _InitialRouterState extends State<InitialRouter> {
 
   Future<void> _loadData() async {
     try {
-      await Provider.of<CycleProvider>(context, listen: false)
-          .loadFromCloud()
-          .timeout(const Duration(seconds: 10));
+      // Run the cloud load and a minimum timer simultaneously
+      await Future.wait([
+        Provider.of<CycleProvider>(context, listen: false)
+            .loadFromCloud()
+            .timeout(const Duration(seconds: 10)),
+        Future.delayed(const Duration(milliseconds: 3000)), // Minimum splash duration
+      ]);
     } catch (e) {
       debugPrint('Error loading cloud data (proceeding anyway): $e');
     } finally {
@@ -272,51 +278,59 @@ class _InitialRouterState extends State<InitialRouter> {
     final authProvider = context.watch<AuthProvider>();
     final cycleProvider = context.watch<CycleProvider>();
 
-    if (_loading) {
-      // Don't also block on cycleProvider.isSyncing — health sync can finish in background
-      return Scaffold(
-        backgroundColor: AppTheme.background(context),
-        body: const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(color: LunaraColors.primary),
-              SizedBox(height: 16),
-              Text(
-                'Lunara is setting up your things...',
-                style: TextStyle(
-                  color: LunaraColors.textLight,
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+    // Determine the underlying screen (only instantiated after loading finishes)
+    Widget? baseScreen;
+    if (!_loading) {
+      if (!_hasShownMainScreen && authProvider.shouldShowAssessment(cycleProvider.isOnPeriod)) {
+        baseScreen = const AssessmentScreen();
+      } else {
+        baseScreen = const MainScreen();
+      }
     }
 
-    // Show name prompt dialog if needed (after the frame builds)
-    if (authProvider.needsNamePrompt && !_dialogShown) {
+    // Show name prompt dialog if needed (after loading and frame builds)
+    if (!_loading && authProvider.needsNamePrompt && !_dialogShown) {
       _dialogShown = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _showNamePromptDialog(context);
       });
     }
 
-    if (!_hasShownMainScreen && authProvider.shouldShowAssessment(cycleProvider.isOnPeriod)) {
-      return const AssessmentScreen();
+    // Lock main screen choice
+    if (!_loading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_hasShownMainScreen) {
+          setState(() {
+            _hasShownMainScreen = true;
+          });
+        }
+      });
     }
 
-    // Once we decide to show MainScreen, lock it so subsequent rebuilds don't hijack the UI
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_hasShownMainScreen) {
-        setState(() {
-          _hasShownMainScreen = true;
-        });
-      }
-    });
+    return Scaffold(
+      backgroundColor: AppTheme.background(context),
+      body: Stack(
+        children: [
+          // Base Screen renders underneath the loading overlay
+          if (baseScreen != null) baseScreen,
 
-    return const MainScreen();
+          // Loading Overlay Transition
+          if (_showOverlay)
+            Positioned.fill(
+              child: PinkLoadingAnimation(
+                isLoading: _loading,
+                onAnimationComplete: () {
+                  if (mounted) {
+                    setState(() {
+                      _showOverlay = false;
+                    });
+                  }
+                },
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   void _showNamePromptDialog(BuildContext context) {
