@@ -215,6 +215,10 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
     final isOnPeriod = context.select<CycleProvider, bool>((p) => p.isOnPeriod);
     final shouldShowPeriodConfirmation = context
         .select<CycleProvider, bool>((p) => p.shouldShowPeriodConfirmation);
+    final shouldShowOverdueBanner = context
+        .select<CycleProvider, bool>((p) => p.shouldShowOverduePeriodBanner);
+    final daysOverdue =
+        context.select<CycleProvider, int>((p) => p.daysOverdue);
     final predictiveInsight =
         context.select<CycleProvider, String?>((p) => p.predictiveInsight);
     final currentPredictions = context
@@ -951,6 +955,264 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                           .withOpacity(0.8),
                                       decoration: TextDecoration.underline,
                                       decorationColor: LunaraColors.lutealPurple
+                                          .withOpacity(0.4),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+            // Late Period / Overdue Banner
+            if (shouldShowOverdueBanner)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: AppTheme.isDark(context)
+                            ? [
+                                const Color(0xFF2A1A15),
+                                const Color(0xFF3D1F1F),
+                              ]
+                            : [
+                                const Color(0xFFFFF3E0),
+                                const Color(0xFFFFE0B2),
+                              ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFFFF9800).withOpacity(0.5),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF9800).withOpacity(0.12),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppTheme.cardColor(context),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFFF9800)
+                                        .withOpacity(0.2),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.notification_important_rounded,
+                                color: Color(0xFFFF9800),
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Your period is $daysOverdue ${daysOverdue == 1 ? 'day' : 'days'} late',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Has your period started?',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.textLight(context),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.mediumImpact();
+                                  provider.confirmPeriodStarted();
+                                },
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 10),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        LunaraColors.primaryDark,
+                                        LunaraColors.primary,
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(14),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: LunaraColors.primaryDark
+                                            .withOpacity(0.3),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      'Yes, it started',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  provider.dismissOverduePeriodBanner();
+                                  CustomToast.show(
+                                    context,
+                                    message:
+                                        'Noted! We\'ll check again tomorrow.',
+                                    icon: Icons.access_time_rounded,
+                                    backgroundColor: const Color(0xFFFF9800),
+                                    duration: const Duration(seconds: 3),
+                                  );
+                                },
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.cardColor(context),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: const Color(0xFFFF9800)
+                                          .withOpacity(0.5),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      'Not yet',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        // "It started on a different day" link
+                        Center(
+                          child: GestureDetector(
+                            onTap: () async {
+                              HapticFeedback.lightImpact();
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime.now()
+                                    .subtract(const Duration(days: 30)),
+                                lastDate: DateTime.now(),
+                                builder: (context, child) {
+                                  final isDark = Theme.of(context).brightness ==
+                                      Brightness.dark;
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: isDark
+                                          ? ColorScheme.dark(
+                                              primary:
+                                                  AppTheme.primary(context),
+                                              onPrimary: Colors.white,
+                                              surface: const Color(0xFF1E1E1E),
+                                              onSurface: Colors.white,
+                                            )
+                                          : ColorScheme.light(
+                                              primary:
+                                                  AppTheme.primary(context),
+                                              onPrimary: Colors.white,
+                                              surface: Colors.white,
+                                              onSurface:
+                                                  const Color(0xFF3E2723),
+                                            ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
+                              );
+                              if (picked != null) {
+                                provider.updateLastPeriodDate(picked);
+                                if (context.mounted) {
+                                  CustomToast.show(
+                                    context,
+                                    message:
+                                        'Period date updated! Predictions recalculated.',
+                                    icon: Icons.check_circle_rounded,
+                                    backgroundColor: const Color(0xFF06D6A0),
+                                  );
+                                }
+                              }
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.edit_calendar_rounded,
+                                    size: 14,
+                                    color: const Color(0xFFFF9800)
+                                        .withOpacity(0.8),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'It started on a different day',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFFFF9800)
+                                          .withOpacity(0.8),
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: const Color(0xFFFF9800)
                                           .withOpacity(0.4),
                                     ),
                                   ),

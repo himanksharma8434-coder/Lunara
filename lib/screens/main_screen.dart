@@ -34,7 +34,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    // Request all permissions after a short delay to ensure Activity is ready
+    
     Future.delayed(const Duration(milliseconds: 500), _requestAllPermissions);
 
     _breathingController = AnimationController(

@@ -74,7 +74,37 @@ class AppNotificationService extends ChangeNotifier {
     "During your period, your metabolic rate naturally drops a bit before resetting.",
     "Progesterone (dominant in your luteal phase) has a natural calming, sleep-promoting effect.",
     "Breasts may feel tender right before your period due to swelling milk glands from progesterone.",
-    "Regularly logging symptoms not only helps you—it provides vital data for your doctor if needed."
+    "Regularly logging symptoms not only helps you—it provides vital data for your doctor if needed.",
+    "Omega-3 fatty acids (found in fish, walnuts & flaxseeds) can reduce menstrual pain and inflammation.",
+    "Your heart rate variability changes across your cycle—it's lowest right before your period.",
+    "Vitamin B6 helps the body produce serotonin, which can ease PMS mood swings naturally.",
+    "Walking for just 20 minutes a day can significantly reduce period cramps and boost your mood.",
+    "Your body burns slightly more calories during the luteal phase—those extra cravings make sense!",
+    "Calcium-rich foods like yogurt and almonds have been shown to reduce PMS symptoms by up to 50%.",
+    "Estrogen has a natural antidepressant effect—which is why mood often lifts after your period ends.",
+    "Deep breathing exercises can lower cortisol and help regulate irregular cycles caused by stress.",
+    "Your cervix changes position throughout your cycle—higher and softer near ovulation.",
+    "Turmeric has natural anti-inflammatory properties that can help with menstrual cramps.",
+    "Sleeping on your side with a pillow between your knees can ease period back pain.",
+    "Your pain threshold is actually highest during ovulation thanks to peak estrogen levels.",
+    "Chamomile tea contains compounds that relax uterine muscles and can reduce cramping.",
+    "Regular exercise throughout the month can make your periods shorter and less painful over time.",
+    "Dehydration can make cramps worse—aim for at least 8 glasses of water during your period.",
+    "Your body temperature rises about 0.3-0.5°C after ovulation and stays elevated until your period.",
+    "Zinc-rich foods like pumpkin seeds and chickpeas support healthy hormone balance.",
+    "Journaling your emotions across your cycle can reveal powerful patterns about your mental health.",
+    "The gut-hormone connection is real—probiotics can actually help balance estrogen levels.",
+    "Light exposure in the morning helps regulate melatonin, which in turn supports cycle regularity.",
+    "Your immune system is slightly suppressed around ovulation to allow potential fertilization.",
+    "Ginger is as effective as ibuprofen for period pain in many studies—try ginger tea! 🍵",
+    "Consistent sleep and wake times help stabilize the hormones that regulate your cycle.",
+    "Acne breakouts before your period happen because progesterone increases oil production in skin.",
+    "Your libido naturally peaks around ovulation due to surging estrogen and testosterone.",
+    "Epsom salt baths can relieve cramps—magnesium absorbs through skin and relaxes muscles.",
+    "Bananas are rich in potassium and B6, both of which help combat water retention and bloating.",
+    "Your verbal fluency and memory recall are often sharpest during the follicular phase.",
+    "Caffeine can constrict blood vessels and increase cramp intensity—consider switching to herbal tea during your period.",
+    "Maintaining a healthy weight supports regular ovulation and balanced hormone levels."
   ];
 
 
@@ -791,7 +821,14 @@ class AppNotificationService extends ChangeNotifier {
       "Your cycle is approaching! Make sure you've got everything you need for the days ahead. 🌸",
       "A gentle reminder from Lunara: your period is expected in about 2 days. Be kind to yourself!",
       "Prediction update: expect your cycle to begin soon. Keep your water bottle handy! 💧",
-      "Your period is around the corner. Remember to prioritize rest and stay hydrated! ✨"
+      "Your period is around the corner. Remember to prioritize rest and stay hydrated! ✨",
+      "Heads up! Your period may start soon. Stock up on comfort essentials—heating pad, chai, cozy blanket 🛌",
+      "Lunara predicts your cycle begins in ~2 days. Listen to your body and slow down if needed 💆‍♀️",
+      "Your body is preparing for your next cycle. Eat well, sleep well, and go easy on yourself 🌿",
+      "Period incoming! This is your sign to meal-prep some iron-rich comfort food 🍲",
+      "A friendly nudge: your period is expected soon. Time to put yourself first! 💜",
+      "Almost time! Your cycle is about to reset. Warm drinks and warm thoughts today ☕",
+      "Your body knows what's coming. Trust the process and take care of yourself these next few days 🌺",
     ];
 
     final bodyPool = isTrackingForSomeoneElse ? partnerBodies : selfBodies;
@@ -858,7 +895,13 @@ class AppNotificationService extends ChangeNotifier {
       "Your fertile window begins tomorrow. Keep logging your symptoms for the best insights!",
       "Ovulation is approaching! Your fertile window officially starts tomorrow. ✨",
       "Just a heads up: you are entering your fertile window starting tomorrow.",
-      "Your fertile window opens tomorrow! A great time to stay in tune with your body's signals."
+      "Your fertile window opens tomorrow! A great time to stay in tune with your body's signals.",
+      "Fertile window alert! You may notice increased energy and a natural glow tomorrow 🌟",
+      "Your body is gearing up for ovulation. Expect peak energy and confidence over the next few days!",
+      "Ovulation season is here! Your estrogen is peaking—enjoy the extra vitality 💫",
+      "Tomorrow marks the start of your fertile window. A perfect time for high-energy activities! 🏃‍♀️",
+      "Your fertile window opens soon. Log your BBT and cervical mucus for the most accurate insights 📊",
+      "Heads up: your body is entering its most energetic phase. Make the most of it! ⚡",
     ];
 
     final bodyPool = isTrackingForSomeoneElse ? partnerBodies : selfBodies;
@@ -1060,6 +1103,15 @@ class AppNotificationService extends ChangeNotifier {
         "Periods can be tough, but you are tougher! Send yourself some love today 💜",
         "Aaram se din nikalo aaj. Comfort over everything else! 💆‍♀️",
         "Warm hugs and warm water for you today! You've got this ✨",
+        "Iron levels drop during periods. Palak, dal, or dates khao aaj—body thank karegi 🥗",
+        "Feeling low? It's completely okay. Thoda rest lo, duniya baad mein chalegi 🫶",
+        "Hot water bottle + comfy blanket = period survival kit. Treat yourself today! 🧸",
+        "Your uterus is literally shedding its lining. You deserve all the kindness today 🌷",
+        "Periods are proof your body is healthy and working. You're amazing, don't forget that! 🦋",
+        "Light stretching can actually ease cramps. Try some gentle yoga if you're up for it 🧘‍♀️",
+        "Stay away from super salty foods today—they can make bloating worse. Fruits are your friend 🍎",
+        "Your energy will bounce back soon! For now, rest is the best productivity hack 😴",
+        "Aaj ka motto: Be kind to yourself. Period. (Literally!) 💗",
       ];
       return periodMsgs[(dayOfCycle - 1) % periodMsgs.length];
     } else if (dayOfCycle > periodDuration && dayOfCycle <= 12) {
@@ -1071,6 +1123,14 @@ class AppNotificationService extends ChangeNotifier {
         "Feeling creative? This phase is perfect for picking up a new hobby 🎨",
         "Good vibes only! Focus on your wellness and maintain that positive energy 🌟",
         "Looking for a fresh start? Today is a great day for new beginnings! 🌿",
+        "Your brain is extra sharp right now! Estrogen boosts memory and focus during this phase 🧠",
+        "Feeling unstoppable? That's the follicular phase magic. Channel it into something big! 🔥",
+        "This is your body's 'spring season.' Plant the seeds for your goals today 🌱",
+        "Your pain tolerance is higher right now. Great day for that workout you've been putting off! 🏋️‍♀️",
+        "Social energy is high! Plan that catch-up with friends or try something adventurous today 🎯",
+        "Estrogen rising matlab confidence bhi rising. Own it today! 👑",
+        "Your metabolism is efficient right now. A balanced meal will fuel you all day long 🥑",
+        "Creativity peaks in the follicular phase. Write, draw, dance—express yourself! 🎵",
       ];
       return follicularMsgs[((dayOfCycle - periodDuration - 1) ~/ 2) % follicularMsgs.length];
     } else if (dayOfCycle > 12 && dayOfCycle <= 16) {
@@ -1079,18 +1139,34 @@ class AppNotificationService extends ChangeNotifier {
         "Fertile window alert. Utilize your peak energy levels well today ✨",
         "Feeling sociable? Hormonal shifts during this time often boost social energy 🎉",
         "You are glowing! Take some time to pamper yourself today 💅",
+        "Peak estrogen = peak you! Your verbal skills and memory are sharpest right now 🗣️",
+        "Your body is at its strongest point in the cycle. Make the most of this energy! ⚡",
+        "Noticing a natural glow? Estrogen plumps your skin and boosts collagen around ovulation 🌟",
+        "Confidence is naturally high right now. Perfect time for important conversations or decisions 🎯",
+        "Your senses are heightened during ovulation—even your sense of smell is sharper! 👃",
+        "This is your body's 'summer.' Radiate that warmth and energy today ☀️",
       ];
       return ovMsgs[((dayOfCycle - 13) ~/ 2).clamp(0, ovMsgs.length - 1)];
     } else {
       final lutealMsgs = [
-        "Progesterone rising . Breast tenderness are normal , comfort your breast🌸",
+        "Progesterone is rising. Breast tenderness is normal—wear something comfortable today 🌸",
         "Mood swings feeling real? Thoda time nikal lo, suno apni pasand ki music 🎧",
-        "Cravings hitting hard? Ek piece dark chocolate , totally allowed hai 🍫",
+        "Cravings hitting hard? Ek piece dark chocolate, totally allowed hai 🍫",
         "Energy thodi low lag sakti hai. Chill day plan karo, maybe watch a movie 🍿",
         "PMS might be knocking. Don't be too hard on yourself 💜",
         "Skin acting up? It happens before periods. Hydrate karo aur chill raho 💧",
         "Feeling bloated? Nimbu pani or green tea help kar sakti hai 🍵",
-        "Feeling extra sensitive today? warm bath can do wonders 🛀",
+        "Feeling extra sensitive today? A warm bath can do wonders 🛀",
+        "Progesterone makes you sleepy—that's biology, not laziness! Get that extra rest 😴",
+        "Comfort food cravings? Try banana smoothie or oats—tasty aur healthy bhi! 🍌",
+        "Irritability before periods is real. Take deep breaths and be gentle with yourself 🌬️",
+        "Your body is preparing for the next cycle. Slow down aur apna khayal rakho 🫂",
+        "Headaches in the luteal phase? Stay hydrated and avoid skipping meals today 🥤",
+        "Feeling less social? That's normal in this phase. Alone time is self-care too 🏠",
+        "Journaling your feelings today can help release emotional buildup before your period 📝",
+        "Magnesium-rich foods like dark chocolate, nuts, and bananas can ease PMS naturally 🥜",
+        "Sleep quality may dip before your period. Try a calming bedtime routine tonight 🌙",
+        "Lower back pain creeping in? Gentle stretches and a heating pad are your allies 🤗",
       ];
       return lutealMsgs[((dayOfCycle - 17) ~/ 2).clamp(0, lutealMsgs.length - 1)];
     }
