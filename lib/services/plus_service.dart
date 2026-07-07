@@ -50,7 +50,8 @@ class PlusService extends ChangeNotifier {
     notifyListeners();
 
     // Also try to fetch from Supabase if logged in
-    await _syncFromCloud();
+    // Fire and forget to avoid blocking main thread at startup
+    _syncFromCloud();
   }
 
   // ─── Mutation ─────────────────────────────────────

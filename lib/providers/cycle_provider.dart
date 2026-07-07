@@ -1860,12 +1860,16 @@ class CycleProvider extends ChangeNotifier {
     );
 
     // Schedule Cycle Day Reminders (Daily for period, Alternate for others)
-    appNs.scheduleCycleDayReminders(
-      currentCycleDay: currentCycleDay,
-      periodDuration: _periodDuration,
-      cycleLength: effectiveCycleLength,
-      isTrackingForSomeoneElse: _isTrackingForSomeoneElse,
-    );
+    if (_lastPeriodDate != null) {
+      final now = DateTime.now();
+      final currentCycleDay = now.difference(_lastPeriodDate!).inDays + 1;
+      appNs.scheduleCycleDayReminders(
+        currentCycleDay: currentCycleDay,
+        periodDuration: _periodDuration,
+        cycleLength: effectiveCycleLength,
+        isTrackingForSomeoneElse: _isTrackingForSomeoneElse,
+      );
+    }
   }
 
   // Helper Methods for UI (Calendar Screen)
