@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:lunara/services/plus_service.dart';
 import 'package:lunara/services/saved_posts_service.dart';
+import 'package:lunara/services/patch_service.dart';
 
 // local files
 import 'config/app_config.dart';
@@ -92,6 +93,9 @@ void main() {
           error: e, stackTrace: st, tag: 'Health');
     }
 
+    // Initialize PatchService for Shorebird updates
+    await PatchService.instance.init();
+
     // Initialize Plus Service (reads cached status + cloud sync)
     await PlusService.instance.init();
 
@@ -161,6 +165,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ChangeNotifierProvider(create: (_) => CycleProvider(widget.prefs)),
         ChangeNotifierProvider.value(value: PlusService.instance),
         ChangeNotifierProvider.value(value: _privacyProvider),
+        ChangeNotifierProvider.value(value: PatchService.instance),
       ],
       child: Builder(
         builder: (context) {
@@ -182,6 +187,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               theme: AppTheme.lightTheme,
               darkTheme: AppTheme.darkTheme,
               home: const LockScreen(),
+              builder: _buildGlobalOverlay,
             );
           }
 
@@ -215,9 +221,71 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             home: homeScreen,
+            builder: _buildGlobalOverlay,
           );
         },
       ),
+    );
+  }
+
+  Widget _buildGlobalOverlay(BuildContext context, Widget? child) {
+    final patchService = context.watch<PatchService>();
+
+    return Stack(
+      children: [
+        if (child != null) child,
+        if (patchService.isUpdateReadyToInstall)
+          Positioned(
+            top: 50,
+            left: 20,
+            right: 20,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: LunaraColors.primary.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                  border: Border.all(
+                    color: LunaraColors.primary.withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.system_update, color: LunaraColors.primary),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'An update is ready — restart to apply',
+                        style: TextStyle(
+                          color: LunaraColors.textDark,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        // In a real app we might gracefully restart or exit,
+                        // but usually just exiting the app works or user kills it.
+                        // For a gentle approach, we just provide the instruction
+                        // since we can't reliably force-restart a Flutter app cross-platform nicely.
+                      },
+                      child: const Text('Restart now', style: TextStyle(color: LunaraColors.primary, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
