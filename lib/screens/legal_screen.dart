@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
-import 'terms_privacy_detail_screens.dart';
 
 /// Displays legal documents (Privacy Policy & Terms of Service).
 class LegalScreen extends StatelessWidget {
