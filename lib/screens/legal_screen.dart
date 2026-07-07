@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import 'terms_privacy_detail_screens.dart';
 
@@ -35,14 +36,12 @@ class LegalScreen extends StatelessWidget {
                   'Analytics are anonymised and used only to improve the app.',
                   'You can delete your account and all data at any time from Account Settings.',
                 ],
-                linkLabel: 'Read full Privacy Policy',
-                onLinkTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PrivacyPolicyScreen(),
-                    ),
-                  );
+                linkLabel: 'Read More',
+                onLinkTap: () async {
+                  final url = Uri.parse('https://lunara-446e.firebaseapp.com/privacy.html');
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  }
                 },
               ),
               const SizedBox(height: 24),
@@ -59,14 +58,12 @@ class LegalScreen extends StatelessWidget {
                   'Always consult a healthcare professional for medical decisions.',
                   'We reserve the right to update these terms with notice.',
                 ],
-                linkLabel: 'Read full Terms of Service',
-                onLinkTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const TermsOfServiceScreen(),
-                    ),
-                  );
+                linkLabel: 'Read More',
+                onLinkTap: () async {
+                  final url = Uri.parse('https://lunara-446e.firebaseapp.com/terms.html');
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  }
                 },
               ),
               const SizedBox(height: 24),
