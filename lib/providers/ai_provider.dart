@@ -23,7 +23,7 @@ class AIProvider with ChangeNotifier {
       }
     }
     // Fallback
-    return GroqModel(model: 'qwen-3.6-27b', apiKey: apiKey);
+    return GroqModel(model: 'qwen-2.5-32b', apiKey: apiKey);
   }
 
   Future<void> askLunara(String userPrompt, CycleProvider cycle) async {

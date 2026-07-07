@@ -92,7 +92,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               "Do not state details not supported by the app.";
 
           final modelsToTry = [
-            'qwen-3.6-27b',
+            'qwen-2.5-32b',
             'mixtral-8x7b-32768'
           ];
           
