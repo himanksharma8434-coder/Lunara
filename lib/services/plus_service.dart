@@ -23,7 +23,6 @@ class PlusService extends ChangeNotifier {
   static const int freeDailyLimit = 10;
 
   // ─── Model tiers ──────────────────────────────────
-  /// Models available to free users (lightweight & cheap).
   static const List<String> freeModels = [
     'llama-3.3-70b-versatile',
     'llama3-8b-8192',
