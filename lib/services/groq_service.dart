@@ -126,7 +126,7 @@ class GroqModel {
         return data['choices'][0]['message']['content'] as String?;
       } else {
         debugPrint("Groq Error: ${response.statusCode} - ${response.body}");
-        throw Exception(AppErrors.serverMessage);
+        throw Exception("${AppErrors.serverMessage} [HTTP ${response.statusCode}: ${response.body}]");
       }
     } on SocketException catch (_) {
       throw Exception(AppErrors.connectionMessage);

@@ -6,7 +6,7 @@ class PatchService extends ChangeNotifier {
   static final PatchService instance = PatchService._();
   PatchService._();
 
-  final _shorebirdCodePush = ShorebirdCodePush();
+  final _shorebirdUpdater = ShorebirdUpdater();
   bool _isUpdateReadyToInstall = false;
   
   bool get isUpdateReadyToInstall => _isUpdateReadyToInstall;
@@ -41,7 +41,8 @@ class PatchService extends ChangeNotifier {
   /// Checks if a new patch is available for download.
   Future<bool> isNewPatchAvailable() async {
     try {
-      return await _shorebirdCodePush.isNewPatchAvailableForDownload();
+      final status = await _shorebirdUpdater.checkForUpdate();
+      return status == UpdateStatus.outdated;
     } catch (e, st) {
       LoggerService.instance.error('Error checking for patch', error: e, stackTrace: st, tag: 'Shorebird');
       return false;
@@ -51,7 +52,7 @@ class PatchService extends ChangeNotifier {
   /// Downloads the available patch.
   Future<void> downloadPatch() async {
     try {
-      await _shorebirdCodePush.downloadUpdateIfAvailable();
+      await _shorebirdUpdater.update();
       LoggerService.instance.info('Patch downloaded successfully. Waiting for restart.', tag: 'Shorebird');
       _isUpdateReadyToInstall = true;
       notifyListeners();
@@ -63,7 +64,8 @@ class PatchService extends ChangeNotifier {
   /// Gets the current patch number.
   Future<int?> currentPatchNumber() async {
     try {
-      return await _shorebirdCodePush.currentPatchNumber();
+      final patch = await _shorebirdUpdater.readCurrentPatch();
+      return patch?.number;
     } catch (e) {
       return null;
     }

@@ -25,13 +25,14 @@ class PlusService extends ChangeNotifier {
   // ─── Model tiers ──────────────────────────────────
   /// Models available to free users (lightweight & cheap).
   static const List<String> freeModels = [
-    'qwen-2.5-32b',
+    'llama-3.3-70b-versatile',
+    'llama3-8b-8192',
     'mixtral-8x7b-32768',
   ];
 
-  /// Models available to Plus users (powerful reasoning).
   static const List<String> plusModels = [
-    'qwen-2.5-32b',
+    'llama-3.3-70b-versatile',
+    'llama3-8b-8192',
     'mixtral-8x7b-32768',
   ];
 
