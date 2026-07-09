@@ -1,6 +1,7 @@
 // lib/screens/main_screen.dart - ENHANCED INTERACTIVE VERSION
 
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import '../theme/app_theme.dart';
@@ -173,62 +174,94 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               margin: const EdgeInsets.only(top: 30),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: AppTheme.primaryGradient(context),
                 boxShadow: [
+                  // Liquid Depth: Outer drop shadow
                   BoxShadow(
-                    color: AppTheme.primary(context).withOpacity(glowIntensity),
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 24,
+                    offset: const Offset(0, 4),
+                  ),
+                  // Maintaining the pinky glow theme
+                  BoxShadow(
+                    color: AppTheme.primary(context).withOpacity(glowIntensity * 0.5),
                     blurRadius: 20 + (_breathingController.value * 10),
                     offset: const Offset(0, 8),
                     spreadRadius: 2,
                   ),
                 ],
               ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Animated pulse ring
-                  Container(
-                    width: 64 + (_breathingController.value * 10),
-                    height: 64 + (_breathingController.value * 10),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(100),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
+                  child: Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: Colors.white.withOpacity(
-                            0.3 * (1 - _breathingController.value)),
-                        width: 2,
+                        color: Colors.white.withOpacity(0.25),
+                        width: 1,
+                      ),
+                      // Approximating the glass base + inner highlights/shadows
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.white.withOpacity(0.4), // Inner top highlight
+                          Colors.white.withOpacity(0.08), // Glass Base
+                          const Color(0xFFFF0080).withOpacity(0.15), // Neon pink inner bottom shadow
+                        ],
+                        stops: const [0.0, 0.2, 1.0],
                       ),
                     ),
-                  ),
-                  // Icon
-                  const Icon(
-                    Icons.auto_awesome_rounded,
-                    color: Colors.white,
-                    size: 30,
-                  ),
-                  // AI Badge
-                  Positioned(
-                    bottom: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: Colors.white.withOpacity(0.5), width: 1),
-                      ),
-                      child: const Text(
-                        'AI',
-                        style: TextStyle(
-                          fontSize: 8,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Animated pulse ring (tinted pink to keep the theme)
+                        Container(
+                          width: 64 + (_breathingController.value * 10),
+                          height: 64 + (_breathingController.value * 10),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppTheme.primary(context).withOpacity(
+                                  0.6 * (1 - _breathingController.value)),
+                              width: 2,
+                            ),
+                          ),
                         ),
-                      ),
+                        // Icon
+                        const Icon(
+                          Icons.auto_awesome_rounded,
+                          color: Colors.white,
+                          size: 30,
+                        ),
+                        // AI Badge
+                        Positioned(
+                          bottom: 6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary(context).withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                  color: Colors.white.withOpacity(0.5), width: 1),
+                            ),
+                            child: const Text(
+                              'AI',
+                              style: TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           );
