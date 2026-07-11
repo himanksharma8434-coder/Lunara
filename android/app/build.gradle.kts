@@ -7,7 +7,8 @@ plugins {
 android {
     namespace = "com.example.lunaraai"
     compileSdk = 36
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "28.2.13676358"
+
 
     compileOptions {
         // Kotlin requires '=' and parentheses
@@ -37,6 +38,7 @@ android {
         }
     }
 }
+
 
 flutter {
     source = "../.."

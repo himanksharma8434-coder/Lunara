@@ -79,6 +79,32 @@ class _ProfileHeaderState extends State<_ProfileHeader> {
       if (image == null) return;
       if (!context.mounted) return;
 
+      final extension = image.path.split('.').last.toLowerCase();
+      if (extension != 'img' && extension != 'jpeg') {
+        if (context.mounted) {
+          CustomToast.show(
+            context,
+            message: 'Only .img or .jpeg files are allowed.',
+            icon: Icons.error_outline,
+            backgroundColor: Colors.red[400],
+          );
+        }
+        return;
+      }
+
+      final length = await image.length();
+      if (length > 5 * 1024 * 1024) {
+        if (context.mounted) {
+          CustomToast.show(
+            context,
+            message: 'File size must be maximum 5MB.',
+            icon: Icons.error_outline,
+            backgroundColor: Colors.red[400],
+          );
+        }
+        return;
+      }
+
       final CroppedFile? croppedFile = await ImageCropper().cropImage(
         sourcePath: image.path,
         aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),

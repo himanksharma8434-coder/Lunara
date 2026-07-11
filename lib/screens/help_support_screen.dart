@@ -11,6 +11,8 @@ import '../services/groq_service.dart';
 import '../services/plus_service.dart';
 import '../config/app_config.dart';
 import '../widgets/custom_toast.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
@@ -25,6 +27,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   String _selectedCategory = 'Question';
   bool _isSubmitting = false;
   bool _feedbackSent = false;
+  File? _screenshot;
+  final ImagePicker _picker = ImagePicker();
 
   final List<String> _categories = ['Question', 'Feedback', 'Bug Report', 'Other'];
 
@@ -56,6 +60,45 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     _feedbackController.dispose();
     _emailController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickScreenshot() async {
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      if (image == null) return;
+
+      final extension = image.path.split('.').last.toLowerCase();
+      if (extension != 'img' && extension != 'jpeg') {
+        if (mounted) {
+          CustomToast.show(
+            context,
+            message: 'Only .img or .jpeg files are allowed.',
+            icon: Icons.error_outline,
+            backgroundColor: Colors.red[400],
+          );
+        }
+        return;
+      }
+
+      final length = await image.length();
+      if (length > 5 * 1024 * 1024) {
+        if (mounted) {
+          CustomToast.show(
+            context,
+            message: 'File size must be maximum 5MB.',
+            icon: Icons.error_outline,
+            backgroundColor: Colors.red[400],
+          );
+        }
+        return;
+      }
+
+      setState(() {
+        _screenshot = File(image.path);
+      });
+    } catch (e) {
+      debugPrint('Error picking screenshot: $e');
+    }
   }
 
   void _submitFeedback() async {
@@ -135,6 +178,24 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         }
       }
 
+      if (_selectedCategory == 'Bug Report' && _screenshot != null) {
+        try {
+          final fileExt = _screenshot!.path.split('.').last;
+          final fileName = 'bug_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+          final filePath = '${uid ?? 'anon'}/$fileName';
+          
+          await supabase.storage.from('avatars').upload(
+            filePath,
+            _screenshot!,
+            fileOptions: const FileOptions(cacheControl: '3600'),
+          );
+          final imageUrl = supabase.storage.from('avatars').getPublicUrl(filePath);
+          finalMessage += '\n\n[SCREENSHOT: $imageUrl]';
+        } catch (e) {
+          debugPrint('Failed to upload screenshot: $e');
+        }
+      }
+
       await supabase.from('support_tickets').insert({
         'user_id': uid,
         'email': userEmail,
@@ -152,6 +213,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         HapticFeedback.lightImpact();
         _feedbackController.clear();
         _emailController.clear();
+        _screenshot = null;
       }
     } catch (e) {
       debugPrint('Error submitting ticket: $e');
@@ -393,6 +455,55 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
           ),
         ),
         const SizedBox(height: 20),
+
+        if (_selectedCategory == 'Bug Report') ...[
+          Text(
+            'Attach Screenshot (optional)',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textLight(context),
+            ),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _pickScreenshot,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppTheme.background(context),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppTheme.divider(context)),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _screenshot != null ? Icons.image : Icons.add_photo_alternate_outlined,
+                    color: _screenshot != null ? LunaraColors.primary : AppTheme.textLight(context),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _screenshot != null ? _screenshot!.path.split('/').last : 'Upload .img or .jpeg (max 5MB)',
+                      style: TextStyle(
+                        color: _screenshot != null ? AppTheme.textDark(context) : AppTheme.textLight(context),
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (_screenshot != null)
+                    GestureDetector(
+                      onTap: () => setState(() => _screenshot = null),
+                      child: const Icon(Icons.close, color: Colors.redAccent, size: 20),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
 
         // Message textfield label
         Text(
