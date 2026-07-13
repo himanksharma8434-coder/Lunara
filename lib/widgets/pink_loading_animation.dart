@@ -47,7 +47,6 @@ class _PinkLoadingAnimationState extends State<PinkLoadingAnimation>
       duration: const Duration(milliseconds: 1500),
     );
 
-    // The animation sucks inwards before the blast
     _elementsScaleDownAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
       CurvedAnimation(
         parent: _blastController,
