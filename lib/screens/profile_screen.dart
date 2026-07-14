@@ -425,29 +425,6 @@ class _NotificationToggles extends StatelessWidget {
           cycleEnabled,
           (val) => context.read<AppNotificationService>().toggleCycleReminders(val),
         ),
-        _buildSettingItem(
-          context,
-          Icons.notifications_active_rounded,
-          'Test Notification',
-          'Tap to instantly test notification delivery',
-          () async {
-            try {
-              await AppNotificationService().showInstantNotification(
-                title: "Test Successful! 🎉",
-                body: "Your notifications are working correctly.",
-              );
-            } catch (e) {
-              if (context.mounted) {
-                CustomToast.show(
-                  context,
-                  message: 'Error: $e',
-                  icon: Icons.error_outline,
-                  backgroundColor: Colors.red[400],
-                );
-              }
-            }
-          },
-        ),
       ],
     );
   }
