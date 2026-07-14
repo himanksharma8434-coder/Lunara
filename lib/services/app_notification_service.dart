@@ -81,7 +81,7 @@ class AppNotificationService extends ChangeNotifier {
     }
 
     const androidSettings =
-        AndroidInitializationSettings('ic_notification');
+        AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -166,21 +166,27 @@ class AppNotificationService extends ChangeNotifier {
     required String title,
     required String body,
   }) async {
-    await _notifications.show(
-      id: 999, // Unique ID for instant alerts
-      title: title,
-      body: body,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'instant_channel',
-          'Instant Alerts',
-          importance: Importance.max,
-          priority: Priority.high,
-          color: Color(0xFFFF8989),
+    try {
+      await _notifications.show(
+        id: 999, // Unique ID for instant alerts
+        title: title,
+        body: body,
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'instant_channel',
+            'Instant Alerts',
+            importance: Importance.max,
+            priority: Priority.high,
+            color: Color(0xFFFF8989),
+          ),
+          iOS: DarwinNotificationDetails(),
         ),
-        iOS: DarwinNotificationDetails(),
-      ),
-    );
+      );
+    } catch (e, stackTrace) {
+      debugPrint('Error showing notification: $e\n$stackTrace');
+      // We don't have BuildContext here, but we can throw to the caller
+      throw Exception('Notification failed: $e');
+    }
   }
 
   Future<void> requestPermissions() async {
