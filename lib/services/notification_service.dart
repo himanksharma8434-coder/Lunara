@@ -115,7 +115,7 @@ class NotificationService {
             'Notifications for period and fertility predictions',
         importance: Importance.max,
         priority: Priority.high,
-        icon: 'lunara_logo',
+        icon: 'ic_notification',
       ),
       iOS: DarwinNotificationDetails(
         presentAlert: true,

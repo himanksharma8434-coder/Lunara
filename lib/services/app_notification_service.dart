@@ -74,8 +74,8 @@ class AppNotificationService extends ChangeNotifier {
   Future<void> init() async {
     tz_data.initializeTimeZones(); // Use the correct alias
     try {
-      final timeZoneInfo = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(timeZoneInfo.identifier));
+      final timeZoneName = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
     } catch (e) {
       debugPrint('Error setting local timezone location: $e');
     }
@@ -744,10 +744,10 @@ class AppNotificationService extends ChangeNotifier {
 
       if (!shouldSchedule) continue;
 
-      // Schedule at 12:00 PM
-      var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day + i, 12, 0);
+      // Schedule at 10:00 AM (to avoid overlapping with the 12:00 PM logging reminder)
+      var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day + i, 10, 0);
       
-      // If it's today and 12 PM has passed, skip
+      // If it's today and 10 AM has passed, skip
       if (scheduledDate.isBefore(now)) continue;
 
       final message = _getCycleDayMessage(predictedCycleDay, periodDuration);
