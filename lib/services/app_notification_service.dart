@@ -74,8 +74,24 @@ class AppNotificationService extends ChangeNotifier {
   Future<void> init() async {
     tz_data.initializeTimeZones(); // Use the correct alias
     try {
-      final timeZoneName = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(timeZoneName));
+      final timeZoneInfo = await FlutterTimezone.getLocalTimezone();
+      try {
+        tz.setLocalLocation(tz.getLocation(timeZoneInfo.identifier));
+      } catch (_) {
+        // Fallback: Find a location in the database with the same current offset
+        final offsetMs = DateTime.now().timeZoneOffset.inMilliseconds;
+        bool found = false;
+        for (final loc in tz.timeZoneDatabase.locations.values) {
+          if (loc.currentTimeZone.offset == offsetMs) {
+            tz.setLocalLocation(loc);
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          tz.setLocalLocation(tz.getLocation('UTC'));
+        }
+      }
     } catch (e) {
       debugPrint('Error setting local timezone location: $e');
     }
