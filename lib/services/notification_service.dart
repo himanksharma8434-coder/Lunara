@@ -54,7 +54,7 @@ class NotificationService {
 
     // Android Initialization
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('lunara_logo');
+        AndroidInitializationSettings('ic_notification');
 
     // iOS Initialization
     const DarwinInitializationSettings initializationSettingsIOS =
