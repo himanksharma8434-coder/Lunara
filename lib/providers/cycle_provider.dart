@@ -28,7 +28,6 @@ class CycleProvider extends ChangeNotifier {
   bool _bodyMetricsCompleted = false;
   bool _isIrregular = false;
 
-  // Multi-Cycle History (stores start dates of past cycles)
   List<DateTime> _cycleHistory = [];
 
   // Daily Metrics
@@ -1092,6 +1091,45 @@ class CycleProvider extends ChangeNotifier {
       }
     }
     return true;
+  }
+
+  /// Whether to show the "Period is late" banner.
+  /// Shows when the current cycle day exceeds the expected cycle length
+  /// and the normal period confirmation isn't already showing.
+  bool get shouldShowOverduePeriodBanner {
+    if (_activeLastPeriodDate == null) return false;
+    if (isViewingPartner) return false;
+    // Only show when days exceed cycle length
+    if (currentCycleDay <= effectiveCycleLength) return false;
+    // Don't show if normal confirmation is already visible
+    if (shouldShowPeriodConfirmation) return false;
+    // Check if already dismissed today
+    final lastDismissed = _prefs.getString('overdue_period_dismissed');
+    if (lastDismissed != null) {
+      final dismissedDate = DateTime.tryParse(lastDismissed);
+      if (dismissedDate != null) {
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final dismissed = DateTime(
+            dismissedDate.year, dismissedDate.month, dismissedDate.day);
+        if (today.isAtSameMomentAs(dismissed)) return false;
+      }
+    }
+    return true;
+  }
+
+  /// How many days late the period is.
+  int get daysOverdue {
+    final overdue = currentCycleDay - effectiveCycleLength;
+    return overdue > 0 ? overdue : 0;
+  }
+
+  /// User dismisses the overdue period banner for today.
+  void dismissOverduePeriodBanner() {
+    _prefs.setString(
+        'overdue_period_dismissed', DateTime.now().toIso8601String());
+    _syncPeriodDelayToCloud();
+    notifyListeners();
   }
 
   /// User confirms their period started today.
