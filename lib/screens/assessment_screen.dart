@@ -64,8 +64,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
   @override
   void initState() {
     super.initState();
-
-    // Entry Animation
+    
     _entryController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
