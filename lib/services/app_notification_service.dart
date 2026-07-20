@@ -82,7 +82,7 @@ class AppNotificationService extends ChangeNotifier {
         final offsetMs = DateTime.now().timeZoneOffset.inMilliseconds;
         bool found = false;
         for (final loc in tz.timeZoneDatabase.locations.values) {
-          if (loc.currentTimeZone.offset == offsetMs) {
+          if (loc.currentTimeZone.offset.inMilliseconds == offsetMs) {
             tz.setLocalLocation(loc);
             found = true;
             break;
