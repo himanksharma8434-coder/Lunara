@@ -304,7 +304,7 @@ class CycleProvider extends ChangeNotifier {
       final profile = await db.getUserProfile(userId);
       if (profile != null) {
         bool updated = false;
-        if (_userName.isEmpty && (profile['name'] ?? '').isNotEmpty) {
+        if ((profile['name'] ?? '').isNotEmpty) {
           _userName = profile['name'];
           updated = true;
         }
@@ -1377,12 +1377,14 @@ class CycleProvider extends ChangeNotifier {
   void updateUserName(String name) {
     _userName = name;
     _saveToPrefs();
+    syncProfileToCloud();
     notifyListeners();
   }
 
   void setUserName(String name) {
     _userName = name;
     _saveToPrefs();
+    syncProfileToCloud();
     notifyListeners();
   }
 

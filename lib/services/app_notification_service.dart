@@ -125,13 +125,7 @@ class AppNotificationService extends ChangeNotifier {
       scheduleDailyReminder();
     }
 
-    // Temporary test notification to check logo
-    Future.delayed(const Duration(seconds: 3), () {
-      showInstantNotification(
-        title: "Logo Test",
-        body: "Here is your new logo notification! No large side icon.",
-      );
-    });
+
 
     // Listen to Auth State changes to subscribe/unsubscribe to Realtime
     Supabase.instance.client.auth.onAuthStateChange.listen((data) {
@@ -195,6 +189,7 @@ class AppNotificationService extends ChangeNotifier {
             priority: Priority.high,
             color: Color(0xFFFF8989),
             icon: 'ic_notification',
+            largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
           ),
           iOS: DarwinNotificationDetails(),
         ),
@@ -304,6 +299,7 @@ class AppNotificationService extends ChangeNotifier {
           priority: Priority.defaultPriority,
           color: Color(0xFFFF8989),
           icon: 'ic_notification',
+          largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
         ),
         iOS: DarwinNotificationDetails(),
       ),
@@ -324,6 +320,7 @@ class AppNotificationService extends ChangeNotifier {
           priority: Priority.defaultPriority,
           color: Color(0xFFFF8989),
           icon: 'ic_notification',
+          largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
         ),
         iOS: DarwinNotificationDetails(),
       ),
@@ -364,6 +361,7 @@ class AppNotificationService extends ChangeNotifier {
           priority: Priority.defaultPriority,
           color: Color(0xFFFF8989),
           icon: 'ic_notification',
+          largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
         ),
         iOS: DarwinNotificationDetails(),
       ),
@@ -439,6 +437,7 @@ class AppNotificationService extends ChangeNotifier {
             priority: Priority.defaultPriority,
             color: Color(0xFFFF8989),
             icon: 'ic_notification',
+            largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
           ),
           iOS: DarwinNotificationDetails(),
         ),
@@ -466,6 +465,7 @@ class AppNotificationService extends ChangeNotifier {
             priority: Priority.defaultPriority,
             color: Color(0xFFFF8989),
             icon: 'ic_notification',
+            largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
           ),
           iOS: DarwinNotificationDetails(),
         ),
@@ -501,6 +501,7 @@ class AppNotificationService extends ChangeNotifier {
               priority: Priority.high,
               color: Color(0xFFFF8989),
               icon: 'ic_notification',
+              largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
             ),
             iOS: DarwinNotificationDetails(),
           ),
@@ -573,6 +574,7 @@ class AppNotificationService extends ChangeNotifier {
           ],
           color: const Color(0xFFFF8989),
           icon: 'ic_notification',
+          largeIcon: const DrawableResourceAndroidBitmap('lunara_logo'),
         ),
         iOS: const DarwinNotificationDetails(
           categoryIdentifier: 'period_reminder',
@@ -629,6 +631,7 @@ class AppNotificationService extends ChangeNotifier {
           priority: Priority.high,
           color: Color(0xFFFF8989),
           icon: 'ic_notification',
+          largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
         ),
         iOS: DarwinNotificationDetails(),
       ),
@@ -743,6 +746,7 @@ class AppNotificationService extends ChangeNotifier {
             priority: Priority.defaultPriority,
             color: Color(0xFFFF8989),
             icon: 'ic_notification',
+            largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
           ),
           iOS: DarwinNotificationDetails(),
         ),
@@ -807,6 +811,7 @@ class AppNotificationService extends ChangeNotifier {
             priority: Priority.defaultPriority,
             color: Color(0xFFFF8989),
             icon: 'ic_notification',
+            largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
           ),
           iOS: DarwinNotificationDetails(),
         ),

@@ -1378,7 +1378,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                 LunaraColors.primary, Icons.spa_rounded),
             _buildDetailRow(
                 'Cycle Day',
-                '${provider.currentCycleDay}/${provider.cycleLength}',
+                '${provider.currentCycleDay}/${provider.effectiveCycleLength}',
                 LunaraColors.ovulationBlue,
                 Icons.calendar_today_rounded),
             _buildDetailRow(
@@ -2168,7 +2168,7 @@ class CycleRingWidget extends StatelessWidget {
     final currentCycleDay =
         context.select<CycleProvider, int>((p) => p.currentCycleDay);
     final cycleLength =
-        context.select<CycleProvider, int>((p) => p.cycleLength);
+        context.select<CycleProvider, int>((p) => p.effectiveCycleLength);
     final currentPhase =
         context.select<CycleProvider, String>((p) => p.currentPhase);
 
