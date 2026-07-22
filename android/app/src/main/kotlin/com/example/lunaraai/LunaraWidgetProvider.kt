@@ -75,9 +75,9 @@ class LunaraWidgetProvider : HomeWidgetProvider() {
                 val diffMs = today.timeInMillis - lastPeriod.timeInMillis
                 val diffDays = (diffMs / (1000 * 60 * 60 * 24)).toInt()
                 
-                // Keep it positive and loop it around the cycle length
+                // Linear cycle day count (e.g. Day 34 of 28 when overdue)
                 val currentDay = if (diffDays >= 0) {
-                    (diffDays % cycleLength) + 1
+                    diffDays + 1
                 } else {
                     1
                 }

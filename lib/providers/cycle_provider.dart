@@ -510,7 +510,7 @@ class CycleProvider extends ChangeNotifier {
   // Getters - User Info
   String get userName => _userName;
   DateTime? get lastPeriodDate => _lastPeriodDate;
-  int get cycleLength => _cycleLength;
+  int get cycleLength => _activeCycleLength;
   int get periodDuration => _periodDuration;
   int get age => _age;
   String get userGender => _userGender;
@@ -529,7 +529,9 @@ class CycleProvider extends ChangeNotifier {
 
   void setIsIrregular(bool value) {
     _isIrregular = value;
+    _calculatePredictions();
     _saveToPrefs();
+    _updateReminders();
     notifyListeners();
     syncProfileToCloud();
   }
@@ -729,7 +731,7 @@ class CycleProvider extends ChangeNotifier {
 
   int get _activeCycleLength => isViewingPartner
       ? (_partnerProfile?['cycle_length'] ?? _cycleLength)
-      : _cycleLength;
+      : (_isIrregular ? adaptiveCycleLength : _cycleLength);
 
   int get _activePeriodDuration => isViewingPartner
       ? (_partnerProfile?['period_duration'] ?? _periodDuration)
@@ -1037,7 +1039,8 @@ class CycleProvider extends ChangeNotifier {
     final lastStart = DateTime(lastDate.year, lastDate.month, lastDate.day);
 
     final daysSinceStart = today.difference(lastStart).inDays;
-    return (daysSinceStart % effectiveCycleLength) + 1;
+    if (daysSinceStart < 0) return 0;
+    return daysSinceStart + 1;
   }
 
   /// Dynamic phase calculation based on actual cycle length.
@@ -1527,6 +1530,7 @@ class CycleProvider extends ChangeNotifier {
     _cycleLength = length;
     _calculatePredictions();
     _saveToPrefs();
+    syncProfileToCloud();
     _updateReminders();
     notifyListeners();
   }
@@ -1535,6 +1539,7 @@ class CycleProvider extends ChangeNotifier {
     _cycleLength = length;
     _calculatePredictions();
     _saveToPrefs();
+    syncProfileToCloud();
     _updateReminders();
     notifyListeners();
   }
@@ -1789,14 +1794,14 @@ class CycleProvider extends ChangeNotifier {
       } else {
         phase = currentPhase;
         day = currentCycleDay;
-        total = effectiveCycleLength;
+        total = cycleLength;
         fertility = isOnPeriod
             ? "Menstruation"
             : (isInFertileWindow ? "High Fertility" : "Low Fertility");
         lastPeriodDateMs = _lastPeriodDate != null
             ? _lastPeriodDate!.millisecondsSinceEpoch
             : 0;
-        cycleLen = effectiveCycleLength;
+        cycleLen = cycleLength;
         periodDuration = _periodDuration;
         ovulationDay = _ovulationDay;
       }
