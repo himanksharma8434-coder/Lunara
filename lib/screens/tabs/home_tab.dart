@@ -2168,7 +2168,7 @@ class CycleRingWidget extends StatelessWidget {
     final currentCycleDay =
         context.select<CycleProvider, int>((p) => p.currentCycleDay);
     final cycleLength =
-        context.select<CycleProvider, int>((p) => p.effectiveCycleLength);
+        context.select<CycleProvider, int>((p) => p.cycleLength);
     final currentPhase =
         context.select<CycleProvider, String>((p) => p.currentPhase);
 
@@ -2268,7 +2268,7 @@ class CycleRingCard extends StatelessWidget {
                   child: CustomPaint(
                     size: const Size(200, 200),
                     painter: StaticBackgroundRingPainter(
-                      progress: currentCycleDay / cycleLength,
+                      progress: (cycleLength > 0 ? currentCycleDay / cycleLength : 0.0).clamp(0.0, 1.0),
                     ),
                   ),
                 ),
@@ -2359,7 +2359,7 @@ class CycleRingCard extends StatelessWidget {
             ),
             builder: (context, child) {
               // Calculate marker position mathematically
-              final progress = currentCycleDay / cycleLength;
+              final progress = (cycleLength > 0 ? currentCycleDay / cycleLength : 0.0).clamp(0.0, 1.0);
               final angle = -math.pi / 2 + (2 * math.pi * progress);
               // Radius matches the painter's radius: (200 / 2) - 15 = 85
               final radiusX = 85 * math.cos(angle);

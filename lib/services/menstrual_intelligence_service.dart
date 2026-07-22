@@ -146,7 +146,8 @@ class MenstrualIntelligenceService {
     }
 
     // ─ Weighted adaptive cycle length ────────────────────────────────
-    final weightedLength = _computeWeightedLength(gaps, gapTypes);
+    final weightedLength =
+        _computeWeightedLength(gaps, gapTypes, userSetCycleLength);
 
     // ─ Standard deviation & confidence ───────────────────────────────
     final stdDev = _computeStdDev(gaps);
@@ -333,9 +334,15 @@ class MenstrualIntelligenceService {
 
   // ── Private: Weighted average ────────────────────────────────────────
 
-  double _computeWeightedLength(List<int> gaps, List<CycleGapType> types) {
+  double _computeWeightedLength(
+      List<int> gaps, List<CycleGapType> types, int userSetCycleLength) {
     double totalWeight = 0;
     double weightedSum = 0;
+
+    // Prior weight for user-set cycle length to prevent single-gap spikes
+    const double priorWeight = 2.0;
+    weightedSum += userSetCycleLength * priorWeight;
+    totalWeight += priorWeight;
 
     for (int i = gaps.length - 1; i >= 0; i--) {
       // Recency weight: most recent = 1.0, decays backward
@@ -349,7 +356,7 @@ class MenstrualIntelligenceService {
       totalWeight += combinedWeight;
     }
 
-    if (totalWeight == 0) return 28.0;
+    if (totalWeight == 0) return userSetCycleLength.toDouble();
     return weightedSum / totalWeight;
   }
 
