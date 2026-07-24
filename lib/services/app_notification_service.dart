@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -151,6 +154,43 @@ class AppNotificationService extends ChangeNotifier {
     }
   }
 
+  String? _logoFilePath;
+
+  Future<void> _prepareNotificationAssets() async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final logoFile = File('${tempDir.path}/lunara_logo_notification.png');
+      if (!await logoFile.exists() || await logoFile.length() == 0) {
+        final byteData = await rootBundle.load('assets/images/lunara_logo.png');
+        await logoFile.writeAsBytes(byteData.buffer.asUint8List(
+          byteData.offsetInBytes,
+          byteData.lengthInBytes,
+        ));
+      }
+      _logoFilePath = logoFile.path;
+    } catch (e) {
+      debugPrint('Error preparing notification logo file: $e');
+    }
+  }
+
+  AndroidNotificationDetails _buildAndroidDetails({
+    required String channelId,
+    required String channelName,
+    Importance importance = Importance.defaultImportance,
+    Priority priority = Priority.defaultPriority,
+    List<AndroidNotificationAction>? actions,
+  }) {
+    return AndroidNotificationDetails(
+      channelId,
+      channelName,
+      importance: importance,
+      priority: priority,
+      icon: '@mipmap/ic_launcher',
+      largeIcon: null, // No image on the right side
+      actions: actions,
+    );
+  }
+
   Future<void> init() async {
     tz_data.initializeTimeZones();
     try {
@@ -239,26 +279,26 @@ class AppNotificationService extends ChangeNotifier {
     required String title,
     required String body,
   }) async {
+    if (_logoFilePath == null) {
+      await _prepareNotificationAssets();
+    }
     try {
       await _notifications.show(
         id: 999, // Unique ID for instant alerts
         title: title,
         body: body,
-        notificationDetails: const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'instant_channel',
-            'Instant Alerts',
+        notificationDetails: NotificationDetails(
+          android: _buildAndroidDetails(
+            channelId: 'instant_channel',
+            channelName: 'Instant Alerts',
             importance: Importance.max,
             priority: Priority.high,
-            color: Color(0xFFFF8989),
-            icon: 'ic_notification',
-            largeIcon: DrawableResourceAndroidBitmap('ic_notification_large'),
           ),
-          iOS: DarwinNotificationDetails(),
+          iOS: const DarwinNotificationDetails(),
         ),
       );
     } catch (e) {
-      debugPrint('Error showing notification with custom icon: $e');
+      debugPrint('Error showing instant notification: $e');
       try {
         await _notifications.show(
           id: 999,
@@ -271,7 +311,6 @@ class AppNotificationService extends ChangeNotifier {
               importance: Importance.max,
               priority: Priority.high,
               color: Color(0xFFFF8989),
-              icon: '@mipmap/ic_launcher',
             ),
             iOS: DarwinNotificationDetails(),
           ),
@@ -403,17 +442,12 @@ class AppNotificationService extends ChangeNotifier {
       title: noonTitle,
       body: noonBody,
       scheduledDate: noonDate,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'daily_channel',
-          'Daily Reminders',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
-          color: Color(0xFFFF8989),
-          icon: 'ic_notification',
-          largeIcon: DrawableResourceAndroidBitmap('ic_notification_large'),
+      notificationDetails: NotificationDetails(
+        android: _buildAndroidDetails(
+          channelId: 'daily_channel',
+          channelName: 'Daily Reminders',
         ),
-        iOS: DarwinNotificationDetails(),
+        iOS: const DarwinNotificationDetails(),
       ),
       matchDateTimeComponents: DateTimeComponents.time,
     );
@@ -423,17 +457,12 @@ class AppNotificationService extends ChangeNotifier {
       title: eveningTitle,
       body: eveningBody,
       scheduledDate: eveningDate,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'daily_channel',
-          'Daily Reminders',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
-          color: Color(0xFFFF8989),
-          icon: 'ic_notification',
-          largeIcon: DrawableResourceAndroidBitmap('ic_notification_large'),
+      notificationDetails: NotificationDetails(
+        android: _buildAndroidDetails(
+          channelId: 'daily_channel',
+          channelName: 'Daily Reminders',
         ),
-        iOS: DarwinNotificationDetails(),
+        iOS: const DarwinNotificationDetails(),
       ),
       matchDateTimeComponents: DateTimeComponents.time,
     );
@@ -463,17 +492,12 @@ class AppNotificationService extends ChangeNotifier {
       title: eveningTitle,
       body: eveningBody,
       scheduledDate: tomorrow6pm,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'daily_channel',
-          'Daily Reminders',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
-          color: Color(0xFFFF8989),
-          icon: 'ic_notification',
-          largeIcon: DrawableResourceAndroidBitmap('ic_notification_large'),
+      notificationDetails: NotificationDetails(
+        android: _buildAndroidDetails(
+          channelId: 'daily_channel',
+          channelName: 'Daily Reminders',
         ),
-        iOS: DarwinNotificationDetails(),
+        iOS: const DarwinNotificationDetails(),
       ),
       matchDateTimeComponents: DateTimeComponents.time,
     );
@@ -538,17 +562,12 @@ class AppNotificationService extends ChangeNotifier {
         title: 'Morning Body Insight 🌸',
         body: morningFact,
         scheduledDate: morningDate,
-        notificationDetails: const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'guidance_channel',
-            'Daily Health Insights',
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-            color: Color(0xFFFF8989),
-            icon: 'ic_notification',
-            largeIcon: DrawableResourceAndroidBitmap('ic_notification_large'),
+        notificationDetails: NotificationDetails(
+          android: _buildAndroidDetails(
+            channelId: 'guidance_channel',
+            channelName: 'Daily Health Insights',
           ),
-          iOS: DarwinNotificationDetails(),
+          iOS: const DarwinNotificationDetails(),
         ),
       );
 
@@ -565,17 +584,12 @@ class AppNotificationService extends ChangeNotifier {
         title: 'Evening Health Check 🌙',
         body: eveningFact,
         scheduledDate: eveningDate,
-        notificationDetails: const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'guidance_channel',
-            'Daily Health Insights',
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-            color: Color(0xFFFF8989),
-            icon: 'ic_notification',
-            largeIcon: DrawableResourceAndroidBitmap('ic_notification_large'),
+        notificationDetails: NotificationDetails(
+          android: _buildAndroidDetails(
+            channelId: 'guidance_channel',
+            channelName: 'Daily Health Insights',
           ),
-          iOS: DarwinNotificationDetails(),
+          iOS: const DarwinNotificationDetails(),
         ),
       );
     }
@@ -600,17 +614,14 @@ class AppNotificationService extends ChangeNotifier {
           title: 'New Health Insight 🌸',
           body: content,
           scheduledDate: scheduledDate,
-          notificationDetails: const NotificationDetails(
-            android: AndroidNotificationDetails(
-              'guidance_channel',
-              'Daily Health Insights',
+          notificationDetails: NotificationDetails(
+            android: _buildAndroidDetails(
+              channelId: 'guidance_channel',
+              channelName: 'Daily Health Insights',
               importance: Importance.high,
               priority: Priority.high,
-              color: Color(0xFFFF8989),
-              icon: 'ic_notification',
-              largeIcon: DrawableResourceAndroidBitmap('ic_notification_large'),
             ),
-            iOS: DarwinNotificationDetails(),
+            iOS: const DarwinNotificationDetails(),
           ),
         );
         timedIdOffset++;
@@ -659,9 +670,9 @@ class AppNotificationService extends ChangeNotifier {
       body: selectedBody,
       scheduledDate: reminderDate,
       notificationDetails: NotificationDetails(
-        android: AndroidNotificationDetails(
-          'period_channel',
-          'Period Reminders',
+        android: _buildAndroidDetails(
+          channelId: 'period_channel',
+          channelName: 'Period Reminders',
           importance: Importance.max,
           priority: Priority.high,
           actions: [
@@ -678,9 +689,6 @@ class AppNotificationService extends ChangeNotifier {
               ),
             ]
           ],
-          color: const Color(0xFFFF8989),
-          icon: 'ic_notification',
-          largeIcon: DrawableResourceAndroidBitmap('ic_notification_large'),
         ),
         iOS: const DarwinNotificationDetails(
           categoryIdentifier: 'period_reminder',
@@ -728,17 +736,14 @@ class AppNotificationService extends ChangeNotifier {
       title: title,
       body: selectedBody,
       scheduledDate: reminderDate,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'fertility_channel',
-          'Fertility Reminders',
+      notificationDetails: NotificationDetails(
+        android: _buildAndroidDetails(
+          channelId: 'fertility_channel',
+          channelName: 'Fertility Reminders',
           importance: Importance.high,
           priority: Priority.high,
-          color: Color(0xFFFF8989),
-          icon: 'ic_notification',
-          largeIcon: DrawableResourceAndroidBitmap('ic_notification_large'),
         ),
-        iOS: DarwinNotificationDetails(),
+        iOS: const DarwinNotificationDetails(),
       ),
     );
   }
@@ -842,17 +847,12 @@ class AppNotificationService extends ChangeNotifier {
         title: title,
         body: body,
         scheduledDate: scheduledDate,
-        notificationDetails: const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'guidance_channel',
-            'Daily Health Insights',
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-            color: Color(0xFFFF8989),
-            icon: 'ic_notification',
-            largeIcon: DrawableResourceAndroidBitmap('ic_notification_large'),
+        notificationDetails: NotificationDetails(
+          android: _buildAndroidDetails(
+            channelId: 'guidance_channel',
+            channelName: 'Daily Health Insights',
           ),
-          iOS: DarwinNotificationDetails(),
+          iOS: const DarwinNotificationDetails(),
         ),
       );
 
@@ -906,17 +906,12 @@ class AppNotificationService extends ChangeNotifier {
         title: 'Day $predictedCycleDay 🌸',
         body: message,
         scheduledDate: scheduledDate,
-        notificationDetails: const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'guidance_channel',
-            'Daily Health Insights',
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-            color: Color(0xFFFF8989),
-            icon: 'ic_notification',
-            largeIcon: DrawableResourceAndroidBitmap('ic_notification_large'),
+        notificationDetails: NotificationDetails(
+          android: _buildAndroidDetails(
+            channelId: 'guidance_channel',
+            channelName: 'Daily Health Insights',
           ),
-          iOS: DarwinNotificationDetails(),
+          iOS: const DarwinNotificationDetails(),
         ),
       );
     }
