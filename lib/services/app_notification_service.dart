@@ -71,33 +71,98 @@ class AppNotificationService extends ChangeNotifier {
 
 
 
+  tz.Location _resolveLocation(String tzString) {
+    try {
+      return tz.getLocation(tzString);
+    } catch (_) {}
+
+    const aliasMap = <String, String>{
+      'India Standard Time': 'Asia/Kolkata',
+      'IST': 'Asia/Kolkata',
+      'Pacific Standard Time': 'America/Los_Angeles',
+      'PST': 'America/Los_Angeles',
+      'PDT': 'America/Los_Angeles',
+      'Eastern Standard Time': 'America/New_York',
+      'EST': 'America/New_York',
+      'EDT': 'America/New_York',
+      'Central Standard Time': 'America/Chicago',
+      'CST': 'America/Chicago',
+      'CDT': 'America/Chicago',
+      'Mountain Standard Time': 'America/Denver',
+      'MST': 'America/Denver',
+      'MDT': 'America/Denver',
+      'GMT Standard Time': 'Europe/London',
+      'Greenwich Standard Time': 'Europe/London',
+      'W. Europe Standard Time': 'Europe/Berlin',
+      'Central Europe Standard Time': 'Europe/Paris',
+    };
+
+    if (aliasMap.containsKey(tzString)) {
+      try {
+        return tz.getLocation(aliasMap[tzString]!);
+      } catch (_) {}
+    }
+
+    final now = DateTime.now();
+    final localOffsetMs = now.timeZoneOffset.inMilliseconds;
+    for (final loc in tz.timeZoneDatabase.locations.values) {
+      final dynamic tzOffsetMs = loc.timeZone(now.millisecondsSinceEpoch).offset;
+      if (tzOffsetMs == localOffsetMs) {
+        return loc;
+      }
+    }
+
+    return tz.getLocation('UTC');
+  }
+
+  Future<void> _scheduleZonedNotification({
+    required int id,
+    required String title,
+    required String body,
+    required tz.TZDateTime scheduledDate,
+    required NotificationDetails notificationDetails,
+    DateTimeComponents? matchDateTimeComponents,
+  }) async {
+    try {
+      await _notifications.zonedSchedule(
+        id: id,
+        title: title,
+        body: body,
+        scheduledDate: scheduledDate,
+        notificationDetails: notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: matchDateTimeComponents,
+      );
+    } catch (e) {
+      debugPrint('exactAllowWhileIdle failed ($e), falling back to inexactAllowWhileIdle');
+      try {
+        await _notifications.zonedSchedule(
+          id: id,
+          title: title,
+          body: body,
+          scheduledDate: scheduledDate,
+          notificationDetails: notificationDetails,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          matchDateTimeComponents: matchDateTimeComponents,
+        );
+      } catch (err) {
+        debugPrint('Failed to schedule notification $id: $err');
+      }
+    }
+  }
+
   Future<void> init() async {
-    tz_data.initializeTimeZones(); // Use the correct alias
+    tz_data.initializeTimeZones();
     try {
       final timeZoneInfo = await FlutterTimezone.getLocalTimezone();
-      try {
-        tz.setLocalLocation(tz.getLocation(timeZoneInfo.identifier));
-      } catch (_) {
-        // Fallback: Find a location in the database with the same current offset
-        final offsetMs = DateTime.now().timeZoneOffset.inMilliseconds;
-        bool found = false;
-        for (final loc in tz.timeZoneDatabase.locations.values) {
-          if (loc.currentTimeZone.offset.inMilliseconds == offsetMs) {
-            tz.setLocalLocation(loc);
-            found = true;
-            break;
-          }
-        }
-        if (!found) {
-          tz.setLocalLocation(tz.getLocation('UTC'));
-        }
-      }
+      final location = _resolveLocation(timeZoneInfo.identifier);
+      tz.setLocalLocation(location);
     } catch (e) {
       debugPrint('Error setting local timezone location: $e');
     }
 
     const androidSettings =
-        AndroidInitializationSettings('ic_notification');
+        AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -124,8 +189,6 @@ class AppNotificationService extends ChangeNotifier {
     if (_dailyEnabled) {
       scheduleDailyReminder();
     }
-
-
 
     // Listen to Auth State changes to subscribe/unsubscribe to Realtime
     Supabase.instance.client.auth.onAuthStateChange.listen((data) {
@@ -188,24 +251,68 @@ class AppNotificationService extends ChangeNotifier {
             importance: Importance.max,
             priority: Priority.high,
             color: Color(0xFFFF8989),
-            icon: 'ic_notification',
-            largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+            icon: '@mipmap/ic_launcher',
           ),
           iOS: DarwinNotificationDetails(),
         ),
       );
-    } catch (e, stackTrace) {
-      debugPrint('Error showing notification: $e\n$stackTrace');
-      // We don't have BuildContext here, but we can throw to the caller
-      throw Exception('Notification failed: $e');
+    } catch (e) {
+      debugPrint('Error showing notification with launcher icon: $e');
+      try {
+        await _notifications.show(
+          id: 999,
+          title: title,
+          body: body,
+          notificationDetails: const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'instant_channel',
+              'Instant Alerts',
+              importance: Importance.max,
+              priority: Priority.high,
+              color: Color(0xFFFF8989),
+            ),
+            iOS: DarwinNotificationDetails(),
+          ),
+        );
+      } catch (err, stackTrace) {
+        debugPrint('Error showing fallback notification: $err\n$stackTrace');
+        throw Exception('Notification failed: $err');
+      }
     }
   }
 
-  Future<void> requestPermissions() async {
-    await _notifications
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+  Future<bool> requestPermissions() async {
+    bool androidGranted = true;
+    bool iosGranted = true;
+
+    final androidImpl = _notifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (androidImpl != null) {
+      final notif = await androidImpl.requestNotificationsPermission();
+      final exact = await androidImpl.requestExactAlarmsPermission();
+      androidGranted = (notif ?? false) && (exact ?? true);
+    }
+
+    final iosImpl = _notifications.resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin>();
+    if (iosImpl != null) {
+      final res = await iosImpl.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      iosGranted = res ?? false;
+    }
+
+    return androidGranted && iosGranted;
+  }
+
+  Future<void> showTestNotification() async {
+    await requestPermissions();
+    await showInstantNotification(
+      title: 'Lunara Notification Test 🌸',
+      body: 'Notifications are working perfectly on your device!',
+    );
   }
 
   // ─── TOGGLES ────────────────────────────
@@ -216,6 +323,7 @@ class AppNotificationService extends ChangeNotifier {
     _dailyEnabled = enable;
 
     if (enable) {
+      await requestPermissions();
       await scheduleDailyReminder();
       await scheduleDailyGuidance();
     } else {
@@ -242,7 +350,9 @@ class AppNotificationService extends ChangeNotifier {
     await prefs.setBool(_cyclePrefKey, enable);
     _cycleEnabled = enable;
 
-    if (!enable) {
+    if (enable) {
+      await requestPermissions();
+    } else {
       await _notifications.cancel(id: _periodReminderId);
       await _notifications.cancel(id: _ovulationReminderId);
       await cancelWellnessForecastReminders();
@@ -286,7 +396,7 @@ class AppNotificationService extends ChangeNotifier {
         ? "There's still time to log their symptoms today!"
         : "You haven't logged your symptoms yet today. Take a quick moment to check in with your body.";
 
-    await _notifications.zonedSchedule(
+    await _scheduleZonedNotification(
       id: _dailyReminder12pmId,
       title: noonTitle,
       body: noonBody,
@@ -298,16 +408,14 @@ class AppNotificationService extends ChangeNotifier {
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
           color: Color(0xFFFF8989),
-          icon: 'ic_notification',
-          largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+          icon: '@mipmap/ic_launcher',
         ),
         iOS: DarwinNotificationDetails(),
       ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );
 
-    await _notifications.zonedSchedule(
+    await _scheduleZonedNotification(
       id: _dailyReminder6pmId,
       title: eveningTitle,
       body: eveningBody,
@@ -319,12 +427,10 @@ class AppNotificationService extends ChangeNotifier {
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
           color: Color(0xFFFF8989),
-          icon: 'ic_notification',
-          largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+          icon: '@mipmap/ic_launcher',
         ),
         iOS: DarwinNotificationDetails(),
       ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }
@@ -348,7 +454,7 @@ class AppNotificationService extends ChangeNotifier {
         ? "There's still time to log their symptoms today!"
         : "You haven't logged your symptoms yet today. Take a quick moment to check in with your body.";
 
-    await _notifications.zonedSchedule(
+    await _scheduleZonedNotification(
       id: _dailyReminder6pmId,
       title: eveningTitle,
       body: eveningBody,
@@ -360,12 +466,10 @@ class AppNotificationService extends ChangeNotifier {
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
           color: Color(0xFFFF8989),
-          icon: 'ic_notification',
-          largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+          icon: '@mipmap/ic_launcher',
         ),
         iOS: DarwinNotificationDetails(),
       ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }
@@ -424,7 +528,7 @@ class AppNotificationService extends ChangeNotifier {
 
       final morningFact = shuffledFacts[(i * 2) % shuffledFacts.length];
 
-      await _notifications.zonedSchedule(
+      await _scheduleZonedNotification(
         id: 200 + i,
         title: 'Morning Body Insight 🌸',
         body: morningFact,
@@ -436,12 +540,10 @@ class AppNotificationService extends ChangeNotifier {
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
             color: Color(0xFFFF8989),
-            icon: 'ic_notification',
-            largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+            icon: '@mipmap/ic_launcher',
           ),
           iOS: DarwinNotificationDetails(),
         ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
 
       // 2. Evening Guidance (8 PM) for day i
@@ -452,7 +554,7 @@ class AppNotificationService extends ChangeNotifier {
 
       final eveningFact = shuffledFacts[(i * 2 + 1) % shuffledFacts.length];
 
-      await _notifications.zonedSchedule(
+      await _scheduleZonedNotification(
         id: 210 + i,
         title: 'Evening Health Check 🌙',
         body: eveningFact,
@@ -464,12 +566,10 @@ class AppNotificationService extends ChangeNotifier {
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
             color: Color(0xFFFF8989),
-            icon: 'ic_notification',
-            largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+            icon: '@mipmap/ic_launcher',
           ),
           iOS: DarwinNotificationDetails(),
         ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
     }
 
@@ -488,7 +588,7 @@ class AppNotificationService extends ChangeNotifier {
 
         if (timedIdOffset >= 600) break;
 
-        await _notifications.zonedSchedule(
+        await _scheduleZonedNotification(
           id: timedIdOffset,
           title: 'New Health Insight 🌸',
           body: content,
@@ -500,12 +600,10 @@ class AppNotificationService extends ChangeNotifier {
               importance: Importance.high,
               priority: Priority.high,
               color: Color(0xFFFF8989),
-              icon: 'ic_notification',
-              largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+              icon: '@mipmap/ic_launcher',
             ),
             iOS: DarwinNotificationDetails(),
           ),
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         );
         timedIdOffset++;
       }
@@ -547,7 +645,7 @@ class AppNotificationService extends ChangeNotifier {
     final bodyPool = isTrackingForSomeoneElse ? partnerBodies : selfBodies;
     final selectedBody = (bodyPool.toList()..shuffle()).first;
 
-    await _notifications.zonedSchedule(
+    await _scheduleZonedNotification(
       id: _periodReminderId,
       title: title,
       body: selectedBody,
@@ -573,14 +671,12 @@ class AppNotificationService extends ChangeNotifier {
             ]
           ],
           color: const Color(0xFFFF8989),
-          icon: 'ic_notification',
-          largeIcon: const DrawableResourceAndroidBitmap('lunara_logo'),
+          icon: '@mipmap/ic_launcher',
         ),
         iOS: const DarwinNotificationDetails(
           categoryIdentifier: 'period_reminder',
         ),
       ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
   }
 
@@ -618,7 +714,7 @@ class AppNotificationService extends ChangeNotifier {
     final bodyPool = isTrackingForSomeoneElse ? partnerBodies : selfBodies;
     final selectedBody = (bodyPool.toList()..shuffle()).first;
 
-    await _notifications.zonedSchedule(
+    await _scheduleZonedNotification(
       id: _ovulationReminderId,
       title: title,
       body: selectedBody,
@@ -630,12 +726,10 @@ class AppNotificationService extends ChangeNotifier {
           importance: Importance.high,
           priority: Priority.high,
           color: Color(0xFFFF8989),
-          icon: 'ic_notification',
-          largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+          icon: '@mipmap/ic_launcher',
         ),
         iOS: DarwinNotificationDetails(),
       ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
   }
 
@@ -733,7 +827,7 @@ class AppNotificationService extends ChangeNotifier {
         }
       }
 
-      await _notifications.zonedSchedule(
+      await _scheduleZonedNotification(
         id: currentId,
         title: title,
         body: body,
@@ -745,12 +839,10 @@ class AppNotificationService extends ChangeNotifier {
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
             color: Color(0xFFFF8989),
-            icon: 'ic_notification',
-            largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+            icon: '@mipmap/ic_launcher',
           ),
           iOS: DarwinNotificationDetails(),
         ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
 
       currentId++;
@@ -798,7 +890,7 @@ class AppNotificationService extends ChangeNotifier {
 
       final message = _getCycleDayMessage(predictedCycleDay, periodDuration);
 
-      await _notifications.zonedSchedule(
+      await _scheduleZonedNotification(
         id: 400 + i,
         title: 'Day $predictedCycleDay 🌸',
         body: message,
@@ -810,12 +902,10 @@ class AppNotificationService extends ChangeNotifier {
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
             color: Color(0xFFFF8989),
-            icon: 'ic_notification',
-            largeIcon: DrawableResourceAndroidBitmap('lunara_logo'),
+            icon: '@mipmap/ic_launcher',
           ),
           iOS: DarwinNotificationDetails(),
         ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
     }
   }

@@ -105,13 +105,15 @@ class _ProfileHeaderState extends State<_ProfileHeader> {
         return;
       }
 
+      if (!context.mounted) return;
+      final primaryColor = AppTheme.primary(context);
       final CroppedFile? croppedFile = await ImageCropper().cropImage(
         sourcePath: image.path,
         aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop & Rotate',
-            toolbarColor: AppTheme.primary(context),
+            toolbarColor: primaryColor,
             toolbarWidgetColor: Colors.white,
             initAspectRatio: CropAspectRatioPreset.square,
             lockAspectRatio: true,
@@ -424,6 +426,35 @@ class _NotificationToggles extends StatelessWidget {
           'Period starting soon alert',
           cycleEnabled,
           (val) => context.read<AppNotificationService>().toggleCycleReminders(val),
+        ),
+        _buildSettingItem(
+          context,
+          Icons.notifications_active_rounded,
+          'Test Notification',
+          'Send a test alert to verify delivery',
+          () async {
+            HapticFeedback.lightImpact();
+            try {
+              await AppNotificationService().showTestNotification();
+              if (context.mounted) {
+                CustomToast.show(
+                  context,
+                  message: 'Test notification sent!',
+                  icon: Icons.check_circle,
+                  backgroundColor: const Color(0xFF4CAF50),
+                );
+              }
+            } catch (e) {
+              if (context.mounted) {
+                CustomToast.show(
+                  context,
+                  message: 'Failed to send notification: $e',
+                  icon: Icons.error_outline,
+                  backgroundColor: Colors.red[400],
+                );
+              }
+            }
+          },
         ),
       ],
     );

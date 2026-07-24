@@ -54,7 +54,7 @@ class NotificationService {
 
     // Android Initialization
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('ic_notification');
+        AndroidInitializationSettings('@mipmap/ic_launcher');
 
     // iOS Initialization
     const DarwinInitializationSettings initializationSettingsIOS =
@@ -115,7 +115,7 @@ class NotificationService {
             'Notifications for period and fertility predictions',
         importance: Importance.max,
         priority: Priority.high,
-        icon: 'ic_notification',
+        icon: '@mipmap/ic_launcher',
       ),
       iOS: DarwinNotificationDetails(
         presentAlert: true,
