@@ -251,13 +251,14 @@ class AppNotificationService extends ChangeNotifier {
             importance: Importance.max,
             priority: Priority.high,
             color: Color(0xFFFF8989),
-            icon: '@mipmap/ic_launcher',
+            icon: 'ic_notification',
+            largeIcon: DrawableResourceAndroidBitmap('ic_notification_large'),
           ),
           iOS: DarwinNotificationDetails(),
         ),
       );
     } catch (e) {
-      debugPrint('Error showing notification with launcher icon: $e');
+      debugPrint('Error showing notification with custom icon: $e');
       try {
         await _notifications.show(
           id: 999,
@@ -270,6 +271,7 @@ class AppNotificationService extends ChangeNotifier {
               importance: Importance.max,
               priority: Priority.high,
               color: Color(0xFFFF8989),
+              icon: '@mipmap/ic_launcher',
             ),
             iOS: DarwinNotificationDetails(),
           ),
