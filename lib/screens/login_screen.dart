@@ -231,8 +231,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                   listen: false)
                               .login(email, password);
 
-                          // 4. Hide loading
-                          // ignore: use_build_context_synchronously
+                          
+                          
                           if (mounted) Navigator.pop(context);
 
                           if (error == null) {
