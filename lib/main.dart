@@ -146,6 +146,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     } else if (state == AppLifecycleState.resumed) {
       _privacyProvider.onAppLifecycleChanged(true);
       
+      // Refresh timezone and reschedule notifications in case the user
+      // traveled to a different timezone or DST transitioned while backgrounded.
+      AppNotificationService().rescheduleAllOnResume();
+
       // If the app was left open overnight, ensure daily metrics (sleep, water) reset
       if (mounted) {
         try {

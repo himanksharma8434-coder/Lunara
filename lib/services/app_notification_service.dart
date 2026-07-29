@@ -40,6 +40,11 @@ class AppNotificationService extends ChangeNotifier {
   bool _dailyEnabled = true;
   bool _cycleEnabled = true;
 
+  /// True when exact alarm permission was denied and we fell back to inexact.
+  /// Surface this in the UI to explain potential timing drift.
+  bool _exactAlarmDenied = false;
+  bool get exactAlarmDenied => _exactAlarmDenied;
+
   bool get dailyEnabled => _dailyEnabled;
   bool get cycleEnabled => _cycleEnabled;
 
@@ -118,6 +123,39 @@ class AppNotificationService extends ChangeNotifier {
     return tz.getLocation('UTC');
   }
 
+  // ─── AUTHORIZATION CHECK ─────────────────────────
+  // Verifies notification permissions are actually granted before scheduling.
+  // On iOS this prevents scheduling into the void when the user has denied.
+  // On Android this checks both POST_NOTIFICATIONS and exact alarm status.
+  Future<bool> _checkNotificationAuthorization() async {
+    if (Platform.isIOS) {
+      final iosImpl = _notifications.resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin>();
+      if (iosImpl != null) {
+        final granted = await iosImpl.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        if (granted != true) {
+          debugPrint('[Notifications] iOS: notifications not authorized — skipping schedule');
+          return false;
+        }
+      }
+    } else if (Platform.isAndroid) {
+      final androidImpl = _notifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (androidImpl != null) {
+        final areEnabled = await androidImpl.areNotificationsEnabled() ?? false;
+        if (!areEnabled) {
+          debugPrint('[Notifications] Android: POST_NOTIFICATIONS denied — skipping schedule');
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
   Future<void> _scheduleZonedNotification({
     required int id,
     required String title,
@@ -126,6 +164,9 @@ class AppNotificationService extends ChangeNotifier {
     required NotificationDetails notificationDetails,
     DateTimeComponents? matchDateTimeComponents,
   }) async {
+    // Gate: don't schedule if the OS will silently discard them
+    if (!await _checkNotificationAuthorization()) return;
+
     try {
       await _notifications.zonedSchedule(
         id: id,
@@ -136,8 +177,13 @@ class AppNotificationService extends ChangeNotifier {
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         matchDateTimeComponents: matchDateTimeComponents,
       );
+      _exactAlarmDenied = false;
     } catch (e) {
-      debugPrint('exactAllowWhileIdle failed ($e), falling back to inexactAllowWhileIdle');
+      // Exact alarm permission denied (Android 12+) — fall back to inexact.
+      // This may cause ±10 min drift due to Doze batching.
+      debugPrint('[Notifications] exactAllowWhileIdle failed ($e), falling back to inexactAllowWhileIdle');
+      _exactAlarmDenied = true;
+      notifyListeners(); // Let UI react to show the degradation notice
       try {
         await _notifications.zonedSchedule(
           id: id,
@@ -149,7 +195,7 @@ class AppNotificationService extends ChangeNotifier {
           matchDateTimeComponents: matchDateTimeComponents,
         );
       } catch (err) {
-        debugPrint('Failed to schedule notification $id: $err');
+        debugPrint('[Notifications] Failed to schedule notification $id: $err');
       }
     }
   }
@@ -191,15 +237,36 @@ class AppNotificationService extends ChangeNotifier {
     );
   }
 
+  /// Fetches the device's real IANA timezone name and sets tz.local.
+  /// Safe to call multiple times (e.g. on app resume after travel/DST change).
+  Future<void> refreshTimezone() async {
+    try {
+      // FlutterTimezone.getLocalTimezone() returns a TimezoneInfo object.
+      // Use .identifier to extract the IANA timezone string (e.g. "Asia/Kolkata").
+      final timezoneInfo = await FlutterTimezone.getLocalTimezone();
+      final location = _resolveLocation(timezoneInfo.identifier);
+      tz.setLocalLocation(location);
+      debugPrint('[Notifications] Timezone set to: ${tz.local.name}');
+    } catch (e) {
+      debugPrint('[Notifications] Error setting local timezone: $e (tz.local = ${tz.local.name})');
+    }
+  }
+
+  /// Call after a timezone change or app resume to reschedule all sliding-window
+  /// notifications (guidance, cycle day) with the corrected tz.local.
+  Future<void> rescheduleAllOnResume() async {
+    await refreshTimezone();
+    // Re-schedule the sliding-window notifications that depend on tz.local
+    if (_dailyEnabled) {
+      await scheduleDailyReminder();
+      await scheduleDailyGuidance();
+    }
+    debugPrint('[Notifications] Rescheduled all notifications after timezone refresh');
+  }
+
   Future<void> init() async {
     tz_data.initializeTimeZones();
-    try {
-      final timeZoneInfo = await FlutterTimezone.getLocalTimezone();
-      final location = _resolveLocation(timeZoneInfo.identifier);
-      tz.setLocalLocation(location);
-    } catch (e) {
-      debugPrint('Error setting local timezone location: $e');
-    }
+    await refreshTimezone();
 
     const androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -354,6 +421,59 @@ class AppNotificationService extends ChangeNotifier {
       title: 'Lunara Notification Test 🌸',
       body: 'Notifications are working perfectly on your device!',
     );
+  }
+
+  // ─── DEBUG / VERIFICATION METHODS ────────────────────────────
+
+  /// Logs every pending notification the OS currently has queued.
+  /// Returns the list so callers can inspect it programmatically.
+  Future<List<PendingNotificationRequest>> debugDumpPendingNotifications() async {
+    final pending = await _notifications.pendingNotificationRequests();
+    debugPrint('╔══════════════════════════════════════════');
+    debugPrint('║ PENDING NOTIFICATIONS (${pending.length} total)');
+    debugPrint('║ tz.local = ${tz.local.name}');
+    debugPrint('║ Device now = ${tz.TZDateTime.now(tz.local)}');
+    debugPrint('╠══════════════════════════════════════════');
+    for (final n in pending) {
+      debugPrint('║ ID: ${n.id}  Title: ${n.title}');
+      debugPrint('║   Body: ${n.body?.substring(0, (n.body?.length ?? 0).clamp(0, 60))}...');
+      debugPrint('║   Payload: ${n.payload}');
+      debugPrint('╟──────────────────────────────────────────');
+    }
+    debugPrint('╚══════════════════════════════════════════');
+    return pending;
+  }
+
+  /// Schedules a test notification [delay] from now and returns the resolved
+  /// TZDateTime so the caller can verify it matches expectations.
+  /// Useful for verifying timezone correctness: schedule 1-2 min out and confirm
+  /// it fires at the right wall-clock time.
+  Future<tz.TZDateTime> scheduleTestNotification({
+    Duration delay = const Duration(minutes: 1),
+  }) async {
+    await requestPermissions();
+    final fireAt = tz.TZDateTime.now(tz.local).add(delay);
+    debugPrint('[Notifications] Scheduling test notification at $fireAt (tz: ${tz.local.name})');
+
+    await _scheduleZonedNotification(
+      id: 9999, // Reserved test ID
+      title: 'Lunara Test ⏰',
+      body: 'Scheduled for $fireAt — if you see this, timezone + scheduling are working!',
+      scheduledDate: fireAt,
+      notificationDetails: NotificationDetails(
+        android: _buildAndroidDetails(
+          channelId: 'test_channel',
+          channelName: 'Test Notifications',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+        iOS: const DarwinNotificationDetails(),
+      ),
+    );
+
+    // Dump all pending so we can visually confirm
+    await debugDumpPendingNotifications();
+    return fireAt;
   }
 
   // ─── TOGGLES ────────────────────────────
