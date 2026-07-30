@@ -1,135 +1,263 @@
 # Lunara 🌙
 
-**Your personal cycle & wellness companion.**
+**Your Local-First Personal Cycle, Reproductive Health & AI Wellness Companion**
 
-Lunara is a modern, privacy-focused menstrual cycle tracking and wellness app built with Flutter and Supabase. It helps users understand their body through intelligent cycle predictions, symptom tracking, and health insights — all while keeping data secure and private.
-
----
-
-## Features ✨
-
-| Feature | Description |
-|---------|-------------|
-| 🩸 **Cycle Tracking** | Log periods, predict fertile windows & ovulation with adaptive algorithms |
-| 📊 **Insights & Charts** | Visualize mood, sleep, steps, and symptom trends over time |
-| 🤖 **AI Health Chat** | Ask cycle-related questions powered by Google Gemini |
-| 📝 **Symptom & Mood Logging** | Track daily symptoms, moods, and wellness metrics |
-| 🔔 **Smart Notifications** | Period predictions, daily reminders, and fertile window alerts |
-| ❤️ **Health Connect / HealthKit** | Sync steps, sleep, heart rate, and menstrual data |
-| 👫 **Partner Sync** | Share cycle data with a partner in real-time |
-| 📄 **PDF Reports** | Export health summaries for your doctor |
-| 🌙 **Dark Mode** | Beautiful UI in both light and dark themes |
-| ☁️ **Cloud Sync** | Securely back up data to Supabase across devices |
-| 🔒 **Privacy First** | Global error handling, encrypted storage, no data selling |
+[![Flutter](https://img.shields.io/badge/Flutter-3.6+-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-3.6+-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
+[![Supabase](https://img.shields.io/badge/Supabase-Database%20%26%20Auth-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
+[![Hive Encryption](https://img.shields.io/badge/Security-Hive%20AES--256-FF6F00?style=for-the-badge&logo=hive&logoColor=white)](https://pub.dev/packages/hive)
+[![Google Gemini](https://img.shields.io/badge/AI-Google%20Gemini-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://deepmind.google/technologies/gemini/)
+[![Shorebird](https://img.shields.io/badge/OTA-Shorebird%20Code%20Push-29B6F6?style=for-the-badge&logo=flutter&logoColor=white)](https://shorebird.dev)
+[![License](https://img.shields.io/badge/License-Proprietary-red.svg?style=for-the-badge)]()
 
 ---
 
-## Tech Stack 🛠️
+## 📌 Overview
 
-- **Frontend**: [Flutter](https://flutter.dev) 3.x
-- **Backend / Auth / DB**: [Supabase](https://supabase.com) (PostgreSQL, Auth, Realtime)
-- **State Management**: [Provider](https://pub.dev/packages/provider)
-- **Local Storage**: `shared_preferences`, `flutter_secure_storage`
-- **AI**: [Google Gemini](https://deepmind.google/technologies/gemini/) via `google_generative_ai`
-- **Health**: `health` package (Google Health Connect + Apple HealthKit)
-- **Charts**: `fl_chart`
-- **Notifications**: `flutter_local_notifications`
-- **PDF Export**: `pdf` + `printing`
+**Lunara** is a state-of-the-art, privacy-centric menstrual health and reproductive wellness platform built with **Flutter** and **Supabase**. Engineered around a **Local-First Architecture (Ghost Mode)**, Lunara ensures sensitive health data remains strictly encrypted on device using **AES-256 Hive boxes** unlocked via native biometric credentials.
+
+Unlike generic period trackers, Lunara combines a **stateless, recency-weighted Menstrual Intelligence Algorithm** with **Google Gemini AI** and **Groq LLM fallbacks** to deliver accurate cycle phase predictions, fertile window estimations, symptom correlation, personalized wellness plans, partner synchronization, clinical PDF exports, and healthcare provider discovery.
 
 ---
 
-## Getting Started 🚀
+## ✨ Key Features Matrix
+
+| Feature Module | Description & Technical Details |
+| :--- | :--- |
+| 🩸 **Adaptive Menstrual Engine** | Uses exponential decay weighting ($\lambda = 0.80$), BBT thermal shift detection (3-day coverline rule), cervical mucus profiling, and symptom correlation ($\pm 3$ days adjustment) for period & fertile window prediction. |
+| 🔒 **Ghost Mode (Local-First Encryption)** | Complete zero-knowledge on-device storage with **Hive AES-256** binary boxes. Master keys are securely generated and isolated in native Keychain/Keystore via `flutter_secure_storage` with `local_auth` biometric locking. |
+| 🤖 **Dual AI Wellness Engine** | Powered by **Google Gemini** (`google_generative_ai`) and **Groq AI** (`groq_service.dart`) with built-in sliding-window rate limiting (`ai_rate_limit_service.dart`) for personalized reproductive health guidance. |
+| 👫 **Partner Sync** | Real-time cycle phase, mood, and daily status sharing with partners via **Supabase Realtime Postgres Changes** channels. |
+| ❤️ **Health Kit & Health Connect** | Bi-directional synchronization with **Google Health Connect** (Android) and **Apple HealthKit** (iOS) for sleep patterns, daily step counts, basal body temperature (BBT), and heart rate metrics. |
+| 💬 **Anonymous Community Forum** | Real-time community discussions with post creation, threaded commenting, voting, saved bookmarks (`SavedPostsService`), content moderation, and reporting. |
+| 📅 **Doctor Discovery & Booking** | Geolocation-driven clinic & specialist search (`geolocator`), detailed provider profiles, appointment scheduling, and status tracking. |
+| 💳 **Lunara Plus & Payments** | Premium subscription tier management integrated with **Razorpay** (`razorpay_flutter`), supporting tier upgrades, receipt verification, and feature gates. |
+| 📄 **PDF Medical Report Generator** | Vector-based PDF summary generator (`pdf` & `printing`) compiling cycle history, symptom frequency, BBT graphs, and health notes for OB-GYNs. |
+| 🔔 **Intelligent Notification Hub** | Local notification engine (`flutter_local_notifications`) with custom reminder schedules (period start, ovulation, daily check-in, medication) and timezone awareness (`timezone`). |
+| ⚡ **Shorebird Over-The-Air (OTA) Updates** | Instant code push integration (`shorebird_code_push`) to ship Dart-level bug fixes instantly without waiting for app store submission delays. |
+
+---
+
+## 🛠️ Tech Stack & Dependencies
+
+### Frontend Framework & Architecture
+- **Framework**: Flutter 3.6+ / Dart 3.6+
+- **State Management**: Reactive state handling with `Provider` (`AuthProvider`, `CycleProvider`, `ThemeProvider`, `AIProvider`, `PrivacyProvider`).
+- **Design System**: Material 3, custom glassmorphism, dynamic dark/light themes, custom animations (`lottie`, `shimmer`, `flutter_staggered_animations`).
+
+### Core Packages & Libraries
+| Package | Version | Purpose |
+| :--- | :--- | :--- |
+| `supabase_flutter` | `^2.12.0` | Authentication, PostgreSQL Database, Realtime Subscriptions |
+| `hive` / `hive_flutter` | `^2.2.3` | Local-First encrypted NoSQL database (AES-256) |
+| `flutter_secure_storage` | `^10.0.0` | Secure storage for master encryption keys |
+| `google_generative_ai` | `^0.4.7` | Google Gemini AI integration |
+| `health` | `^13.3.1` | Google Health Connect & Apple HealthKit sync |
+| `fl_chart` | `^1.1.1` | Smooth trend visualization for BBT, mood, and sleep |
+| `razorpay_flutter` | `^1.4.5` | In-app subscription payment processing |
+| `flutter_local_notifications` | `^21.0.0` | Scheduled & push local notifications |
+| `shorebird_code_push` | `^2.0.6` | Over-the-air code deployment |
+| `local_auth` | `^2.3.0` | Biometric authentication (Fingerprint / Face ID) |
+| `geolocator` | `^13.0.2` | GPS-based doctor discovery |
+| `pdf` & `printing` | `^3.11.3` | Clinical report PDF generation & printing |
+
+---
+
+## 📐 Architecture & Design Patterns
+
+Lunara adheres to **Clean Layered Architecture** with strict separation of concerns:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Presentation Layer                   │
+│   (Flutter Widgets, Custom Components, Theme System)    │
+└────────────────────────────┬────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────┐
+│                  State Management Layer                 │
+│  (AuthProvider, CycleProvider, AIProvider, Privacy)     │
+└────────────────────────────┬────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────┐
+│                      Service Layer                      │
+│ (MenstrualIntelligence, Health, Notification, AI, PDF)  │
+└──────────────┬───────────────────────────┬──────────────┘
+               │                           │
+┌──────────────▼─────────────┐   ┌─────────▼──────────────┐
+│  Local-First Data (Hive)   │   │  Cloud Backend         │
+│  (Encrypted AES-256 Boxes) │   │  (Supabase Auth & RLS) │
+└────────────────────────────┘   └────────────────────────┘
+```
+
+### Why Hive over SharedPreferences?
+1. **Security**: Native AES-256 disk encryption (`HiveAesCipher`) protects sensitive reproductive health logs.
+2. **Speed & Memory**: In-memory binary storage provides ultra-low latency reads required for chart rendering.
+3. **Structured Objects**: TypeAdapters allow direct storage of strongly-typed Dart domain models without JSON serialization overhead.
+
+---
+
+## 📁 Repository Structure
+
+```
+lunara/
+├── android/                        # Native Android project configuration
+├── ios/                            # Native iOS project configuration
+├── assets/                         # Graphic assets, icons, and Lottie animations
+├── lib/
+│   ├── config/                     # Environment configuration & error rules
+│   │   ├── app_config.dart
+│   │   ├── app_errors.dart
+│   │   ├── env.dart                # Git-ignored API keys config
+│   │   └── env.example.dart        # Environment template file
+│   ├── features/                   # Modular domain features
+│   │   ├── auth/                   # Authentication logic & state
+│   │   └── privacy/                # Ghost Mode local privacy engine & lock screen
+│   ├── models/                     # Data models (User, Cycle, Assessment, Post, etc.)
+│   ├── providers/                  # Provider state controllers (Cycle, Auth, Theme, AI)
+│   ├── screens/                    # Application UI screens (35+ screens)
+│   │   ├── main_screen.dart        # Shell navigation container
+│   │   ├── calendar_screen.dart    # Cycle calendar & period logging
+│   │   ├── insights_screen.dart    # Trend analytics & charts
+│   │   ├── ai_chat_screen.dart     # AI Health Companion interface
+│   │   ├── community_screen.dart   # Community discussion board
+│   │   ├── partner_sync_screen.dart# Real-time partner synchronization
+│   │   ├── wellness_plan_screen.dart# Custom AI wellness plans
+│   │   └── ...                     # Additional detail & settings screens
+│   ├── services/                   # Business logic & infrastructure abstractions
+│   │   ├── menstrual_intelligence_service.dart # Cycle calculation engine
+│   │   ├── app_notification_service.dart       # Local notification manager
+│   │   ├── health_service.dart                 # HealthKit / Health Connect interface
+│   │   ├── database_service.dart               # Supabase CRUD operations
+│   │   ├── groq_service.dart                   # Fallback AI service
+│   │   ├── pdf_export_service.dart             # PDF report generator
+│   │   ├── razorpay_service.dart               # Payment gateway handler
+│   │   ├── logger_service.dart                 # Centralized error logging
+│   │   └── database/
+│   │       └── hive_service.dart              # Encrypted local persistence
+│   ├── theme/                      # App theme palettes & typography
+│   ├── utils/                      # Helper methods, date formatters, and validators
+│   ├── widgets/                    # Reusable custom UI components
+│   └── main.dart                   # Application bootstrap with global error zoning
+├── lunara-backend/                 # Node.js/Express admin & utility backend
+│   ├── src/
+│   │   ├── controllers/            # Route handlers
+│   │   ├── middleware/             # JWT & validation middleware
+│   │   └── models/                 # Sequelize database models
+│   └── package.json
+├── supabase/                       # Supabase local migration & edge functions
+├── LUNARA_TECHNICAL_REPORT.md      # Detailed technical architecture report
+├── SHOREBIRD_RUNBOOK.md            # Over-the-air patching deployment guide
+├── supabase_rls_policies.sql       # PostgreSQL Row-Level Security policies
+├── pubspec.yaml                    # Flutter project manifest & dependencies
+├── shorebird.yaml                  # Shorebird OTA release configuration
+└── README.md                       # Project documentation
+```
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Flutter SDK `>=3.6.0`
-- Dart SDK `>=3.6.0`
-- Android Studio / VS Code with Flutter extension
-- A [Supabase](https://supabase.com) project
-- (Optional) A Google Gemini API key
+Ensure you have the following installed on your developer machine:
+- **Flutter SDK**: `>=3.6.0` ([Installation Guide](https://docs.flutter.dev/get-started/install))
+- **Dart SDK**: `>=3.6.0`
+- **Android Studio** / **VS Code** with Flutter and Dart extensions
+- **Supabase Account**: A active Supabase project ([Supabase Dashboard](https://supabase.com))
+- **Google Gemini API Key**: ([Google AI Studio](https://aistudio.google.com/))
 
-### Installation
+---
 
-1. **Clone the repository:**
+### Installation & Environment Setup
+
+1. **Clone the Repository:**
    ```bash
    git clone https://github.com/himanksharma8434-coder/Lunara.git
-   cd lunara
+   cd Lunara/lunara
    ```
 
-2. **Install dependencies:**
+2. **Install Dependencies:**
    ```bash
    flutter pub get
    ```
 
-3. **Set up environment variables:**
+3. **Configure Environment Variables:**
 
-   Copy the example config and add your keys:
+   Create a `.env` file in the root of `lunara/` or copy the example template:
    ```bash
    cp lib/config/env.example.dart lib/config/env.dart
    ```
-   Edit `lib/config/env.dart` with your Supabase URL, anon key, and Gemini API key.
-
-   Alternatively, use `--dart-define` at build time:
-   ```bash
-   flutter run \
-     --dart-define=GEMINI_API_KEY=your_key \
-     --dart-define=SUPABASE_URL=your_url \
-     --dart-define=SUPABASE_ANON_KEY=your_anon_key
+   Populate your keys in `.env` (or `lib/config/env.dart`):
+   ```env
+   SUPABASE_URL=https://your-supabase-project.supabase.co
+   SUPABASE_ANON_KEY=your-supabase-anon-key
+   GEMINI_API_KEY=your-google-gemini-api-key
+   GROQ_API_KEY=your-groq-api-key
+   RAZORPAY_KEY_ID=your-razorpay-key-id
    ```
 
-4. **Run the app:**
+   Alternatively, supply variables directly during compilation:
+   ```bash
+   flutter run \
+     --dart-define=SUPABASE_URL=your_url \
+     --dart-define=SUPABASE_ANON_KEY=your_anon_key \
+     --dart-define=GEMINI_API_KEY=your_gemini_key
+   ```
+
+4. **Database & RLS Setup:**
+   Run the contents of `supabase_rls_policies.sql` in your Supabase SQL Editor to configure Row Level Security for all tables.
+
+5. **Run the Application:**
    ```bash
    flutter run
    ```
 
-### Running Tests
+---
 
+## 🧪 Testing & Code Quality
+
+Run the automated unit and widget test suite:
 ```bash
 flutter test
 ```
 
----
-
-## Project Structure 📁
-
-```
-lib/
-├── config/           # App configuration & environment variables
-├── models/           # Data models (User, Cycle, Assessment, etc.)
-├── providers/        # State management (Auth, Cycle, Theme, AI)
-├── screens/          # All app screens (27 screens)
-├── services/         # Backend services (DB, Health, Notifications, PDF, Logging)
-├── theme/            # App theming (light/dark)
-├── widgets/          # Reusable UI components
-└── main.dart         # App entry point with global error handling
+Run static code analysis and linter checks:
+```bash
+flutter analyze
 ```
 
 ---
 
-## Key Screens
+## ⚡ Over-The-Air (OTA) Updates with Shorebird
 
-- **Home** — Cycle overview, daily metrics, AI insights
-- **Calendar** — Interactive cycle calendar with period logging
-- **Insights** — Trend charts (mood, sleep, symptoms, steps)
-- **AI Chat** — Ask health questions with Gemini-powered responses
-- **Profile** — Account settings, health sync, partner link, PDF export
+Lunara utilizes **Shorebird Code Push** to push Dart fixes directly to end users without requiring App Store or Google Play re-reviews.
 
----
+- **Initial Release Build**:
+  ```bash
+  shorebird release android
+  shorebird release ios
+  ```
 
-## Security & Privacy 🔒
-
-- SSL certificate validation enforced (no insecure overrides)
-- Global error handling via `runZonedGuarded` + `FlutterError.onError`
-- Centralized logging with `LoggerService` (Crashlytics-ready)
-- API keys stored in git-ignored `env.dart`, not hardcoded
-- Health data access requires explicit user permission
-
----
-
-## License
-
-This project is private. All rights reserved.
+- **Deploying a Patch**:
+  ```bash
+  shorebird patch android
+  shorebird patch ios
+  ```
+*Refer to [`EDUCATIONAL_GUIDE.md`](file:///d:/Lunara/lunara/EDUCATIONAL_GUIDE.md) for step-by-step technical educational concepts and [`SHOREBIRD_RUNBOOK.md`](file:///d:/Lunara/lunara/SHOREBIRD_RUNBOOK.md) for full patch compliance instructions.*
 
 ---
 
-Built with ❤️ for better health tracking.
+## 🔒 Security & Compliance
+
+- **Zero-Knowledge Local Storage**: All personal cycle logs and health entries in Ghost Mode are encrypted using AES-256 before disk writes.
+- **Row Level Security (RLS)**: PostgreSQL tables strictly enforce `auth.uid() = user_id` access controls in Supabase.
+- **SSL / TLS Pinning & Transport Security**: Secure communication enforced across all external network calls.
+- **Global Error Guarding**: Production runtime exceptions are captured silently via `runZonedGuarded` and `FlutterError.onError` without crashing the application.
+
+---
+
+## 📄 License & Attribution
+
+This project is proprietary software. All rights reserved.
+
+Built with ❤️ for privacy, health empowerment, and intelligent cycle care.
