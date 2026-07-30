@@ -114,13 +114,15 @@ class AppNotificationService extends ChangeNotifier {
     final now = DateTime.now();
     final localOffsetMs = now.timeZoneOffset.inMilliseconds;
     for (final loc in tz.timeZoneDatabase.locations.values) {
-      final dynamic tzOffsetMs = loc.timeZone(now.millisecondsSinceEpoch).offset;
-      if (tzOffsetMs == localOffsetMs) {
-        return loc;
-      }
+      try {
+        final dynamic tzOffsetMs = loc.timeZone(now.millisecondsSinceEpoch).offset;
+        if (tzOffsetMs == localOffsetMs) {
+          return loc;
+        }
+      } catch (_) {}
     }
 
-    return tz.getLocation('UTC');
+    return tz.local;
   }
 
   // ─── AUTHORIZATION CHECK ─────────────────────────
@@ -222,8 +224,8 @@ class AppNotificationService extends ChangeNotifier {
   AndroidNotificationDetails _buildAndroidDetails({
     required String channelId,
     required String channelName,
-    Importance importance = Importance.defaultImportance,
-    Priority priority = Priority.defaultPriority,
+    Importance importance = Importance.max,
+    Priority priority = Priority.high,
     List<AndroidNotificationAction>? actions,
   }) {
     return AndroidNotificationDetails(
@@ -234,6 +236,9 @@ class AppNotificationService extends ChangeNotifier {
       icon: '@mipmap/ic_launcher',
       largeIcon: null, // No image on the right side
       actions: actions,
+      color: const Color(0xFFFF8989),
+      playSound: true,
+      enableVibration: true,
     );
   }
 
@@ -397,8 +402,12 @@ class AppNotificationService extends ChangeNotifier {
         AndroidFlutterLocalNotificationsPlugin>();
     if (androidImpl != null) {
       final notif = await androidImpl.requestNotificationsPermission();
-      final exact = await androidImpl.requestExactAlarmsPermission();
-      androidGranted = (notif ?? false) && (exact ?? true);
+      try {
+        await androidImpl.requestExactAlarmsPermission();
+      } catch (e) {
+        debugPrint('Error requesting exact alarms permission: $e');
+      }
+      androidGranted = notif ?? false;
     }
 
     final iosImpl = _notifications.resolvePlatformSpecificImplementation<
@@ -500,8 +509,11 @@ class AppNotificationService extends ChangeNotifier {
       await _notifications.cancel(id: 200 + i);
       await _notifications.cancel(id: 210 + i);
     }
-    // Cancel timed insights
+    // Cancel timed insights (legacy range 500..600 and deterministic range 3000..6500)
     for (int id = 500; id < 600; id++) {
+      await _notifications.cancel(id: id);
+    }
+    for (int id = 3000; id < 6500; id++) {
       await _notifications.cancel(id: id);
     }
   }
@@ -643,7 +655,9 @@ class AppNotificationService extends ChangeNotifier {
             final hour = int.tryParse(timeMatch.group(1)!) ?? 9;
             final minute = int.tryParse(timeMatch.group(2)!) ?? 0;
             final cleanContent = timeMatch.group(3)!;
+            final dbId = item['id'] as int? ?? timedInsights.length;
             timedInsights.add({
+              'id': dbId,
               'hour': hour,
               'minute': minute,
               'content': cleanContent,
@@ -714,12 +728,13 @@ class AppNotificationService extends ChangeNotifier {
       );
     }
 
-    // Schedule timed insights
-    int timedIdOffset = 500;
+    // Schedule timed insights with deterministic unique IDs per insight & day
+    int insightIndex = 0;
     for (final insight in timedInsights) {
       final hour = insight['hour'] as int;
       final minute = insight['minute'] as int;
       final content = insight['content'] as String;
+      final itemId = insight['id'] as int? ?? insightIndex;
 
       for (int i = 0; i < 7; i++) {
         var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day + i, hour, minute);
@@ -727,25 +742,26 @@ class AppNotificationService extends ChangeNotifier {
           continue;
         }
 
-        if (timedIdOffset >= 600) break;
+        // Generate deterministic unique notification ID per insight and per day (range 3000..6500)
+        final notifId = 3000 + ((itemId.abs() % 450) * 7) + i;
 
         await _scheduleZonedNotification(
-          id: timedIdOffset,
-          title: 'New Health Insight 🌸',
+          id: notifId,
+          title: 'Custom Health Insight 🌸',
           body: content,
           scheduledDate: scheduledDate,
           notificationDetails: NotificationDetails(
             android: _buildAndroidDetails(
-              channelId: 'guidance_channel',
-              channelName: 'Daily Health Insights',
-              importance: Importance.high,
+              channelId: 'custom_channel',
+              channelName: 'Custom Timed Reminders',
+              importance: Importance.max,
               priority: Priority.high,
             ),
             iOS: const DarwinNotificationDetails(),
           ),
         );
-        timedIdOffset++;
       }
+      insightIndex++;
     }
   }
 

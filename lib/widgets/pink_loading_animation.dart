@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'package:shimmer/shimmer.dart';
 import '../theme/app_theme.dart';
 
 class PinkLoadingAnimation extends StatefulWidget {
