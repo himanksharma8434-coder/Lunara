@@ -186,6 +186,9 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
               final name = controller.text.trim();
               if (name.isNotEmpty) {
                 provider.setUserName(name);
+                try {
+                  context.read<AuthProvider>().setUserName(name);
+                } catch (_) {}
                 Navigator.pop(ctx);
               }
             },

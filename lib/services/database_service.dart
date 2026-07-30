@@ -84,17 +84,22 @@ class DatabaseService {
         'tracking_for_others': trackingForOthers,
         'tracked_person_name': trackedPersonName,
         'tracked_person_relation': trackedPersonRelation,
-        'updated_at': DateTime.now().toIso8601String(),
       };
 
-      try {
-        await _db.from('users').insert({'uid': uid, ...updateData});
-      } catch (_) {
-        await _db.from('users').update(updateData).eq('uid', uid);
-      }
-      
-      // Also update denormalized author names in community tables
+      // Use upsert to update or insert user profile cleanly
+      await _db.from('users').upsert({'uid': uid, ...updateData}, onConflict: 'uid');
+
+      // Also sync user name to Supabase Auth metadata
       if (name.isNotEmpty) {
+        try {
+          await _db.auth.updateUser(
+            UserAttributes(data: {'name': name, 'full_name': name}),
+          );
+        } catch (e) {
+          debugPrint('Error updating Auth user metadata: $e');
+        }
+
+        // Also update denormalized author names in community tables
         try {
           await _db.from('community_posts').update({'author_name': name}).eq('author_id', uid);
           await _db.from('community_comments').update({'author_name': name}).eq('author_id', uid);

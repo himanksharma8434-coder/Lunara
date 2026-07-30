@@ -546,7 +546,27 @@ class AuthProvider with ChangeNotifier {
     final uid = _supabase.auth.currentUser?.id;
     if (uid != null) {
       try {
-        await _supabase.from('users').update({'name': name}).eq('uid', uid);
+        // Update user metadata in Supabase Auth
+        await _supabase.auth.updateUser(
+          UserAttributes(data: {'name': name, 'full_name': name}),
+        );
+      } catch (e) {
+        debugPrint('Could not update Auth user metadata: $e');
+      }
+
+      try {
+        // Upsert user name in users database table
+        await _supabase.from('users').upsert(
+          {'uid': uid, 'name': name},
+          onConflict: 'uid',
+        );
+
+        // Update denormalized community posts/comments
+        try {
+          await _supabase.from('community_posts').update({'author_name': name}).eq('author_id', uid);
+          await _supabase.from('community_comments').update({'author_name': name}).eq('author_id', uid);
+        } catch (_) {}
+
         await CacheService.instance.clearCache('api_cache_user_profile_$uid');
       } catch (e) {
         debugPrint('Could not save user name to database: $e');

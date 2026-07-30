@@ -80,10 +80,15 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     setState(() => _isSaving = true);
 
     final provider = Provider.of<CycleProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final newName = _nameController.text.trim();
 
     try {
+      if (newName.isNotEmpty) {
+        await authProvider.setUserName(newName);
+      }
       await provider.updateProfile(
-        name: _nameController.text.trim(),
+        name: newName,
         gender: _selectedGender,
         age: int.tryParse(_ageController.text) ?? provider.age,
         height: int.tryParse(_heightController.text) ?? provider.height,
