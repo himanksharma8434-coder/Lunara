@@ -2520,16 +2520,6 @@ class StatsRowWidget extends StatelessWidget {
             color: LunaraColors.fertileGreen,
             value: '$dailySteps',
             delay: 100,
-            onTap: () {
-              if (provider.isViewingPartner) {
-                CustomToast.show(context,
-                    message: "It would be better if your partner logs it",
-                    icon: Icons.info_outline,
-                    backgroundColor: Colors.blueGrey);
-                return;
-              }
-              onShowEditStatDialog('Steps');
-            },
           ),
         ),
       ],

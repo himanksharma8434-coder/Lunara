@@ -125,10 +125,7 @@ class AppNotificationService extends ChangeNotifier {
     return tz.local;
   }
 
-  // ─── AUTHORIZATION CHECK ─────────────────────────
-  // Verifies notification permissions are actually granted before scheduling.
-  // On iOS this prevents scheduling into the void when the user has denied.
-  // On Android this checks both POST_NOTIFICATIONS and exact alarm status.
+
   Future<bool> _checkNotificationAuthorization() async {
     if (Platform.isIOS) {
       final iosImpl = _notifications.resolvePlatformSpecificImplementation<
