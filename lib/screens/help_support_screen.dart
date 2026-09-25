@@ -122,8 +122,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
 
       String? aiReply;
       String status = 'pending_manual_review';
-
-      // ─── AI REPLY LOGIC FOR QUESTIONS ───
+      
       if (_selectedCategory == 'Question') {
         if (AppConfig.groqApiKey.isEmpty) {
           aiReply = "Configuration Error: Groq API key is missing. Please check your setup.";
